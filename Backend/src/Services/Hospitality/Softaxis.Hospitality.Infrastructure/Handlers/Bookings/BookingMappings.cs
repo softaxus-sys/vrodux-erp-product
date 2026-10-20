@@ -10,5 +10,8 @@ internal static class BookingMappings
         b.GuestName, b.GuestEmail, b.GuestPhone, b.GuestNationality,
         b.CheckIn, b.CheckOut, b.Nights, b.Adults, b.Children,
         b.RatePerNight, b.TotalAmount, b.PaidAmount, b.Balance,
-        b.Status, b.Source, b.SpecialRequests);
+        b.Status, b.Source, b.SpecialRequests,
+        b.GuestId, b.RoomTypeId, b.RatePlanId, b.RatePlanName, b.MealPlan,
+        b.RoomCharge, b.ExtrasTotal, b.DiscountAmount, b.ServiceAmount, b.TaxAmount, b.FeeAmount,
+        b.CancelReason, b.Notes, b.ActualCheckInAt, b.ActualCheckOutAt, b.CreatedAt);
 }

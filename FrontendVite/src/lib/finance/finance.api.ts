@@ -131,6 +131,24 @@ export interface AccountTypeDto {
   isActive: boolean;
 }
 
+/** A ledger line on the bank account's ledger account. `in` = money into the bank (a debit). */
+export interface ReconBookItemDto {
+  journalLineId: string; journalEntryId: string; entryNumber: string; date: string;
+  description: string; amount: number; in: boolean;
+}
+export interface ReconBankItemDto {
+  id: string; date: string; description: string; reference: string; amount: number; in: boolean;
+  suggestions: string[];
+}
+export interface ReconciliationDto {
+  bankAccountId: string; accountName: string; currency: string;
+  ledgerAccountId: string | null; ledgerAccountNumber: string | null; ledgerAccountName: string | null;
+  statementBalance: number; bookBalance: number; difference: number;
+  unmatchedBankNet: number; unmatchedBookNet: number; matchedCount: number;
+  windowDays: number; truncated: boolean;
+  unmatchedBank: ReconBankItemDto[]; unmatchedBook: ReconBookItemDto[];
+}
+
 export interface AccountDto {
   id: string;
   accountNumber: string;
@@ -203,6 +221,7 @@ export interface BankAccountDto {
   status: "active" | "inactive";
   accountType: "current" | "savings";
   lastSynced: string;
+  ledgerAccountId?: string | null;
 }
 
 export interface BankTransactionDto {
@@ -216,6 +235,8 @@ export interface BankTransactionDto {
   category: string;
   reconciled: boolean;
   balance: number;
+  matchedEntryNumber?: string | null;
+  matchedJournalEntryId?: string | null;
 }
 
 /** Server-side paging for the statement list — a bank feed only ever grows. */
@@ -291,6 +312,8 @@ export interface ExpenseDto {
   reference?: string;
   hasReceipt?: boolean;
   receiptFileName?: string | null;
+  /** Set when a recurring template generated this expense. */
+  recurringExpenseId?: string | null;
 }
 
 export interface ExpensesSummaryDto {
@@ -898,6 +921,15 @@ export const financeApi = {
   createBankAccount:      (data: CreateBankAccountRequest): Promise<unknown> => rawApiClient.post(`${BASE}/banking/accounts`, data),
   createBankTransaction:  (data: CreateBankTransactionRequest): Promise<unknown> => rawApiClient.post(`${BASE}/banking/transactions`, data),
   reconcileTransaction:   (id: string): Promise<void> => rawApiClient.post(`${BASE}/banking/transactions/${id}/reconcile`),
+  getReconciliation:      (accountId: string, windowDays = 5): Promise<ReconciliationDto> =>
+    rawApiClient.get(`${BASE}/banking/accounts/${accountId}/reconciliation?windowDays=${windowDays}`),
+  setBankLedgerAccount:   (accountId: string, ledgerAccountId: string | null): Promise<void> =>
+    rawApiClient.put(`${BASE}/banking/accounts/${accountId}/ledger-account`, { ledgerAccountId }),
+  matchBankTransaction:   (id: string, journalLineId: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/banking/transactions/${id}/match`, { journalLineId }),
+  unmatchBankTransaction: (id: string): Promise<void> => rawApiClient.post(`${BASE}/banking/transactions/${id}/unmatch`),
+  autoMatchBank:          (accountId: string, windowDays = 5): Promise<number> =>
+    rawApiClient.post(`${BASE}/banking/accounts/${accountId}/auto-match?windowDays=${windowDays}`),
 
   // Budgeting
   getBudgets: (p: BudgetPageParams = {}): Promise<PagedResult<BudgetDto>> => {
@@ -1061,4 +1093,73 @@ export const financeApi = {
     rawApiClient.post(`${BASE}/recurring-invoices/${id}/generate`),
   runDueRecurring:        (): Promise<{ generated: number; emailed: number; emailFailed: number }> =>
     rawApiClient.post(`${BASE}/recurring-invoices/run-due`),
+
+  // Recurring expenses
+  getRecurringExpenses:    (): Promise<RecurringExpenseDto[]> => rawApiClient.get(`${BASE}/recurring-expenses`),
+  createRecurringExpense:  (data: CreateRecurringExpenseRequest): Promise<RecurringExpenseDto> =>
+    rawApiClient.post(`${BASE}/recurring-expenses`, data),
+  updateRecurringExpense:  (id: string, data: UpdateRecurringExpenseRequest): Promise<void> =>
+    rawApiClient.put(`${BASE}/recurring-expenses/${id}`, data),
+  deleteRecurringExpense:  (id: string): Promise<void> => rawApiClient.delete(`${BASE}/recurring-expenses/${id}`),
+  pauseRecurringExpense:   (id: string): Promise<void> => rawApiClient.post(`${BASE}/recurring-expenses/${id}/pause`),
+  resumeRecurringExpense:  (id: string): Promise<void> => rawApiClient.post(`${BASE}/recurring-expenses/${id}/resume`),
+  generateRecurringExpenseNow: (id: string): Promise<GenerateRecurringExpenseResult> =>
+    rawApiClient.post(`${BASE}/recurring-expenses/${id}/generate`),
+  runDueRecurringExpenses: (): Promise<{ generated: number; posted: number; heldForReview: number }> =>
+    rawApiClient.post(`${BASE}/recurring-expenses/run-due`),
 };
+
+// ─── Recurring expenses ───────────────────────────────────────────────────────
+
+export type RecurringFrequency = "weekly" | "monthly" | "quarterly" | "yearly";
+/** Decides which ledger account the payment credits: cash, otherwise the bank account. */
+export type RecurringExpensePaidFrom = "bank" | "card" | "cash" | "cheque";
+
+export interface RecurringExpenseDto {
+  id: string;
+  templateName: string;
+  category: string;
+  amount: number;
+  vendor?: string | null;
+  paymentMethod: RecurringExpensePaidFrom;
+  frequency: RecurringFrequency;
+  startDate: string;
+  endDate?: string | null;
+  nextRunDate: string;
+  /** On = generated expenses are approved, paid and posted to the ledger with no review. */
+  autoPost: boolean;
+  reference?: string | null;
+  notes?: string | null;
+  isActive: boolean;
+  lastGeneratedDate?: string | null;
+  generatedCount: number;
+  /** Ledger account debited (the cost). Null = chosen from the category. */
+  expenseAccountId?: string | null;
+  /** Ledger account credited (where the money comes from). Null = cash or the main bank account. */
+  paymentAccountId?: string | null;
+}
+
+interface RecurringExpenseFields {
+  templateName: string;
+  category: string;
+  amount: number;
+  vendor?: string;
+  paymentMethod: RecurringExpensePaidFrom;
+  frequency: RecurringFrequency;
+  endDate?: string;
+  autoPost: boolean;
+  reference?: string;
+  notes?: string;
+  expenseAccountId?: string | null;
+  paymentAccountId?: string | null;
+}
+export interface CreateRecurringExpenseRequest extends RecurringExpenseFields { startDate: string; }
+export interface UpdateRecurringExpenseRequest extends RecurringExpenseFields { nextRunDate: string; }
+
+export interface GenerateRecurringExpenseResult {
+  expenseId: string;
+  expenseNumber: string;
+  status: ExpenseStatus;
+  /** Set when an auto-post template could not post and the expense was left for review. */
+  message?: string | null;
+}

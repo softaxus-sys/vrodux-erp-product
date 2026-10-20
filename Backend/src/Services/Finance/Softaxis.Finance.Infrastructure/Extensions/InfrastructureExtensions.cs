@@ -70,6 +70,9 @@ public static class InfrastructureExtensions
         services.Configure<UaeVat.UaeVatOptions>(configuration.GetSection(UaeVat.UaeVatOptions.Section));
         services.AddScoped<Softaxis.Finance.Application.UaeVat.IUaeVatSubmissionGateway,
             UaeVat.UnavailableUaeVatSubmissionGateway>();
+        // Finance Integration Center: collects other modules' documents and posts them to the ledger.
+        services.AddScoped<Integrations.PostingEngine>();
+        services.AddHostedService<Integrations.PostingQueueHostedService>();
 
         services.AddHostedService<Services.RecurringInvoiceHostedService>();
         services.AddHostedService<Services.ExchangeRateRefreshService>();

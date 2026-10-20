@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Package, Truck, CheckCircle2, Clock, Ban,
-  Calendar, DollarSign, Loader2, User, Trash2,
+  Calendar, DollarSign, Loader2, User, Trash2, Factory,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
@@ -11,6 +11,10 @@ import { useCurrency } from "@/hooks/use-currency";
 import { useSalesOrder, useDeleteSalesOrder } from "@/hooks/sales/use-sales-orders";
 import { Can } from "@/components/auth/can";
 import type { SalesOrderSummaryDto } from "@/lib/pos/types";
+import { useModuleLink } from "@/hooks/manufacturing/use-manufacturing-links";
+import { useProductionOrdersByReference } from "@/hooks/manufacturing/use-manufacturing";
+import { orderStatusMeta as productionStatusMeta } from "@/lib/manufacturing/manufacturing.api";
+import { PlanFromSalesOrderModal } from "@/modules/manufacturing/orders/components/plan-from-sales-order";
 
 interface Props { order: SalesOrderSummaryDto | null; open: boolean; onClose: () => void; }
 
@@ -35,7 +39,13 @@ export function OrderDrawer({ order, open, onClose }: Props) {
   const currency = useCurrency();
   const [tab, setTab] = React.useState<Tab>("overview");
   const [confirmDelete, setConfirmDelete] = React.useState(false);
-  React.useEffect(() => { if (open) { setTab("overview"); setConfirmDelete(false); } }, [open]);
+  // Only for tenants that also run Manufacturing, and users who may plan production there.
+  const { t: tm } = useTranslation("manufacturing");
+  const canPlanProduction = useModuleLink("manufacturing", "manufacturing.orders.create");
+  const [planning, setPlanning] = React.useState(false);
+  const canSeeProduction = useModuleLink("manufacturing", "manufacturing.orders.view");
+  const { data: production = [] } = useProductionOrdersByReference(order?.orderNumber, canSeeProduction && open);
+  React.useEffect(() => { if (open) { setTab("overview"); setConfirmDelete(false); setPlanning(false); } }, [open]);
 
   const { data: full, isLoading } = useSalesOrder(order?.id ?? "");
   const deleteMutation = useDeleteSalesOrder();
@@ -46,6 +56,10 @@ export function OrderDrawer({ order, open, onClose }: Props) {
   const StatusIcon = sc.icon;
 
   return (
+    <>
+    <AnimatePresence>
+      {planning && full && <PlanFromSalesOrderModal order={full} onClose={() => setPlanning(false)} />}
+    </AnimatePresence>
     <AnimatePresence>
       {open && (
         <>
@@ -195,9 +209,31 @@ export function OrderDrawer({ order, open, onClose }: Props) {
               </div>
             )}
 
+            {production.length > 0 && (
+              <div className="px-4 py-3 border-t border-border space-y-1.5">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{tm("salesLink.production")}</p>
+                {production.map(p => {
+                  const meta = productionStatusMeta(p.status);
+                  return (
+                    <div key={p.id} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="min-w-0 truncate">{p.productName} <span className="text-[11px] text-muted-foreground">{p.orderNumber}</span></span>
+                      <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold shrink-0", meta.color, meta.bg)}>
+                        {tm(`orderStatus.${p.status}`, { defaultValue: p.status })}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Footer */}
             <div className="p-4 border-t border-border flex items-center gap-2">
               <Button variant="outline" className="h-9" onClick={onClose}>{t("orders.drawer.button.close")}</Button>
+              {canPlanProduction && full && ["pending", "confirmed"].includes(order.status) && (
+                <Button variant="outline" className="h-9 gap-1.5" onClick={() => setPlanning(true)}>
+                  <Factory className="h-3.5 w-3.5" />{tm("salesLink.button")}
+                </Button>
+              )}
               {["pending", "cancelled"].includes(order.status) && (
                 <Can permission="sales.orders.edit">{
                 confirmDelete ? (
@@ -222,6 +258,7 @@ export function OrderDrawer({ order, open, onClose }: Props) {
         </>
       )}
     </AnimatePresence>
+    </>
   );
 }
 

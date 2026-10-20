@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.Identity.Domain.Entities;
+using Softaxis.Identity.Domain.Enums;
 using Softaxis.Identity.Domain.Repositories;
 
 namespace Softaxis.Identity.Infrastructure.Persistence.Repositories;
@@ -36,6 +37,7 @@ public sealed class UserRepository(IdentityDbContext db) : IUserRepository
         string? search = null,
         string? sortBy = null, bool sortDesc = false,
         Guid? tenantId = null,
+        string? roleName = null,
         CancellationToken ct = default)
     {
         var query = db.Users.AsNoTracking()
@@ -45,6 +47,14 @@ public sealed class UserRepository(IdentityDbContext db) : IUserRepository
         // Tenant scoping — non-super-admin callers only see their own tenant's users.
         if (tenantId.HasValue)
             query = query.Where(u => u.TenantId == tenantId.Value);
+
+        // Pickers that want one job only (e.g. "who is serving" lists waiters). Combined with the
+        // tenant scope above, so a same-named role in another workspace can never match.
+        if (!string.IsNullOrWhiteSpace(roleName))
+        {
+            var role = roleName.Trim();
+            query = query.Where(u => u.UserRoles.Any(ur => ur.Role.Name == role));
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -74,6 +84,11 @@ public sealed class UserRepository(IdentityDbContext db) : IUserRepository
 
     public Task<int> CountByTenantAsync(Guid tenantId, CancellationToken ct = default) =>
         db.Users.CountAsync(u => u.TenantId == tenantId, ct);
+
+    public Task<int> CountSeatsAsync(Guid tenantId, CancellationToken ct = default) =>
+        db.Users.CountAsync(u => u.TenantId == tenantId
+                              && !u.IsSuperAdmin
+                              && u.Status != UserStatus.Inactive, ct);
 
     public void Add(User user)    => db.Users.Add(user);
     public void Update(User user) => db.Users.Update(user);

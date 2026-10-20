@@ -26,6 +26,8 @@ public sealed class POSDbContext(DbContextOptions<POSDbContext> options, IMediat
     public DbSet<CustomerGroup>       CustomerGroups       => Set<CustomerGroup>();
     public DbSet<Voucher>             Vouchers             => Set<Voucher>();
     public DbSet<CashMovement>        CashMovements        => Set<CashMovement>();
+    public DbSet<CreditReminderSettings> CreditReminderSettings => Set<CreditReminderSettings>();
+    public DbSet<CreditReminderLog>   CreditReminderLogs   => Set<CreditReminderLog>();
     public DbSet<PosSettings>         PosSettings          => Set<PosSettings>();
     public DbSet<OfflineSyncBatch>    OfflineSyncBatches   => Set<OfflineSyncBatch>();
     public DbSet<PosTillStatus>       PosTillStatuses      => Set<PosTillStatus>();

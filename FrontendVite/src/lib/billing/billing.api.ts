@@ -34,6 +34,10 @@ export interface PlanOptionDto {
   selfServe: boolean;
   isCurrent: boolean;
   modules: string[];
+  /** GB included in the shared object-storage bucket. -1 = unlimited. */
+  storageGb: number;
+  /** Why this tier cannot be bought right now ("You have 42 active users. Pick the 50-user tier…"); null when it fits. */
+  tooSmallReason?: string | null;
 }
 
 export interface BillingOverviewDto {
@@ -47,8 +51,12 @@ export interface BillingOverviewDto {
   hasProductAccess: boolean;
   /** True only for a "Buy Now" signup that never paid and has never had a trial. */
   canStartTrial: boolean;
+  /** Seats in use — deactivated users do not count. */
   usersInUse: number;
+  /** -1 = unlimited. Always -1 while on a free trial. */
   maxUsers: number;
+  /** A paying tenant with more seats in use than its plan allows. Nobody is switched off. */
+  seatsOverLimit?: boolean;
   subscription: SubscriptionDto | null;
   plans: PlanOptionDto[];
   /** Providers with credentials configured server-side — only these should be offered. */
@@ -87,7 +95,7 @@ export const billingApi = {
   /** Stripe-hosted billing portal (update card, change plan, cancel). */
   portal: (): Promise<CheckoutSessionDto> => apiClient.post(`${BASE}/portal`, {}),
 
-  /** Claim the 30-day trial — only valid for a "Buy Now" signup that never paid. */
+  /** Claim the free trial (TRIAL_DAYS days) — only valid for a "Buy Now" signup that never paid. */
   startTrial: (): Promise<void> => apiClient.post(`${BASE}/start-trial`, {}),
 
   /** Defaults to end-of-period so the customer keeps what they already paid for. */

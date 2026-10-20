@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useBillingOverview } from "@/hooks/billing/use-billing";
 import { useQueryClient } from "@tanstack/react-query";
+import { loadMetaPixel, trackPixelEvent } from "@/lib/analytics/meta-pixel";
 
 /**
  * Landing page after returning from Stripe/PayPal.
@@ -26,6 +27,11 @@ export default function CheckoutResultPage() {
 
   const confirmed = !!overview?.subscription?.grantsAccess && overview.hasProductAccess;
 
+  // Meta Pixel — scoped to this page only, same as onboarding. Fires regardless of outcome
+  // (useful to see funnel drop-off on "cancelled" too); the real conversion is the separate
+  // Purchase event below, fired only once payment is actually confirmed.
+  React.useEffect(() => { loadMetaPixel(); trackPixelEvent("PageView"); }, []);
+
   // Webhooks usually land within a couple of seconds, but can lag. Poll briefly, then stop
   // and reassure rather than spinning forever.
   React.useEffect(() => {
@@ -36,6 +42,20 @@ export default function CheckoutResultPage() {
     }, 2000);
     return () => clearTimeout(t);
   }, [success, confirmed, waited, qc]);
+
+  // Meta Pixel Purchase conversion — fired exactly once, only once payment is ACTUALLY confirmed
+  // by our own API (never from the redirect alone, per this page's whole reason for existing).
+  // The ref guards against firing again on a later re-render while confirmed stays true.
+  const purchaseFired = React.useRef(false);
+  React.useEffect(() => {
+    if (!confirmed || purchaseFired.current || !overview?.subscription) return;
+    purchaseFired.current = true;
+    loadMetaPixel();
+    trackPixelEvent("Purchase", {
+      value: overview.subscription.amount,
+      currency: overview.subscription.currency,
+    });
+  }, [confirmed, overview?.subscription]);
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center p-6">

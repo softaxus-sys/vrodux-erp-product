@@ -18,6 +18,12 @@ public sealed class OrdersController(ISender sender) : RestaurantControllerBase
     public async Task<IActionResult> GetSummary(CancellationToken ct) =>
         OkOrError(await sender.Send(new GetOrdersSummaryQuery(), ct));
 
+    /// <summary>GET /api/restaurant/orders/open-shift — is a till open for floor staff to order under?</summary>
+    [HttpGet("open-shift")]
+    [RequirePermission("restaurant.orders.view")]
+    public async Task<IActionResult> GetOpenShift(CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetOpenShiftQuery(), ct));
+
     /// <summary>GET /api/restaurant/orders?status=</summary>
     [HttpGet]
     [RequirePermission("restaurant.orders.view")]
@@ -89,6 +95,14 @@ public sealed class OrdersController(ISender sender) : RestaurantControllerBase
     public async Task<IActionResult> RemoveDiscount(Guid id, [FromBody] ReasonReq req, CancellationToken ct) =>
         OkOrError(await sender.Send(new RemoveOrderDiscountCommand(id, req.Reason), ct));
 
+    /// <summary>POST /api/restaurant/orders/{id}/loyalty — spend the linked customer's points on this
+    /// bill (points = 0 takes them back off). Gated on .edit, not .discount: it is the customer's own
+    /// entitlement, and the handler checks their balance.</summary>
+    [HttpPost("{id:guid}/loyalty")]
+    [RequirePermission("restaurant.orders.edit")]
+    public async Task<IActionResult> RedeemLoyalty(Guid id, [FromBody] LoyaltyReq req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new RedeemOrderLoyaltyCommand(id, req.Points), ct));
+
     /// <summary>PATCH /api/restaurant/orders/{id}/send</summary>
     [HttpPatch("{id:guid}/send")]
     [RequirePermission("restaurant.orders.edit")]
@@ -133,6 +147,12 @@ public sealed class OrdersController(ISender sender) : RestaurantControllerBase
     [RequirePermission("restaurant.orders.edit")]
     public async Task<IActionResult> SetCustomer(Guid id, [FromBody] SetCustomerReq req, CancellationToken ct) =>
         OkOrError(await sender.Send(new SetOrderCustomerCommand(id, req.CustomerId), ct));
+
+    /// <summary>PATCH /api/restaurant/orders/{id}/waiter — hands the order to another waiter.</summary>
+    [HttpPatch("{id:guid}/waiter")]
+    [RequirePermission("restaurant.orders.edit")]
+    public async Task<IActionResult> SetWaiter(Guid id, [FromBody] SetWaiterReq req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new SetOrderWaiterCommand(id, req.Waiter), ct));
 
     /// <summary>PATCH /api/restaurant/orders/{id}/hold — parks an open order aside without losing its items.</summary>
     [HttpPatch("{id:guid}/hold")]
@@ -180,10 +200,12 @@ public sealed class OrdersController(ISender sender) : RestaurantControllerBase
     public record ComboSelectionReq(Guid ComboItemId, Guid MenuItemId);
     public record AddComboReq(Guid ComboId, IReadOnlyList<ComboSelectionReq> Selections);
     public record DiscountReq(string Type, decimal Amount, string Reason);
+    public record LoyaltyReq(decimal Points);
     public record ReasonReq(string Reason);
     public record PayReq(string Method);
     public record TipReq(decimal Amount);
     public record SetCustomerReq(Guid? CustomerId);
+    public record SetWaiterReq(string Waiter);
     public record AddPaymentReq(string Method, decimal Amount, string? Reference);
     public record RefundReq(decimal Amount, string Reason, string Method);
     public record SplitReq(IReadOnlyList<SplitGroupInput> Groups);

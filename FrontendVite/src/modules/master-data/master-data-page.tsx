@@ -62,7 +62,11 @@ function Sidebar({
   const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>({});
 
   return (
-    <aside className="w-72 shrink-0 flex flex-col h-full border-r border-border bg-card/50 overflow-y-auto">
+    <aside className={cn(
+      "flex flex-col h-full bg-card/50 overflow-y-auto w-full lg:w-72 lg:shrink-0 lg:border-r border-border",
+      // Phones show the list OR the selected master, never both side by side.
+      activeMasterId && "max-lg:hidden",
+    )}>
       {/* Sidebar header */}
       <div className="px-4 py-4 border-b border-border">
         <div className="flex items-center gap-2">
@@ -865,7 +869,7 @@ export function MasterDataPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-background">
+    <div className="flex h-[calc(100dvh-7rem)] lg:h-[calc(100vh-4rem)] overflow-hidden bg-background">
       {/* Left sidebar */}
       <Sidebar
         activeMasterId={activeMaster ? activeMasterId : ""}
@@ -875,7 +879,12 @@ export function MasterDataPage() {
       />
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <main className={cn("flex-1 flex-col min-w-0 overflow-hidden", activeMaster ? "flex" : "max-lg:hidden lg:flex")}>
+        {activeMaster && (
+          <button onClick={() => setParams({})} className="lg:hidden flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b border-border text-primary shrink-0">
+            <ArrowLeft className="h-4 w-4" />All masters
+          </button>
+        )}
         {activeMaster ? (
           <DetailPanel key={activeMaster.id} master={activeMaster} />
         ) : (

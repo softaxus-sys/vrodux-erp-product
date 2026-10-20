@@ -5,13 +5,18 @@ namespace Softaxis.RealEstate.Infrastructure.Handlers.Contracts;
 
 internal static class ContractMappings
 {
-    public static ContractDto ToDto(LeaseContract c, string today)
+    public static ContractDto ToDto(LeaseContract c, string today, LeaseTermination? termination = null)
     {
         var live = c.Installments.Where(i => !i.IsDeleted).ToList();
 
-        var next     = live.Where(i => !i.IsSettled && string.CompareOrdinal(i.DueDate, today) >= 0)
+        // A terminated lease is not chased payment by payment: what it owes is in its final
+        // account. Reporting "overdue" or a next payment on it would send staff after the wrong thing.
+        var chased = c.Status != "terminated";
+
+        var next     = !chased ? null
+                     : live.Where(i => !i.IsSettled && string.CompareOrdinal(i.DueDate, today) >= 0)
                            .OrderBy(i => i.DueDate, StringComparer.Ordinal).FirstOrDefault();
-        var overdue  = live.Where(i => i.IsOverdue(today)).ToList();
+        var overdue  = chased ? live.Where(i => i.IsOverdue(today)).ToList() : [];
         var lastPaid = live.Where(i => i.PaidDate is not null)
                            .OrderByDescending(i => i.PaidDate, StringComparer.Ordinal).FirstOrDefault();
 
@@ -26,7 +31,9 @@ internal static class ContractMappings
             overdue.Count,
             overdue.Sum(i => i.Balance),
             live.Count,
-            DaysBetween(today, c.EndDate));
+            DaysBetween(today, c.EndDate),
+            c.RenewedFromContractId, c.RenewedToContractId, c.RenewalNumber, c.PreviousAnnualRent,
+            termination?.Status, termination?.TerminationDate);
     }
 
     public static RentInstallmentDto ToDto(RentInstallment i, string today) => new(

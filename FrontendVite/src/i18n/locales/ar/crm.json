@@ -141,8 +141,10 @@
       "overview": "نظرة عامة",
       "activity": "النشاط",
       "documents": "المستندات",
-      "journey": "الرحلة"
+      "journey": "الرحلة",
+      "quotations": "عروض الأسعار"
     },
+    "quotationButton": "عرض سعر",
     "leadScore": "نقاط العميل المحتمل",
     "scoreValue": "{{score}}/100 · {{label}}",
     "heatLead": "عميل {{label}}",
@@ -451,7 +453,10 @@
       }
     },
     "assignTo": "إسناد إلى",
-    "unassigned": "غير مُسند"
+    "unassigned": "غير مُسند",
+    "loggedOn": "سُجّل في {{date}}",
+    "dueDate": "التاريخ",
+    "dueTime": "الوقت"
   },
   "contacts": {
     "heading": "جهات الاتصال ({{count}})",
@@ -534,7 +539,8 @@
       "contacts": "جهات الاتصال",
       "deals": "الصفقات",
       "activity": "النشاط",
-      "documents": "المستندات"
+      "documents": "المستندات",
+      "quotations": "عروض الأسعار"
     },
     "companyInformation": "معلومات الشركة",
     "website": "الموقع الإلكتروني",

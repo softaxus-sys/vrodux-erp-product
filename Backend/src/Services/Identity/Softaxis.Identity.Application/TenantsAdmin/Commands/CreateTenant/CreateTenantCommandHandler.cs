@@ -41,7 +41,7 @@ public sealed class CreateTenantCommandHandler(
             tenant.GrantModulesManually(cmd.Modules);
 
         if (cmd.StartTrial)
-            tenant.StartTrial(30);
+            tenant.StartTrial();
         else
             tenant.Activate();
 

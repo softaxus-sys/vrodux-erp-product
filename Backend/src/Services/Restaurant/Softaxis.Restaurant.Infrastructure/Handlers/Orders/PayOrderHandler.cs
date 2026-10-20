@@ -21,6 +21,14 @@ internal sealed class PayOrderHandler(RestaurantDbContext db, POSDbContext posDb
 {
     public async Task<Result<OrderDto>> Handle(PayOrderCommand cmd, CancellationToken ct)
     {
+        var wasPaid = await db.Orders.AsNoTracking().AnyAsync(x => x.Id == cmd.OrderId && x.Status == "paid", ct);
+        var result = await PayAsync(cmd, ct);
+        await LoyaltySupport.EarnIfJustPaidAsync(posDb, wasPaid, result, ct);
+        return result;
+    }
+
+    private async Task<Result<OrderDto>> PayAsync(PayOrderCommand cmd, CancellationToken ct)
+    {
         // Wallet/house-account charge, if applicable — see CustomerPaymentSupport for why this must
         // run exactly once, outside the retry loop below, before any Order row is mutated. The charged
         // amount is reused (not recomputed) inside the retry loop so the wallet debit and the recorded

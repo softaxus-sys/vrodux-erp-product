@@ -3,6 +3,7 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Identity.Application.Abstractions;
 using Softaxis.Identity.Application.Billing.Dtos;
+using Softaxis.Identity.Application.Common;
 using Softaxis.Identity.Domain.Entities;
 using Softaxis.Identity.Domain.Enums;
 using Softaxis.Identity.Domain.Repositories;
@@ -33,7 +34,8 @@ public sealed class GetBillingOverviewQueryHandler(
 
         var subscription = await subRepo.GetByTenantAsync(tenantId, ct);
         var limits       = PlanDefinitions.Get(tenant.Plan);
-        var usersInUse   = await userRepo.CountByTenantAsync(tenantId, ct);
+        var usersInUse   = await userRepo.CountSeatsAsync(tenantId, ct);
+        var onTrial      = tenant.Status == TenantStatus.Trial;
 
         var planOptions = PlanDefinitions.All
             .Select(kvp =>
@@ -49,7 +51,9 @@ public sealed class GetBillingOverviewQueryHandler(
                     MaxUsers:          kvp.Value.MaxUsers,
                     SelfServe:         PlanDefinitions.SelfServePlans.Contains(kvp.Key),
                     IsCurrent:         kvp.Key == tenant.Plan,
-                    Modules:           kvp.Value.Modules);
+                    Modules:           kvp.Value.Modules,
+                    StorageGb:         kvp.Value.StorageGb,
+                    TooSmallReason:    PlanFit.Check(kvp.Key, usersInUse)?.Description);
             })
             .ToList();
 
@@ -70,7 +74,8 @@ public sealed class GetBillingOverviewQueryHandler(
             HasProductAccess:   tenant.HasProductAccess,
             CanStartTrial:      tenant.CanStartTrial,
             UsersInUse:         usersInUse,
-            MaxUsers:           limits.MaxUsers,
+            MaxUsers:           onTrial ? -1 : limits.MaxUsers,
+            SeatsOverLimit:     !onTrial && limits.MaxUsers > 0 && usersInUse > limits.MaxUsers,
             Subscription:       subscription is null ? null : ToDto(subscription),
             Plans:              planOptions,
             AvailableProviders: available));

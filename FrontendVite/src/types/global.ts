@@ -137,6 +137,7 @@ export type ModuleKey =
   | "users"
   | "ai-assistant"
   | "notifications"
+  | "calendar"
   | "file-manager"
   | "super-admin"
   | "restaurant"
@@ -145,6 +146,9 @@ export type ModuleKey =
   | "b2b"
   | "project-management"
   | "visa"
+  | "manufacturing"
+  | "library"
+  | "trade"
   | "support"
   | "seo";
 

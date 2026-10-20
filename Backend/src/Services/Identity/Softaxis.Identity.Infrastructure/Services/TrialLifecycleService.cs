@@ -13,7 +13,7 @@ namespace Softaxis.Identity.Infrastructure.Services;
 /// Daily trial dunning + expiry.
 ///
 /// <para>
-/// Emails the tenant owner at <b>15 / 7 / 3 / 1</b> days remaining, then once more when the trial
+/// Emails the tenant owner at <b>7 / 3 / 1</b> days remaining (the trial is 14 days, so a 15-day notice would fire on day one), then once more when the trial
 /// actually lapses, and flips lapsed tenants to <see cref="TenantStatus.Expired"/>.
 /// </para>
 ///
@@ -34,7 +34,7 @@ public sealed class TrialLifecycleService(
     ILogger<TrialLifecycleService> logger) : BackgroundService
 {
     /// <summary>Thresholds, descending. The largest threshold at or above the remaining days wins.</summary>
-    private static readonly int[] ReminderDays = [15, 7, 3, 1];
+    private static readonly int[] ReminderDays = [7, 3, 1];
 
     private static readonly TimeSpan Interval = TimeSpan.FromHours(24);
 
@@ -99,7 +99,7 @@ public sealed class TrialLifecycleService(
             if (daysLeft > 0)
             {
                 var threshold = ReminderDays.FirstOrDefault(d => daysLeft <= d);
-                if (threshold == 0) continue;                          // still outside the 15-day window
+                if (threshold == 0) continue;                          // still outside the 7-day window
                 if (tenant.LastTrialReminderDaysLeft == threshold) continue;  // already sent for this step
                 // Guard against re-sending a wider threshold if the clock ever moves backwards.
                 if (tenant.LastTrialReminderDaysLeft is { } sent && sent < threshold) continue;

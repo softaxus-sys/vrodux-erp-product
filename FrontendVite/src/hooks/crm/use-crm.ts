@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import { toast } from "sonner";
 import type { ActivityPageParams } from "@/lib/crm/crm.api";
 import { crmApi } from "@/lib/crm/crm.api";
+import { quotationsApi } from "@/lib/sales/quotations.api";
+import { useAuthStore } from "@/store/auth.store";
 import type {
   CreateLeadRequest, UpdateLeadRequest, CreateDealRequest, UpdateDealRequest,
   CreateCustomerRequest, UpdateCustomerRequest, CreateActivityRequest,
@@ -126,7 +128,28 @@ export function useCreateLead()  { return useCrmMutation((d: CreateLeadRequest) 
 export function useUpdateLead()  { return useCrmMutation(({ id, data }: { id: string; data: UpdateLeadRequest }) => crmApi.updateLead(id, data), { msg: "Lead updated." }); }
 export function useSetLeadStatus() { return useCrmMutation(({ id, status }: { id: string; status: string }) => crmApi.setLeadStatus(id, status), { msg: "Lead status updated." }); }
 export function useSetLeadScore()  { return useCrmMutation(({ id, score }: { id: string; score: number }) => crmApi.setLeadScore(id, score)); }
-export function useConvertLead()   { return useCrmMutation(({ id, body }: { id: string; body: { dealTitle?: string; dealValue?: number; expectedCloseDate?: string } }) => crmApi.convertLead(id, body), { msg: "Lead converted to customer + deal." }); }
+/**
+ * Converting a lead also files its quotations under the account and opportunity it became, so they
+ * show on the account as well as in the lead's own history. This lives here, not in a drawer, so
+ * every route into conversion (the drawer button, dragging a card to "Converted") does it.
+ *
+ * Best-effort and permission-guarded: a workspace without Sales, or a user who cannot create
+ * quotations, simply skips it — and a failure must never undo or block the conversion itself.
+ */
+export function useConvertLead() {
+  return useCrmMutation(
+    async ({ id, body }: { id: string; body: { dealTitle?: string; dealValue?: number; expectedCloseDate?: string } }) => {
+      const result = await crmApi.convertLead(id, body);
+      const auth = useAuthStore.getState();
+      if (auth.hasModuleAccess("sales") && auth.hasRawPermission("sales.quotations.create")) {
+        quotationsApi
+          .relinkLead({ leadId: id, crmCustomerId: result.customerId, dealId: result.dealId })
+          .catch(() => { /* quotations stay on the lead; nothing is lost */ });
+      }
+      return result;
+    },
+    { msg: "Lead converted to customer + deal." });
+}
 export function useDeleteLead()    { return useCrmMutation((id: string) => crmApi.deleteLead(id), { msg: "Lead deleted." }); }
 export function useAssignLead()    { return useCrmMutation(({ id, toUserId, toUserName, note, teamId }: { id: string; toUserId?: string | null; toUserName: string; note?: string | null; teamId?: string | null }) => crmApi.assignLead(id, { toUserId, toUserName, note, teamId }), { msg: "Lead reassigned." }); }
 /** Bulk-file leads to a team. No default toast — the caller reports filed/skipped counts. */

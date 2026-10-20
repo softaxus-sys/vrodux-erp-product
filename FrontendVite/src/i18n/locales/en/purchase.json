@@ -132,7 +132,15 @@
         "addItem": "Add Item",
         "cancel": "Cancel",
         "confirm": "Create GRN"
-      }
+      },
+      "subtotal": "Subtotal",
+      "tax": "Tax",
+      "totalWithTax": "Total incl. tax",
+      "taxRate": "Tax {{rate}}%",
+      "notesPlaceholder": "Anything to note about this delivery: damaged goods, short shipment, who signed…",
+      "stockHint": "Received items linked to an inventory product are added to stock when you confirm.",
+      "notLinked_one": "{{count}} line is not linked to an inventory product, so receiving it will not change stock.",
+      "notLinked_other": "{{count}} lines are not linked to an inventory product, so receiving them will not change stock."
     }
   },
   "returns": {

@@ -20,6 +20,7 @@ public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> op
     public DbSet<ModifierGroup> ModifierGroups => Set<ModifierGroup>();
     public DbSet<Modifier> Modifiers => Set<Modifier>();
     public DbSet<MenuItemModifierGroup> MenuItemModifierGroups => Set<MenuItemModifierGroup>();
+    public DbSet<MenuItemImage> MenuItemImages => Set<MenuItemImage>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<ReservationRule> ReservationRules => Set<ReservationRule>();
     public DbSet<Floor> Floors => Set<Floor>();

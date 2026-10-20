@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.BuildingBlocks.Domain.Results;
 
@@ -37,6 +38,9 @@ public abstract class HrControllerBase : ControllerBase
             var c when c.EndsWith(".NotFound")  => NotFound(body),
             var c when c.EndsWith(".Duplicate") => Conflict(body),
             var c when c.EndsWith(".Conflict")  => Conflict(body),
+            // Storage-quota exceeded — 413 names the actual problem (upload too big for what's
+            // left of the plan's budget) rather than overloading 409, which reads as "edit conflict".
+            var c when c.EndsWith(".QuotaExceeded") => StatusCode(StatusCodes.Status413PayloadTooLarge, body),
             "Validation.Failed"                 => UnprocessableEntity(body),
             _                                    => StatusCode(StatusCodes.Status500InternalServerError, body),
         };

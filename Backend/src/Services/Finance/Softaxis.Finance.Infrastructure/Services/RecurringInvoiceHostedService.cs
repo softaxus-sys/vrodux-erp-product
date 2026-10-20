@@ -77,7 +77,17 @@ public sealed class RecurringInvoiceHostedService(
                 .Distinct()
                 .ToListAsync(ct);
 
-            tenantIds = fromTemplates.Concat(fromInvoices)
+            // Recurring expenses ride this pass too, and a workspace may well have a storage
+            // subscription to book without ever having issued an invoice.
+            var fromExpenseTemplates = await db.RecurringExpenses
+                .IgnoreQueryFilters()
+                .Where(r => r.IsActive && !r.IsDeleted)
+                .Select(r => EF.Property<Guid?>(r, "TenantId"))
+                .Where(id => id != null)
+                .Distinct()
+                .ToListAsync(ct);
+
+            tenantIds = fromTemplates.Concat(fromInvoices).Concat(fromExpenseTemplates)
                 .Select(id => id!.Value)
                 .Distinct()
                 .ToList();
@@ -124,6 +134,12 @@ public sealed class RecurringInvoiceHostedService(
                 var db    = scope.ServiceProvider.GetRequiredService<FinanceDbContext>();
                 var email = scope.ServiceProvider.GetRequiredService<IFinanceEmailService>();
 
+                // First, and in its own scope and try/catch: expenses and invoices are unrelated,
+                // so a failure booking a subscription must not stop the workspace's invoices going
+                // out — and a failed save must not leave half-built expenses in the context the
+                // invoice run is about to save.
+                await RunRecurringExpensesAsync(tenantId, ct);
+
                 var result = await RecurringInvoiceGenerator.GenerateDueAsync(db, DateTime.UtcNow, email, ct);
 
                 if (result.Created > 0 || result.EmailFailed > 0)
@@ -153,6 +169,26 @@ public sealed class RecurringInvoiceHostedService(
                 // into whatever runs next on this thread.
                 TenantAmbient.Clear();
             }
+        }
+    }
+
+    /// <summary>Books the workspace's due recurring expenses. Expects the ambient tenant already set.</summary>
+    private async Task RunRecurringExpensesAsync(Guid tenantId, CancellationToken ct)
+    {
+        using var scope = scopeFactory.CreateScope();
+        try
+        {
+            var db = scope.ServiceProvider.GetRequiredService<FinanceDbContext>();
+            var result = await RecurringExpenseGenerator.GenerateDueAsync(db, DateTime.UtcNow, ct);
+
+            if (result.Created > 0)
+                logger.LogInformation(
+                    "RecurringExpenses: workspace {TenantId} — {Created} generated, {Posted} posted to the ledger, {Held} left for review.",
+                    tenantId, result.Created, result.Posted, result.Held);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "RecurringExpenses: run failed for workspace {TenantId}.", tenantId);
         }
     }
 }

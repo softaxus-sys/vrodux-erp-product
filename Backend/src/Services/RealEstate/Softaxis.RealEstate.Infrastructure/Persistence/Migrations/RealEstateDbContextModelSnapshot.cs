@@ -239,6 +239,10 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasDefaultValue("annual");
 
+                    b.Property<decimal?>("PreviousAnnualRent")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<Guid>("PropertyId")
                         .HasColumnType("uniqueidentifier");
 
@@ -246,6 +250,15 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("RenewalNumber")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("RenewedFromContractId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("RenewedToContractId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("SecurityDeposit")
                         .HasPrecision(18, 2)
@@ -288,7 +301,110 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OwnerTenantId");
 
+                    b.HasIndex("RenewedFromContractId");
+
                     b.ToTable("LeaseContracts", "real_estate");
+                });
+
+            modelBuilder.Entity("Softaxis.RealEstate.Domain.Entities.LeaseTermination", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ContractId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeductionNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<decimal>("DeductionsAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("DepositHeld")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("NetSettlement")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("NoticeDate")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid?>("OwnerTenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("PenaltyAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("ReasonNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("RecordedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("RentOwed")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("RentPaid")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("SettledOn")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("SettlementMethod")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("SettlementNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("SettlementReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("TerminationDate")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContractId")
+                        .IsUnique();
+
+                    b.HasIndex("OwnerTenantId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("LeaseTerminations", "real_estate");
                 });
 
             modelBuilder.Entity("Softaxis.RealEstate.Domain.Entities.Property", b =>
@@ -433,6 +549,9 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("PropertyId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");

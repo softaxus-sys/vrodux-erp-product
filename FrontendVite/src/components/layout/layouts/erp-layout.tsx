@@ -13,6 +13,8 @@ import { SidebarLeftLayout }  from "./sidebar-left-layout";
 import { SidebarRightLayout } from "./sidebar-right-layout";
 import { TopNavLayout }       from "./top-nav-layout";
 import { MiniRailLayout }     from "./mini-rail-layout";
+import { MobileLayout }       from "./mobile-layout";
+import { useIsMobile }        from "@/hooks/use-media-query";
 
 /**
  * Content area shared by all layouts: topbar + page body.
@@ -35,12 +37,12 @@ function PageContent() {
       <LicenseBanner />
       <Topbar />
       {isPOS ? (
-        <main className="flex-1 overflow-hidden flex flex-col min-h-0">
+        <main data-pos className="flex-1 overflow-hidden flex flex-col min-h-0">
           <Outlet />
         </main>
       ) : (
         <main className="flex-1 overflow-auto">
-          <div className="p-6 animate-fade-in">
+          <div className="p-3 sm:p-4 lg:p-6 animate-fade-in">
             <Outlet />
           </div>
         </main>
@@ -56,6 +58,9 @@ function PageContent() {
 export function ErpLayout() {
   const { layoutVariant } = useThemeStore();
   useTenantBootstrap();
+  const isMobile = useIsMobile();
+
+  if (isMobile) return <MobileLayout><PageContent /></MobileLayout>;
 
   switch (layoutVariant) {
     case "sidebar-right":

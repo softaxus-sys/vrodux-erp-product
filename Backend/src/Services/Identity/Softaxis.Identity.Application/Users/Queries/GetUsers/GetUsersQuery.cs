@@ -9,6 +9,8 @@ public sealed record GetUsersQuery(
     int     PageSize   = 20,
     string? Search     = null,
     string? SortBy     = null,
-    bool    SortDesc   = false
+    bool    SortDesc   = false,
+    /// <summary>Only users holding a role with exactly this name.</summary>
+    string? Role       = null
 ) : IQuery<PagedResult<UserSummaryDto>>;
 

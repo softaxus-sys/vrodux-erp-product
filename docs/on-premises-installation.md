@@ -522,9 +522,9 @@ An on-premises installation has no subscription. It is gated entirely by the **R
 key**, re-checked on every request, fully offline. The expiry is inside the signed payload, so it
 cannot be extended by editing the database or `appsettings.json` on site.
 
-### Selling a 30-day trial
-Generate the key with **validity 30 days**. That is the whole mechanism — no separate trial flag.
-On day 31 every request is refused with `LICENSE_EXPIRED` and the shop stops trading.
+### Selling a 14-day trial
+Generate the key with **validity 14 days**. That is the whole mechanism — no separate trial flag.
+On day 15 every request is refused with `LICENSE_EXPIRED` and the shop stops trading.
 
 > **Tell the customer the date.** The app shows a countdown banner from 30 days out, turning red
 > inside the last week, but do not rely on someone noticing it. A till that stops mid-morning is a

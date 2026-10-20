@@ -1,8 +1,9 @@
+import { PostToFinanceButton } from "@/components/finance/post-to-finance";
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertCircle, Bell, Calendar, CheckCircle2, Clock, FileText, Loader2,
-  Plus, Search, Trash2, User, X, XCircle,
+  Plus, RefreshCw, Search, Trash2, User, X, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import {
 } from "@/hooks/real-estate/use-re";
 import { AddContractForm } from "./add-contract-form";
 import { RentSchedulePanel } from "./rent-schedule-panel";
+import { LeaseHistory, RenewLeaseModal, TerminateLeaseModal, TerminationCard } from "./lease-lifecycle";
 
 const STATUS_CONFIG: Record<ContractStatus, { label: string; color: string; bg: string; dot: string }> = {
   active:     { label: "Active",     color: "text-success",          bg: "bg-success/10",  dot: "bg-success" },
@@ -33,18 +35,39 @@ const EXPIRING_SOON_DAYS = 60;
 
 // ── Drawer ──────────────────────────────────────────────────────────────────
 
-function ContractDrawer({ contractId, open, onClose }: { contractId: string | null; open: boolean; onClose: () => void }) {
+function ContractDrawer({
+  contractId, open, onClose, onOpenLease,
+}: {
+  contractId: string | null;
+  open: boolean;
+  onClose: () => void;
+  /** Moves the drawer to another lease in the same tenancy (a renewal, or the lease before it). */
+  onOpenLease: (id: string) => void;
+}) {
   const currency = useCurrency();
   const { data, isLoading } = useContract(open ? contractId : null);
   const setStatus = useSetContractStatus();
   const remove    = useDeleteContract();
   const remind    = useSendRentReminder();
   const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [renewing, setRenewing]       = React.useState(false);
+  const [terminating, setTerminating] = React.useState(false);
   const [tab, setTab] = React.useState<"details" | "schedule">("schedule");
 
-  React.useEffect(() => { if (!open) { setConfirmDelete(false); setTab("schedule"); } }, [open]);
+  React.useEffect(() => {
+    if (!open) { setConfirmDelete(false); setRenewing(false); setTerminating(false); setTab("schedule"); }
+  }, [open]);
 
-  const contract = data?.contract;
+  const contract    = data?.contract;
+  const termination = data?.termination ?? null;
+
+  // A lease can be renewed once, while it is running or after it ran out, and not while notice
+  // to end it is on record. A lease can be terminated only while it is running.
+  const canRenew = !!contract && (contract.status === "active" || contract.status === "expired")
+    && !contract.renewedToContractId && !termination;
+  const canTerminate = !!contract && contract.status === "active" && !termination;
+  const pastEndDate  = !!contract && contract.status === "active"
+    && contract.daysToExpiry !== null && contract.daysToExpiry < 0;
 
   return (
     <>
@@ -77,6 +100,16 @@ function ContractDrawer({ contractId, open, onClose }: { contractId: string | nu
                       {contract.overdueCount} overdue
                     </span>
                   )}
+                  {contract.renewalNumber > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary">
+                      Renewal {contract.renewalNumber}
+                    </span>
+                  )}
+                  {termination?.status === "scheduled" && (
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-warning/10 text-warning">
+                      Notice · ends {formatDate(termination.terminationDate)}
+                    </span>
+                  )}
                 </div>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
@@ -95,12 +128,28 @@ function ContractDrawer({ contractId, open, onClose }: { contractId: string | nu
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-4">
+              {termination && <TerminationCard termination={termination} currency={currency} />}
+
+              {contract.renewedToContractId && (
+                <button onClick={() => onOpenLease(contract.renewedToContractId!)}
+                  className="w-full mb-4 flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-start hover:bg-primary/10">
+                  <span>This lease was renewed. Rent still unpaid on it stays owed.</span>
+                  <span className="font-semibold text-primary shrink-0">Open the renewal →</span>
+                </button>
+              )}
+
               {tab === "schedule"
                 ? <RentSchedulePanel contract={contract} installments={data!.installments} />
                 : (
                   <div className="space-y-2 text-sm">
                     <Row label="Term" value={`${formatDate(contract.startDate)} → ${formatDate(contract.endDate)}`} />
                     <Row label="Annual rent" value={formatCurrency(contract.annualRent, currency)} />
+                    {contract.previousAnnualRent !== null && contract.previousAnnualRent > 0 && (
+                      <Row label="Rent before renewal"
+                        value={`${formatCurrency(contract.previousAnnualRent, currency)} (${
+                          contract.annualRent >= contract.previousAnnualRent ? "+" : ""
+                        }${(((contract.annualRent - contract.previousAnnualRent) / contract.previousAnnualRent) * 100).toFixed(1)}%)`} />
+                    )}
                     <Row label="Payment frequency" value={FREQ_LABELS[contract.paymentFrequency] ?? contract.paymentFrequency} />
                     <Row label="Installments" value={String(contract.installmentCount)} />
                     <Row label="Security deposit" value={formatCurrency(contract.securityDeposit, currency)} />
@@ -117,23 +166,44 @@ function ContractDrawer({ contractId, open, onClose }: { contractId: string | nu
                         <p className="text-sm">{contract.notes}</p>
                       </div>
                     )}
+                    <LeaseHistory history={data!.history ?? []} currentId={contract.id}
+                      currency={currency} onOpen={onOpenLease} />
                   </div>
                 )}
             </div>
 
             <div className="border-t border-border px-6 py-4 flex flex-wrap items-center gap-2">
-              <Can permission="real-estate.rent.remind">
-                <Button size="sm" variant="outline" disabled={remind.isPending}
-                  onClick={() => remind.mutate({ id: contract.id })}>
-                  <Bell className="w-3.5 h-3.5 me-1.5" /> Send expiry notice
-                </Button>
-              </Can>
+              {canRenew && (
+                <Can permission="real-estate.contracts.create">
+                  <Button size="sm" onClick={() => setRenewing(true)}>
+                    <RefreshCw className="w-3.5 h-3.5 me-1.5" /> Renew
+                  </Button>
+                </Can>
+              )}
 
-              {contract.status === "active" && (
+              {canTerminate && (
                 <Can permission="real-estate.contracts.edit">
-                  <Button size="sm" variant="outline"
-                    onClick={() => setStatus.mutate({ id: contract.id, status: "terminated" })}>
+                  <Button size="sm" variant="outline" onClick={() => setTerminating(true)}>
                     Terminate
+                  </Button>
+                </Can>
+              )}
+
+              {/* Ran past its end date and nothing was done: close it off and free the unit. */}
+              {pastEndDate && !termination && (
+                <Can permission="real-estate.contracts.edit">
+                  <Button size="sm" variant="outline" disabled={setStatus.isPending}
+                    onClick={() => setStatus.mutate({ id: contract.id, status: "expired" })}>
+                    Mark expired
+                  </Button>
+                </Can>
+              )}
+
+              {canTerminate && (
+                <Can permission="real-estate.rent.remind">
+                  <Button size="sm" variant="outline" disabled={remind.isPending}
+                    onClick={() => remind.mutate({ id: contract.id })}>
+                    <Bell className="w-3.5 h-3.5 me-1.5" /> Send expiry notice
                   </Button>
                 </Can>
               )}
@@ -149,6 +219,18 @@ function ContractDrawer({ contractId, open, onClose }: { contractId: string | nu
             </div>
 
             <AnimatePresence>
+              {renewing && (
+                <RenewLeaseModal contract={contract} installments={data!.installments} currency={currency}
+                  onClose={() => setRenewing(false)}
+                  onRenewed={id => { setRenewing(false); onOpenLease(id); }} />
+              )}
+              {terminating && (
+                <TerminateLeaseModal contract={contract} currency={currency}
+                  onClose={() => setTerminating(false)} />
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence>
               {confirmDelete && (
                 <>
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -157,8 +239,10 @@ function ContractDrawer({ contractId, open, onClose }: { contractId: string | nu
                     className="absolute inset-x-6 top-32 z-[61] bg-background border border-border rounded-xl shadow-2xl p-5">
                     <p className="font-semibold text-sm mb-1">Delete {contract.contractNumber}?</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      The lease and its whole rent schedule are removed, and the unit is marked vacant.
-                      Payments already recorded go with it.
+                      {contract.renewedFromContractId
+                        ? "This renewal and its rent schedule are removed, and the lease it replaced becomes the current one again."
+                        : "The lease and its whole rent schedule are removed, and the unit is marked vacant."}
+                      {" "}Payments already recorded go with it.
                     </p>
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
@@ -198,7 +282,7 @@ export function ContractsView() {
   const { data: summary } = useContractSummary();
 
   const [search, setSearch]     = React.useState("");
-  const [filter, setFilter]     = React.useState<"all" | ContractStatus | "overdue" | "expiring">("all");
+  const [filter, setFilter]     = React.useState<"all" | ContractStatus | "overdue" | "expiring" | "settlement">("all");
   const [selected, setSelected] = React.useState<string | null>(null);
   const [adding, setAdding]     = React.useState(false);
 
@@ -206,7 +290,9 @@ export function ContractsView() {
     let list = contracts;
     if (filter === "overdue")       list = list.filter(c => c.overdueCount > 0);
     else if (filter === "expiring") list = list.filter(c =>
-      c.status === "active" && c.daysToExpiry !== null && c.daysToExpiry <= EXPIRING_SOON_DAYS);
+      c.status === "active" && !c.terminationStatus
+      && c.daysToExpiry !== null && c.daysToExpiry <= EXPIRING_SOON_DAYS);
+    else if (filter === "settlement") list = list.filter(c => c.terminationStatus === "pending_settlement");
     else if (filter !== "all")      list = list.filter(c => c.status === filter);
 
     const q = search.trim().toLowerCase();
@@ -240,11 +326,14 @@ export function ContractsView() {
           <h1 className="text-xl font-bold">Lease Contracts</h1>
           <p className="text-sm text-muted-foreground">Rent schedules, collections and expiry.</p>
         </div>
-        <Can permission="real-estate.contracts.create">
-          <Button onClick={() => setAdding(true)}>
-            <Plus className="w-4 h-4 me-1.5" /> New lease
-          </Button>
-        </Can>
+        <div className="flex items-center gap-2">
+          <PostToFinanceButton module="real-estate" />
+          <Can permission="real-estate.contracts.create">
+            <Button onClick={() => setAdding(true)}>
+              <Plus className="w-4 h-4 me-1.5" /> New lease
+            </Button>
+          </Can>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -268,7 +357,8 @@ export function ContractsView() {
         </div>
         {([
           ["all", "All"], ["overdue", "Overdue"], ["expiring", "Expiring"],
-          ["active", "Active"], ["expired", "Expired"], ["terminated", "Terminated"],
+          ["active", "Active"], ["renewed", "Renewed"], ["expired", "Expired"], ["terminated", "Terminated"],
+          ["settlement", `To settle${summary?.pendingSettlements ? ` (${summary.pendingSettlements})` : ""}`],
         ] as const).map(([v, label]) => (
           <button key={v} onClick={() => setFilter(v)}
             className={cn("px-3 py-1.5 text-xs rounded-lg font-medium",
@@ -305,9 +395,25 @@ export function ContractsView() {
                         {c.overdueCount} overdue
                       </span>
                     )}
-                    {c.status === "active" && c.daysToExpiry !== null && c.daysToExpiry <= EXPIRING_SOON_DAYS && (
+                    {c.status === "active" && !c.terminationStatus
+                      && c.daysToExpiry !== null && c.daysToExpiry <= EXPIRING_SOON_DAYS && (
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-warning/10 text-warning">
                         {c.daysToExpiry < 0 ? "Past end date" : `Ends in ${c.daysToExpiry}d`}
+                      </span>
+                    )}
+                    {c.renewalNumber > 0 && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                        Renewal {c.renewalNumber}
+                      </span>
+                    )}
+                    {c.terminationStatus === "scheduled" && c.terminationDate && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-warning/10 text-warning">
+                        Notice · ends {formatDate(c.terminationDate)}
+                      </span>
+                    )}
+                    {c.terminationStatus === "pending_settlement" && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive">
+                        Settlement pending
                       </span>
                     )}
                   </div>
@@ -342,7 +448,9 @@ export function ContractsView() {
       </div>
 
       <AnimatePresence>
-        {selected && <ContractDrawer contractId={selected} open onClose={() => setSelected(null)} />}
+        {selected && (
+          <ContractDrawer contractId={selected} open onClose={() => setSelected(null)} onOpenLease={setSelected} />
+        )}
       </AnimatePresence>
       <AnimatePresence>
         {adding && <AddContractForm open onClose={() => setAdding(false)} />}

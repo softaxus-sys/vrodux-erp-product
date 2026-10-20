@@ -7,11 +7,14 @@ namespace Softaxis.CRM.Domain.Entities;
 /// </summary>
 public sealed class Activity
 {
+    /// <summary>Longest subject accepted. Notes put their full text here.</summary>
+    public const int SubjectMaxLength = 4000;
+
     private Activity() { }
 
     public Activity(string type, string subject, string? description,
         string relatedToType, Guid relatedToId, string? relatedToName,
-        string? dueDate, string assignedTo, Guid? assignedToUserId = null)
+        string? dueDate, string assignedTo, Guid? assignedToUserId = null, string? dueTime = null)
     {
         Id            = Guid.NewGuid();
         Type          = type;            // task | call | meeting | email | note
@@ -21,6 +24,7 @@ public sealed class Activity
         RelatedToId   = relatedToId;
         RelatedToName = relatedToName?.Trim();
         DueDate       = dueDate;
+        DueTime       = NormaliseTime(dueDate, dueTime);
         AssignedTo    = assignedTo.Trim();
         AssignedToUserId = assignedToUserId;
         Completed     = type is "note" or "email";   // log entries are inherently "done"
@@ -36,6 +40,12 @@ public sealed class Activity
     public Guid      RelatedToId   { get; private set; }
     public string?   RelatedToName { get; private set; }
     public string?   DueDate       { get; private set; }
+    /// <summary>
+    /// Time of day for a scheduled meeting or call, "HH:mm" in the user's own clock. Kept apart from
+    /// <see cref="DueDate"/> on purpose: every "due today / overdue" query compares DueDate as a
+    /// plain yyyy-MM-dd string, and a time glued onto it would break all of them.
+    /// </summary>
+    public string?   DueTime       { get; private set; }
     public bool      Completed     { get; private set; }
     public DateTime? CompletedAt   { get; private set; }
     public string    AssignedTo    { get; private set; } = string.Empty;
@@ -50,10 +60,10 @@ public sealed class Activity
     public DateTime? UpdatedAt     { get; private set; }
 
     public void Update(string type, string subject, string? description, string? dueDate,
-        string assignedTo, Guid? assignedToUserId = null)
+        string assignedTo, Guid? assignedToUserId = null, string? dueTime = null)
     {
         Type = type; Subject = subject.Trim(); Description = description?.Trim();
-        DueDate = dueDate; AssignedTo = assignedTo.Trim();
+        DueDate = dueDate; DueTime = NormaliseTime(dueDate, dueTime); AssignedTo = assignedTo.Trim();
         AssignedToUserId = assignedToUserId;
         UpdatedAt = DateTime.UtcNow;
     }
@@ -61,4 +71,8 @@ public sealed class Activity
     public void Complete()   { Completed = true;  CompletedAt = DateTime.UtcNow; UpdatedAt = DateTime.UtcNow; }
     public void Reopen()     { Completed = false; CompletedAt = null;            UpdatedAt = DateTime.UtcNow; }
     public void Delete()     { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>A time means nothing without a date, so it is dropped when there is none.</summary>
+    private static string? NormaliseTime(string? dueDate, string? dueTime) =>
+        string.IsNullOrWhiteSpace(dueDate) || string.IsNullOrWhiteSpace(dueTime) ? null : dueTime.Trim();
 }

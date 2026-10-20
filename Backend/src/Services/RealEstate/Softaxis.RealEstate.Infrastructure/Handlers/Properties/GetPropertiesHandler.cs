@@ -2,13 +2,14 @@ using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.RealEstate.Application.Abstractions;
 using Softaxis.RealEstate.Application.Properties.Dtos;
 using Softaxis.RealEstate.Application.Properties.Queries;
 using Softaxis.RealEstate.Infrastructure.Persistence;
 
 namespace Softaxis.RealEstate.Infrastructure.Handlers.Properties;
 
-internal sealed class GetPropertiesHandler(RealEstateDbContext db)
+internal sealed class GetPropertiesHandler(RealEstateDbContext db, ICurrentUser user)
     : IQueryHandler<GetPropertiesQuery, PagedResult<PropertyDto>>
 {
     /// <summary>Capped so a hand-edited pageSize cannot ask for the whole set back.</summary>
@@ -47,7 +48,7 @@ internal sealed class GetPropertiesHandler(RealEstateDbContext db)
         var images = await PropertyMappings.LoadImagesAsync(db, items.Select(x => x.Id).ToList(), ct);
 
         return Result.Success(PagedResult<PropertyDto>.Create(
-            items.Select(x => PropertyMappings.ToDto(x, images.GetValueOrDefault(x.Id, []))).ToList(),
+            items.Select(x => PropertyMappings.ToDto(x, user, images.GetValueOrDefault(x.Id, []))).ToList(),
             total, page, pageSize));
     }
 }

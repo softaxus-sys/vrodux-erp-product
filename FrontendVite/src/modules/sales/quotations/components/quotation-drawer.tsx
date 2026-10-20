@@ -16,13 +16,13 @@ import { toast } from "sonner";
 import {
   useSalesQuotation, useConvertQuotationToOrder, useDeleteSalesQuotation,
   useSendQuotation, useCreateQuotationShareLink, useRevokeQuotationShareLink,
-  useRespondToQuotation, useDuplicateQuotation, useLinkQuotationInvoice,
+  useRespondToQuotation, useDuplicateQuotation, useLinkQuotationInvoice, useQuotationBranding,
 } from "@/hooks/sales/use-sales-quotations";
 import {
   QUOTATION_STATUS_META, isEditableQuotation,
-  type QuotationSummaryDto, type QuotationDto, type QuotationItemDto,
+  type QuotationSummaryDto, type QuotationDto, type QuotationItemDto, type QuotationSendResultDto,
 } from "@/lib/sales/quotations.api";
-import { printQuotation } from "./quotation-print";
+import { printQuotation, buildHtml } from "./quotation-print";
 import { financeApi } from "@/lib/finance/finance.api";
 
 const STATUS_ICON: Record<string, React.ElementType> = {
@@ -30,21 +30,26 @@ const STATUS_ICON: Record<string, React.ElementType> = {
   rejected: Ban, expired: Clock, converted: ArrowRight,
 };
 
-type Tab = "overview" | "items" | "document";
+type Tab = "preview" | "overview" | "items" | "document";
 
 interface Props {
   quotation: QuotationSummaryDto | null;
   open: boolean;
   onClose: () => void;
   onEdit?: (q: QuotationDto) => void;
+  /** Which tab to open on. CRM opens on the preview — the first thing a rep wants is to see what the customer will get. */
+  initialTab?: Tab;
+  /** Fired after the quotation is sent (or its link issued), so the caller can log it elsewhere — e.g. on a CRM lead's timeline. */
+  onSent?: (q: QuotationDto, result: QuotationSendResultDto) => void;
 }
 
-export function QuotationDrawer({ quotation: quote, open, onClose, onEdit }: Props) {
+export function QuotationDrawer({ quotation: quote, open, onClose, onEdit, initialTab = "overview", onSent }: Props) {
   const { t } = useTranslation("sales");
   const currency = useCurrency();
   const canInvoice = useCan("finance.invoicing.create");
+  const { data: branding } = useQuotationBranding(open);
 
-  const [tab, setTab] = React.useState<Tab>("overview");
+  const [tab, setTab] = React.useState<Tab>(initialTab);
   const [panel, setPanel] = React.useState<null | "send" | "respond" | "delete">(null);
   const [respondAs, setRespondAs] = React.useState<"accept" | "decline">("accept");
   const [sendTo, setSendTo]   = React.useState("");
@@ -66,7 +71,7 @@ export function QuotationDrawer({ quotation: quote, open, onClose, onEdit }: Pro
 
   React.useEffect(() => {
     if (!open) { setPanel(null); return; }
-    setTab("overview");
+    setTab(initialTab);
     setPanel(null);
     setMessage(""); setByName(""); setComment("");
   }, [open, quote?.id]);
@@ -110,6 +115,7 @@ export function QuotationDrawer({ quotation: quote, open, onClose, onEdit }: Pro
     try {
       const r = await send.mutateAsync({ id: quote.id, toEmail: sendTo || null, message: message || null });
       setPanel(null);
+      if (q) onSent?.(q, r);
       if (!r.emailSent) await copyLink(r.url);
     } catch { /* hook toasts */ }
   };
@@ -193,6 +199,7 @@ export function QuotationDrawer({ quotation: quote, open, onClose, onEdit }: Pro
   };
 
   const TABS: { id: Tab; label: string }[] = [
+    { id: "preview",  label: t("quotations.drawer.tab.preview",  { defaultValue: "Preview" }) },
     { id: "overview", label: t("quotations.drawer.tab.overview", { defaultValue: "Overview" }) },
     { id: "items",    label: t("quotations.drawer.tab.items",    { defaultValue: "Items" }) },
     { id: "document", label: t("quotations.drawer.tab.document", { defaultValue: "Document" }) },
@@ -274,6 +281,7 @@ export function QuotationDrawer({ quotation: quote, open, onClose, onEdit }: Pro
                 </div>
               ) : (
                 <>
+                  {tab === "preview" && q && <PreviewTab q={q} branding={branding} />}
                   {tab === "overview" && q && (
                     <OverviewTab q={q} cur={cur} shareUrl={shareUrl} onCopyLink={copyLink} />
                   )}
@@ -350,7 +358,7 @@ export function QuotationDrawer({ quotation: quote, open, onClose, onEdit }: Pro
             {/* Footer actions */}
             <div className="border-t border-border px-4 py-3 shrink-0 bg-muted/20 flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" className="gap-1.5 h-9"
-                      onClick={() => q && printQuotation(q)} disabled={!q}>
+                      onClick={() => q && printQuotation(q, branding)} disabled={!q}>
                 <Download className="h-3.5 w-3.5" />{t("quotations.drawer.button.pdf", { defaultValue: "PDF" })}
               </Button>
 
@@ -438,6 +446,31 @@ export function QuotationDrawer({ quotation: quote, open, onClose, onEdit }: Pro
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
+/**
+ * The document exactly as the customer will receive it — same renderer as the PDF and the print
+ * view, so what is checked here is what is sent. Rendered in a script-less sandboxed frame: the
+ * markup is built from user-entered text, and a preview must never be able to run any of it.
+ */
+function PreviewTab({ q, branding }: { q: QuotationDto; branding?: import("@/lib/sales/quotations.api").QuotationBrandingDto }) {
+  const { t } = useTranslation("sales");
+  const html = React.useMemo(() => buildHtml(q, branding), [q, branding]);
+  return (
+    <div className="space-y-2">
+      <iframe
+        title={q.quotationNumber}
+        srcDoc={html}
+        sandbox=""
+        className="w-full h-[calc(100vh-300px)] min-h-[520px] rounded-xl border border-border bg-white"
+      />
+      {!branding && (
+        <p className="text-[11px] text-muted-foreground">
+          {t("quotations.drawer.brandingLoading", { defaultValue: "Loading company letterhead…" })}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function OverviewTab({ q, cur, shareUrl, onCopyLink }: {
   q: QuotationDto; cur: string; shareUrl: string | null; onCopyLink: (u: string) => void;
 }) {

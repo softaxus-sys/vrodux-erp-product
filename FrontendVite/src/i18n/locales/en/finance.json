@@ -141,6 +141,106 @@
     "title": "Expense Claims",
     "subtitle": "Review, approve, and process employee expense claims.",
     "newClaim": "New Claim",
+    "tab": {
+      "claims": "Claims",
+      "recurring": "Recurring"
+    },
+    "recurringBadge": "Generated from a recurring expense",
+    "recurring": {
+      "intro": "Costs that repeat on a schedule, such as subscriptions, rent or insurance. Each one is booked as an expense on its due date.",
+      "new": "New Recurring Expense",
+      "runDue": "Run due now",
+      "loading": "Loading recurring expenses…",
+      "loadError": "Could not load recurring expenses.",
+      "retry": "Try again",
+      "empty": "No recurring expenses yet. Add one for a subscription or any other regular cost.",
+      "paused": "Paused",
+      "stat": {
+        "active": "Active",
+        "monthlyCost": "Monthly cost",
+        "dueNow": "Due now"
+      },
+      "table": {
+        "name": "Name",
+        "schedule": "Schedule",
+        "nextRun": "Next run",
+        "amount": "Amount",
+        "mode": "Mode",
+        "actions": "Actions",
+        "generated_one": "{{count}} generated",
+        "generated_other": "{{count}} generated"
+      },
+      "mode": {
+        "autoPost": "Auto-post",
+        "review": "Needs approval"
+      },
+      "frequency": {
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "yearly": "Yearly"
+      },
+      "paidFrom": {
+        "bank": "Bank account",
+        "card": "Company card",
+        "cash": "Cash",
+        "cheque": "Cheque"
+      },
+      "category": {
+        "software": "Software & subscriptions",
+        "rent": "Rent",
+        "utilities": "Utilities",
+        "telecom": "Telecom & internet",
+        "insurance": "Insurance",
+        "marketing": "Marketing",
+        "office": "Office",
+        "other": "Other"
+      },
+      "action": {
+        "generate": "Generate now",
+        "pause": "Pause",
+        "resume": "Resume",
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "form": {
+        "newTitle": "New Recurring Expense",
+        "editTitle": "Edit Recurring Expense",
+        "subtitle": "Booked automatically as an expense on each due date.",
+        "name": "Name",
+        "namePh": "e.g. Storage subscription",
+        "vendor": "Vendor",
+        "vendorPh": "e.g. Dropbox",
+        "category": "Category",
+        "amount": "Amount",
+        "paidFrom": "Paid from",
+        "frequency": "Frequency",
+        "firstRun": "First run",
+        "nextRun": "Next run",
+        "endDate": "End date",
+        "reference": "Reference",
+        "referencePh": "Account or contract no.",
+        "notes": "Notes",
+        "accounts": "Ledger accounts",
+        "accountsHint": "Which accounts each expense posts to when it is paid.",
+        "debitAccount": "Debit (expense account)",
+        "creditAccount": "Credit (paid from)",
+        "debitAuto": "Automatic — by category",
+        "creditAuto": "Automatic — cash or main bank",
+        "groupAssets": "Assets",
+        "groupLiabilities": "Liabilities",
+        "autoPost": "Auto-post",
+        "autoPostOn": "Each expense is approved, marked paid and posted to the ledger automatically, with no review.",
+        "autoPostOff": "Each expense is created as pending and waits for someone to approve it and mark it paid.",
+        "autoPostNeedsApprove": "Only someone who can approve expenses can turn this on.",
+        "save": "Save"
+      },
+      "delete": {
+        "title": "Delete recurring expense?",
+        "body": "\"{{name}}\" will stop generating expenses. Expenses it has already created are kept.",
+        "confirm": "Delete"
+      }
+    },
     "searchPlaceholder": "Search claims...",
     "all": "All",
     "status": {
@@ -521,6 +621,43 @@
         "pettyCash": "Petty Cash",
         "other": "Other"
       }
+    },
+    "recon": {
+      "button": "Reconcile",
+      "title": "Reconcile {{name}}",
+      "pickHint": "Select a statement line, then the ledger line it belongs to.",
+      "close": "Close",
+      "ledgerAccount": "Ledger account",
+      "ledgerHint": "Choose the chart-of-accounts account this bank account is kept in. Statement lines are matched against its posted entries.",
+      "choose": "Choose account…",
+      "save": "Save",
+      "statement": "Statement balance",
+      "book": "Books balance",
+      "difference": "Difference",
+      "matched": "Matched lines",
+      "explain": "A difference is normal until the open lines on both sides are matched or explained.",
+      "window": "Date window",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "autoMatch": "Auto-match",
+      "autoDone_one": "{{count}} line matched.",
+      "autoDone_other": "{{count}} lines matched.",
+      "autoNone": "Nothing could be matched automatically: each remaining line has no match, or more than one.",
+      "truncated": "Showing the first 500 open lines.",
+      "statementLines": "Statement lines to match",
+      "bookLines": "Ledger lines not on the statement",
+      "sameAmount": "Ledger lines with the same amount and direction",
+      "noneBank": "Every statement line is matched.",
+      "noneBook": "No ledger lines to show.",
+      "found_one": "{{count}} possible match",
+      "found_other": "{{count}} possible matches",
+      "noMatch": "No match",
+      "suggested": "suggested",
+      "in": "In",
+      "out": "Out",
+      "match": "Match",
+      "unmatch": "Unmatch",
+      "matchedTo": "Matched to {{entry}}"
     }
   },
   "tax": {
@@ -1066,6 +1203,439 @@
       "loading": "Loading statement…",
       "failed": "Could not load the statement.",
       "empty": "No transactions in this period."
+    }
+  },
+  "integrations": {
+    "title": "Finance Integration Center",
+    "subtitle": "See which modules reach the general ledger, choose the accounts they post to, and review, post or retry the documents waiting in the queue.",
+    "collectNow": "Collect now",
+    "collectNowDisabled": "Switch at least one integration on first.",
+    "loadFailed": "The Integration Center could not be loaded.",
+    "retry": "Try again",
+    "loading": "Loading…",
+    "close": "Close",
+    "cancel": "Cancel",
+    "noAccess": "You do not have permission to view the Finance Integration Center.",
+    "tiles": {
+      "connected": "Connected",
+      "attention": "Need attention",
+      "partial": "Manual from another screen",
+      "notConnected": "Off or not connected",
+      "pending": "Waiting to post",
+      "failed": "Failed to post"
+    },
+    "tabs": {
+      "connectivity": "Module connectivity",
+      "queue": "Posting queue"
+    },
+    "kind": {
+      "native": "Posted by Finance automatically",
+      "queue": "Posted from the queue",
+      "client": "Created by a user from another screen",
+      "none": "Nothing is posted"
+    },
+    "health": {
+      "connected": "Connected",
+      "attention": "Needs attention",
+      "partial": "Manual",
+      "off": "Switched off",
+      "not_connected": "Not connected"
+    },
+    "status": {
+      "pending": "Waiting",
+      "posted": "Posted",
+      "failed": "Failed",
+      "skipped": "Skipped",
+      "reversed": "Reversed"
+    },
+    "side": {
+      "debit": "Debit",
+      "credit": "Credit"
+    },
+    "mode": {
+      "off": {
+        "label": "Off",
+        "hint": "Nothing is collected and nothing is posted."
+      },
+      "review": {
+        "label": "Collect for review",
+        "hint": "New documents are added to the posting queue. A person posts them."
+      },
+      "auto": {
+        "label": "Post automatically",
+        "hint": "New documents are collected every 15 minutes and posted to the ledger without review. Anything that cannot be posted, or that does not add up, waits in the queue for a person."
+      }
+    },
+    "coverage": {
+      "unreadable": "Source data could not be read",
+      "waiting": "{{count}} documents not collected",
+      "queue": "{{posted}} of {{total}} posted",
+      "unposted": "{{count}} documents not in the ledger",
+      "linked": "{{linked}} of {{total}} linked to an entry"
+    },
+    "drawer": {
+      "trigger": "When it posts",
+      "behaviour": "Behaviour",
+      "startDate": "Collect from",
+      "startDateHint": "Documents dated before this are never collected. Required for automatic posting.",
+      "saveBehaviour": "Save behaviour",
+      "openQueue": "Open its queue",
+      "lastCollected": "Last collected {{when}}",
+      "accounts": "Ledger accounts",
+      "accountsHint": "Choose where each side of the entry lands. A role left on its default uses the standard chart account.",
+      "accountsFixed": "These accounts are fixed for documents Finance posts itself.",
+      "defaultAccount": "Default — account {{number}}",
+      "accountMissing": "Account {{number}} is missing",
+      "saveAccounts": "Save accounts"
+    },
+    "queue": {
+      "search": "Search document or entry number",
+      "integration": "Integration",
+      "allIntegrations": "All integrations",
+      "retryFailed": "Retry failed ({{count}})",
+      "postSelected": "Post selected ({{count}})",
+      "status": "Status",
+      "allStatuses": "All",
+      "emptyTitle": "Nothing here",
+      "emptyPending": "No documents are waiting. Switch an integration on and press Collect now to bring its documents in.",
+      "emptyOther": "No documents match these filters.",
+      "selectAll": "Select all on this page",
+      "selectRow": "Select {{number}}",
+      "pageOf": "Page {{page}} of {{pages}} · {{total}} documents",
+      "prev": "Previous page",
+      "next": "Next page",
+      "col": {
+        "date": "Date",
+        "document": "Document",
+        "integration": "Integration",
+        "amount": "Amount",
+        "status": "Status",
+        "journal": "Journal entry"
+      }
+    },
+    "preview": {
+      "title": "Document",
+      "description": "Description",
+      "lastFailure": "Last attempt failed · attempts: {{count}}",
+      "skipReason": "Skipped: {{reason}}",
+      "entryWillBe": "Journal entry that will be posted",
+      "entryNow": "Entry as today's account settings would build it — open the journal entry for what was posted",
+      "account": "Account",
+      "noAccount": "No account set",
+      "noLines": "This document has no amounts to post.",
+      "total": "Total",
+      "converted": "Converted from {{from}} to {{to}} at {{rate}}.",
+      "cannotPost": "This cannot be posted yet",
+      "journalEntry": "Journal entry",
+      "postedBy": "Posted {{when}} by {{who}}",
+      "openJournals": "Open journals",
+      "skipAsk": "Skip this document? It will not be posted unless you put it back in the queue.",
+      "reverseAsk": "Reverse journal entry {{number}}? The entry is cancelled in the ledger. The document is not posted again unless you put it back in the queue afterwards.",
+      "skipReasonPh": "Reason (optional)",
+      "skipConfirm": "Skip document",
+      "reverseConfirm": "Reverse entry",
+      "retry": "Retry posting",
+      "post": "Post to ledger",
+      "skip": "Skip",
+      "requeue": "Put back in queue",
+      "reverse": "Reverse entry",
+      "needsReversal": "Cancelled after posting",
+      "reverseReasonPh": "Why is the entry wrong? (required)",
+      "postAgain": "Post again"
+    },
+    "toast": {
+      "settingSaved": "Behaviour saved.",
+      "mappingSaved": "Accounts saved.",
+      "syncError": "Collection failed: {{error}}",
+      "syncNothingOn": "No integration is switched on, so nothing was collected.",
+      "syncWithFailures": "Collected {{collected}}, posted {{posted}}, failed {{failed}}.",
+      "synced": "Collected {{collected}} new, posted {{posted}}.",
+      "postedWithFailures": "Posted {{posted}}, failed {{failed}}.",
+      "nothingPosted": "Nothing was posted — the documents were already handled.",
+      "posted": "Posted to the ledger: {{count}}.",
+      "skipped": "Document skipped.",
+      "requeued": "Document is back in the queue.",
+      "reversed": "Journal entry reversed.",
+      "submitted": "{{count}} submitted for approval.",
+      "withdrawn": "{{count}} withdrawn.",
+      "submitNothing": "Nothing to submit: those documents are already submitted.",
+      "submitProblems_one": "{{count}} document could not be submitted.",
+      "submitProblems_other": "{{count}} documents could not be submitted.",
+      "refused_one": "{{count}} document was left alone: it needs a higher approval level or a second approver.",
+      "refused_other": "{{count}} documents were left alone: they need a higher approval level or a second approver.",
+      "approvalSaved": "Approval rules saved."
+    },
+    "module": {
+      "finance": "Finance",
+      "pos": "Retail POS",
+      "restaurant": "Restaurant",
+      "real-estate": "Real Estate",
+      "library": "Library",
+      "hr": "HR & Payroll",
+      "manufacturing": "Manufacturing",
+      "visa": "Visa Services",
+      "sales": "Sales",
+      "purchase": "Purchase",
+      "inventory": "Inventory",
+      "hospitality": "Hospitality",
+      "construction": "Construction"
+    },
+    "role": {
+      "receivable": "Accounts receivable",
+      "revenue": "Revenue",
+      "tax": "Tax",
+      "cash": "Cash",
+      "bank": "Bank and card",
+      "fx": "Exchange gain or loss",
+      "purchases": "Purchases",
+      "payable": "Payable",
+      "expense": "Expense",
+      "tips": "Tips payable to staff",
+      "deductions": "Deductions withheld",
+      "customer": "Customer balances (wallet, store credit, house account)"
+    },
+    "catalog": {
+      "finance": {
+        "invoice": {
+          "name": "Sales invoices",
+          "trigger": "Invoice sent",
+          "notes": "Posted when the invoice is sent (manually or by schedule); reversed on cancel or reset."
+        },
+        "invoice-payment": {
+          "name": "Invoice payments",
+          "trigger": "Invoice marked paid",
+          "notes": "Posted when a payment is recorded on an invoice. Cash or bank is chosen by payment method."
+        },
+        "receipt-voucher": {
+          "name": "Receipt vouchers",
+          "trigger": "Voucher posted",
+          "notes": "Posted with realised exchange gain or loss; reversed on void."
+        },
+        "purchase-bill": {
+          "name": "Purchase bills",
+          "trigger": "Bill approved",
+          "notes": "Posted on approval; reversed on cancel. Purchases are expensed — stock is not carried in the ledger."
+        },
+        "payment-voucher": {
+          "name": "Payment vouchers",
+          "trigger": "Voucher posted",
+          "notes": "Posted with realised exchange gain or loss; reversed on void."
+        },
+        "expense": {
+          "name": "Expenses",
+          "trigger": "Expense marked paid",
+          "notes": "Posted when paid. The expense account comes from the category unless one is chosen on the expense."
+        },
+        "bank-transaction": {
+          "name": "Bank transactions",
+          "trigger": "Deposit, withdrawal or transfer recorded",
+          "notes": "Bank transactions change the bank account balance only. No journal entry is raised, so the bank balance and ledger account 1010 can drift apart. They are deliberately not posted from here: a bank line has only one side (nothing says what the money was for), bank accounts are not tied to ledger accounts, and receipt and payment vouchers already post the same money, so posting both would count it twice. The way to close the gap is bank reconciliation."
+        }
+      },
+      "pos": {
+        "sale": {
+          "name": "Retail POS sales",
+          "trigger": "Sale completed at the till",
+          "notes": "Each completed sale is collected once. A sale later refunded is still posted in full; the refund is posted separately. Sales paid from store credit go to the customer-balances account, not the bank."
+        },
+        "refund": {
+          "name": "Retail POS refunds",
+          "trigger": "Refund completed at the till",
+          "notes": "Reverses revenue and tax for the refunded amount and credits whichever of cash, bank or store credit the refund was paid back through."
+        }
+      },
+      "restaurant": {
+        "order": {
+          "name": "Restaurant orders",
+          "trigger": "Order paid in full",
+          "notes": "Collected when the order reaches paid. Tips are held as a liability, not revenue. Wallet and house-account payments go to the customer-balances account, not the bank."
+        },
+        "refund": {
+          "name": "Restaurant refunds",
+          "trigger": "Refund recorded on a paid order",
+          "notes": "Posted against revenue for the refunded amount. Tax is not split out — a refund row stores one amount."
+        }
+      },
+      "realestate": {
+        "rent": {
+          "name": "Rent received",
+          "trigger": "Rent installment fully paid",
+          "notes": "Collected when an installment is settled. Part payments are posted once the installment is paid in full."
+        }
+      },
+      "library": {
+        "fine": {
+          "name": "Library fines collected",
+          "trigger": "Fine payment taken",
+          "notes": "Each amount taken against a fine is collected once, part payments included. Waived fines are not posted. A payment posted here is marked in the library, so its own fines posting screen cannot enter it again — and the reverse."
+        }
+      },
+      "hr": {
+        "payroll": {
+          "name": "Payroll",
+          "trigger": "Payroll run approved by Finance",
+          "notes": "Collects approved runs that have no journal entry yet — the browser-side posting at approval silently skips when it cannot find salary accounts by name. Once posted here the entry is linked back to the run."
+        }
+      },
+      "manufacturing": {
+        "production": {
+          "name": "Production cost",
+          "trigger": "Production order completed",
+          "notes": "A user posts a draft journal entry from the order drawer. Completed orders with no entry are counted here."
+        }
+      },
+      "visa": {
+        "invoice": {
+          "name": "Visa case invoices",
+          "trigger": "Case created",
+          "notes": "A draft invoice is created through the Finance API when the box is ticked. It reaches the ledger only when someone sends it."
+        }
+      },
+      "sales": {
+        "quotation": {
+          "name": "Quotation to invoice",
+          "trigger": "Quotation converted",
+          "notes": "A user creates a Finance invoice from the quotation. Sales orders and delivery challans post nothing."
+        },
+        "return": {
+          "name": "Sales returns",
+          "trigger": "Return approved",
+          "notes": "An approved return records a refund amount but raises no credit note or journal entry."
+        }
+      },
+      "purchase": {
+        "grn": {
+          "name": "Goods receipts and purchase returns",
+          "trigger": "Goods received or returned",
+          "notes": "Receipts and returns update the purchase order only. The ledger expenses purchases when the bill is approved, so posting receipts as stock would double-count until bills are changed to clear an accrual account."
+        }
+      },
+      "inventory": {
+        "movement": {
+          "name": "Stock adjustments and write-offs",
+          "trigger": "Stock adjusted, written off or transferred",
+          "notes": "Stock value is not carried in the ledger (purchases are expensed), so there is no inventory account to adjust."
+        }
+      },
+      "hospitality": {
+        "booking": {
+          "name": "Hotel bookings",
+          "trigger": "Guest payment taken",
+          "notes": "A booking stores a running paid amount, not individual payments, so there is no event to post."
+        }
+      },
+      "construction": {
+        "project": {
+          "name": "Construction contracts",
+          "trigger": "Progress billed or contractor paid",
+          "notes": "The module raises no journal entries."
+        }
+      },
+      "sales.return": {}
+    },
+    "check": {
+      "title": "Check before posting",
+      "subtitle_one": "{{count}} document selected",
+      "subtitle_other": "{{count}} documents selected",
+      "running": "Running checks…",
+      "rerun": "Run checks again",
+      "ready": "Ready to post",
+      "blocked": "Blocked",
+      "totalDebit": "Total debit",
+      "totalCredit": "Total credit",
+      "balanced": "Debits and credits agree.",
+      "notBalanced": "Debits and credits do not agree. Nothing can be posted.",
+      "nothingReady": "None of these documents can be posted yet.",
+      "willPost": "What this adds to the ledger",
+      "oneEntryEach": "Each document is posted as its own journal entry, dated with the document.",
+      "blockedTitle_one": "{{count}} document cannot be posted",
+      "blockedTitle_other": "{{count}} documents cannot be posted",
+      "blockedStay": "Blocked documents are left in the queue unchanged. Fix the cause and check again.",
+      "confirm_one": "I have checked these figures. Post {{count}} document ({{total}}) to the ledger.",
+      "confirm_other": "I have checked these figures. Post {{count}} documents ({{total}}) to the ledger.",
+      "post_one": "Post {{count}} document",
+      "post_other": "Post {{count}} documents",
+      "noPermission": "You can check these documents, but posting them needs the permission to post to the ledger."
+    },
+    "modulePanel": {
+      "button": "Post to Finance",
+      "title": "Post to Finance",
+      "subtitle": "Choose documents, check them, then post them to the ledger.",
+      "none": "This module has no documents that can be posted from here.",
+      "offTitle": "Posting to Finance is switched off",
+      "offBody": "Nothing from this module is collected or posted. Switch on manual posting to collect documents here and post them yourself after checking them.",
+      "switchOnManual": "Switch on manual posting",
+      "askFinance": "Ask someone who manages Finance integrations to switch it on.",
+      "autoOn": "Automatic posting is on. Documents are posted without review; what you see here is waiting for the next pass or has failed.",
+      "collect": "Check for new documents",
+      "emptyPending": "Nothing is waiting. Use \"Check for new documents\" to collect anything recorded since the last time.",
+      "more": "Showing {{shown}} of {{total}}. Open the Integration Center for the full list.",
+      "openCenter": "Open Integration Center",
+      "selected": "{{count}} selected · {{amount}}",
+      "checkSelected": "Check and post ({{count}})",
+      "checkAll": "Check all ({{count}})"
+    },
+    "auto": {
+      "title": "Switch on automatic posting?",
+      "warnTitle": "Before you switch it on",
+      "warnUnreviewed": "Documents will be posted to the ledger about every {{minutes}} minutes with nobody checking them first.",
+      "warnPending_one": "{{count}} waiting document ({{amount}}) will be posted on the first pass.",
+      "warnPending_other": "{{count}} waiting documents ({{amount}}) will be posted on the first pass.",
+      "warnUncollected_one": "{{count}} document not collected yet will be collected and posted.",
+      "warnUncollected_other": "{{count}} documents not collected yet will be collected and posted.",
+      "warnStartDate": "Only documents dated {{date}} or later are included.",
+      "warnFailed_one": "{{count}} failed document is not retried automatically. Retry it yourself.",
+      "warnFailed_other": "{{count}} failed documents are not retried automatically. Retry them yourself.",
+      "warnReverse": "A wrong posting is corrected by reversing it, one document at a time.",
+      "advice": "Post manually for a few days first, and switch to automatic once the entries look right.",
+      "understand": "I understand that documents will be posted to the ledger without review.",
+      "switchOn": "Switch on automatic posting",
+      "keepManual": "Cancel",
+      "blockedTitle": "Automatic posting cannot be switched on yet",
+      "blockedHint": "Choose an account for each of these under Accounts, save, and try again.",
+      "radioWarning": "Posts without review. You will be asked to confirm.",
+      "needsApprove": "Needs the permission to post to the ledger.",
+      "needStartDate": "Set a start date first.",
+      "needStartDateHint": "Automatic posting only covers documents dated on or after the start date, so periods already in your books are not posted again. Close this, fill in \"Collect from\", and try again.",
+      "warnHeld": "A document is held for you instead of being posted when its figures do not add up, it was paid in a way there is no posting rule for, it changed after it was collected, or it was already entered from its own module."
+    },
+    "hub": {
+      "title": "Finance Posting",
+      "subtitle": "Documents from the modules your workspace has, waiting to be posted to the ledger. Nothing is posted without the approval level it needs.",
+      "allModules": "All modules",
+      "waiting": "Waiting",
+      "held": "Held / failed",
+      "modeOff": "Off",
+      "modeManual": "Manual",
+      "modeAuto": "Automatic",
+      "mixed": "Mixed",
+      "limit": "Limit {{amount}}",
+      "secondApprover": "2nd approver",
+      "manualOnly": "Manual only",
+      "collect": "Check for new documents",
+      "settings": "Accounts and approval settings",
+      "notPostedTitle": "Not posted from here yet",
+      "notPostedHint": "These parts of your workspace do not send documents to the ledger. What is missing is shown for each.",
+      "noModules": "None of your workspace's modules send documents to the ledger from here.",
+      "submit": "Submit for approval ({{count}})",
+      "withdraw": "Withdraw ({{count}})",
+      "submittedBy": "Submitted by {{name}}",
+      "needsSubmit": "Needs submitting",
+      "notSubmitted": "Not submitted",
+      "approvalCol": "Approval",
+      "levelsTitle": "Approval levels",
+      "levelsHint": "Anyone who can see this screen can look. Preparing, approving and high-value approval are separate permissions you give in Roles.",
+      "levelPrepare": "Prepare — collect and submit documents",
+      "levelApprove": "Approve — check and post",
+      "levelHigh": "High-value — post documents above an integration's limit",
+      "approvalTitle": "Approval levels",
+      "limitLabel": "Approval limit",
+      "limitHint": "Documents above this amount need someone with high-value approval, and are never posted automatically. Leave empty for no limit.",
+      "separateLabel": "A second person must approve",
+      "separateHint": "The person who submits a document cannot be the one who posts it. Not available with automatic posting.",
+      "saveApproval": "Save approval rules",
+      "manualOnlyNote": "These are always posted by a person: they carry no tax and are not tied to an invoice, so they cannot be posted without being looked at.",
+      "separateBlocksAuto": "Automatic posting is off while a second approver is required."
     }
   }
 }

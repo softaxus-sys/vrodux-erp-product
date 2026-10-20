@@ -141,8 +141,10 @@
       "overview": "Overview",
       "activity": "Activity",
       "documents": "Documents",
-      "journey": "Journey"
+      "journey": "Journey",
+      "quotations": "Quotations"
     },
+    "quotationButton": "Quotation",
     "leadScore": "Lead Score",
     "scoreValue": "{{score}}/100 · {{label}}",
     "heatLead": "{{label}} lead",
@@ -451,7 +453,10 @@
       }
     },
     "assignTo": "Assign to",
-    "unassigned": "Unassigned"
+    "unassigned": "Unassigned",
+    "loggedOn": "Logged {{date}}",
+    "dueDate": "Date",
+    "dueTime": "Time"
   },
   "contacts": {
     "heading": "Contacts ({{count}})",
@@ -534,7 +539,8 @@
       "contacts": "Contacts",
       "deals": "Deals",
       "activity": "Activity",
-      "documents": "Documents"
+      "documents": "Documents",
+      "quotations": "Quotations"
     },
     "companyInformation": "Company Information",
     "website": "Website",

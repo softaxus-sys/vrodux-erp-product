@@ -72,6 +72,9 @@ public sealed class Order
     /// dialog, not necessarily known at creation time.</summary>
     public void SetCustomer(Guid? customerId) { CustomerId = customerId; UpdatedAt = DateTime.UtcNow; }
 
+    /// <summary>Hands the order to another waiter — a shift change, or a host seating a table for someone else.</summary>
+    public void SetWaiter(string waiter) { Waiter = waiter; UpdatedAt = DateTime.UtcNow; }
+
     public void Recalculate()
     {
         // Excludes voided items — previously this summed ALL items including soft-deleted ones,

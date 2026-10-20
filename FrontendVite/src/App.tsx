@@ -14,12 +14,14 @@ const ForgotPasswordPage = lazyWithRetry(() => import("@/pages/auth/forgot-passw
 const ResetPasswordPage  = lazyWithRetry(() => import("@/pages/auth/reset-password"));
 const VerifyEmailPage    = lazyWithRetry(() => import("@/pages/auth/verify-email"));
 const PublicQuotationPage = lazyWithRetry(() => import("@/pages/public/quotation"));
+const LibraryPortalPage   = lazyWithRetry(() => import("@/pages/public/library-portal"));
 
 // ── Core ──────────────────────────────────────────────────────────────────────
 const DashboardPage        = lazyWithRetry(() => import("@/pages/dashboard"));
 const AiAssistantPage      = lazyWithRetry(() => import("@/pages/ai-assistant"));
 const ReportsPage          = lazyWithRetry(() => import("@/pages/reports"));
 const FileManagerPage      = lazyWithRetry(() => import("@/pages/file-manager"));
+const CalendarPage         = lazyWithRetry(() => import("@/pages/calendar"));
 const ProfilePage          = lazyWithRetry(() => import("@/pages/profile"));
 const MyTicketsPage        = lazyWithRetry(() => import("@/pages/support/my-tickets"));
 const SupportQueuePage     = lazyWithRetry(() => import("@/pages/support/queue"));
@@ -38,6 +40,8 @@ const AgeingPage           = lazyWithRetry(() => import("@/pages/finance/ageing"
 const BudgetingPage        = lazyWithRetry(() => import("@/pages/finance/budgeting"));
 const TaxPage              = lazyWithRetry(() => import("@/pages/finance/tax"));
 const BankingPage          = lazyWithRetry(() => import("@/pages/finance/banking"));
+const FinanceIntegrationsPage = lazyWithRetry(() => import("@/pages/finance/integrations"));
+const FinancePostingPage = lazyWithRetry(() => import("@/pages/finance/posting"));
 
 // ── HR ────────────────────────────────────────────────────────────────────────
 const EmployeesPage        = lazyWithRetry(() => import("@/pages/hr/employees"));
@@ -116,6 +120,8 @@ const RestaurantReportsPage    = lazyWithRetry(() => import("@/pages/pos/reports
 const RestaurantDashboardsPage = lazyWithRetry(() => import("@/pages/pos/dashboards"));
 const BranchAccessPage         = lazyWithRetry(() => import("@/pages/pos/branch-access"));
 const PosCustomersPage         = lazyWithRetry(() => import("@/pages/pos/customers"));
+const PosCreditPage            = lazyWithRetry(() => import("@/pages/pos/credit"));
+const PosLowStockPage          = lazyWithRetry(() => import("@/pages/pos/low-stock"));
 
 // ── Recipe ────────────────────────────────────────────────────────────────────
 const RecipesPage          = lazyWithRetry(() => import("@/pages/recipe/recipes"));
@@ -127,6 +133,28 @@ const ProjectManagementPage = lazyWithRetry(() => import("@/pages/project-manage
 const ProjectBoardPage      = lazyWithRetry(() => import("@/pages/project-management/board"));
 const ProjectBacklogPage    = lazyWithRetry(() => import("@/pages/project-management/backlog"));
 const ProjectIssuesPage     = lazyWithRetry(() => import("@/pages/project-management/issues"));
+
+// ── Manufacturing ────────────────────────────────────────────────────────────
+const ManufacturingOrdersPage = lazyWithRetry(() => import("@/pages/manufacturing/orders"));
+const ManufacturingBomsPage   = lazyWithRetry(() => import("@/pages/manufacturing/boms"));
+const ManufacturingDashboardPage   = lazyWithRetry(() => import("@/pages/manufacturing/dashboard"));
+const ManufacturingWorkCentresPage = lazyWithRetry(() => import("@/pages/manufacturing/work-centres"));
+const ManufacturingPlanningPage    = lazyWithRetry(() => import("@/pages/manufacturing/planning"));
+
+// ── Library ──────────────────────────────────────────────────────────────────
+const LibraryDashboardPage   = lazyWithRetry(() => import("@/pages/library/dashboard"));
+const LibraryCirculationPage = lazyWithRetry(() => import("@/pages/library/circulation"));
+const LibraryCataloguePage   = lazyWithRetry(() => import("@/pages/library/catalogue"));
+const LibraryMembersPage     = lazyWithRetry(() => import("@/pages/library/members"));
+const LibraryFinesPage       = lazyWithRetry(() => import("@/pages/library/fines"));
+const LibrarySetupPage       = lazyWithRetry(() => import("@/pages/library/setup"));
+
+// ── Import / Export ──────────────────────────────────────────────────────────
+const TradeDashboardPage = lazyWithRetry(() => import("@/pages/trade/dashboard"));
+const TradeShipmentsPage = lazyWithRetry(() => import("@/pages/trade/shipments"));
+const TradePartiesPage   = lazyWithRetry(() => import("@/pages/trade/parties"));
+const TradeInTransitPage = lazyWithRetry(() => import("@/pages/trade/in-transit"));
+const TradeDutyRatesPage = lazyWithRetry(() => import("@/pages/trade/duty-rates"));
 
 // ── Visa Services ────────────────────────────────────────────────────────────
 const VisaDashboardPage     = lazyWithRetry(() => import("@/pages/visa/dashboard"));
@@ -140,6 +168,11 @@ const SeoSitesPage          = lazyWithRetry(() => import("@/pages/seo/sites"));
 const BookingsPage         = lazyWithRetry(() => import("@/pages/hospitality/bookings"));
 const RoomsPage            = lazyWithRetry(() => import("@/pages/hospitality/rooms"));
 const HousekeepingPage     = lazyWithRetry(() => import("@/pages/hospitality/housekeeping"));
+const HotelFrontDeskPage   = lazyWithRetry(() => import("@/pages/hospitality/front-desk"));
+const HotelCalendarPage    = lazyWithRetry(() => import("@/pages/hospitality/calendar"));
+const HotelRatesPage       = lazyWithRetry(() => import("@/pages/hospitality/rates"));
+const HotelGuestsPage      = lazyWithRetry(() => import("@/pages/hospitality/guests"));
+const HotelSettingsPage    = lazyWithRetry(() => import("@/pages/hospitality/settings"));
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 const GeneralSettingsPage  = lazyWithRetry(() => import("@/pages/settings/general"));
@@ -183,6 +216,7 @@ const SuperAdminPage            = lazyWithRetry(() => import("@/pages/super-admi
 const NewTenantPage             = lazyWithRetry(() => import("@/pages/super-admin/new-tenant"));
 const TenantDetailPage          = lazyWithRetry(() => import("@/pages/super-admin/tenant-detail"));
 const PlatformBillingPage       = lazyWithRetry(() => import("@/pages/super-admin/billing"));
+const StorageUsagePage          = lazyWithRetry(() => import("@/pages/super-admin/storage"));
 const SubscriptionExpiredPage   = lazyWithRetry(() => import("@/pages/subscription-expired"));
 
 // ── Guards ───────────────────────────────────────────────────────────────────
@@ -310,6 +344,8 @@ export function App() {
         {/* Customer-facing quotation link — fully public, no auth. Kept short (/q/:token)
             because the URL is pasted into emails and read aloud on calls. */}
         <Route path="/q/:token" element={<PublicQuotationPage />} />
+        {/* Library members' own page: card number + PIN, no staff sign-in. */}
+        <Route path="/library-portal/:slug" element={<LibraryPortalPage />} />
 
         {/* Careers portal — fully public, no auth */}
         <Route path="/careers/:tenantSlug" element={<CareersJobsPage />} />
@@ -350,6 +386,9 @@ export function App() {
           <Route element={<ModuleGuard module="file-manager" />}>
             <Route path="/file-manager" element={<FileManagerPage />} />
           </Route>
+          <Route element={<ModuleGuard module="calendar" />}>
+            <Route path="/calendar" element={<CalendarPage />} />
+          </Route>
 
           {/* ── Finance ─────────────────────────────────────────────────────── */}
           <Route element={<ModuleGuard module="finance" />}>
@@ -366,6 +405,8 @@ export function App() {
             <Route path="/finance/budgeting"      element={<BudgetingPage />} />
             <Route path="/finance/tax"            element={<TaxPage />} />
             <Route path="/finance/banking"        element={<BankingPage />} />
+            <Route path="/finance/integrations"   element={<FinanceIntegrationsPage />} />
+            <Route path="/finance/posting"        element={<FinancePostingPage />} />
           </Route>
 
           {/* ── HR ──────────────────────────────────────────────────────────── */}
@@ -471,6 +512,13 @@ export function App() {
             <Route path="/pos/dashboard"   element={<PosDashboardPage />} />
             <Route path="/pos/retail"      element={<RetailPOSPage />} />
             <Route path="/pos/customers"   element={<PosCustomersPage />} />
+            <Route path="/pos/credit"      element={<PosCreditPage />} />
+            <Route path="/pos/low-stock"   element={<PosLowStockPage />} />
+          </Route>
+
+          {/* Restaurant screens live under /pos/* but belong to the restaurant module. Guarding them
+              on "pos" bounced every restaurant-only role back to the dashboard. */}
+          <Route element={<ModuleGuard module="restaurant" />}>
             <Route path="/pos/restaurant"  element={<RestaurantPOSPage />} />
             <Route path="/pos/kitchen"     element={<KitchenDisplayPage />} />
             <Route path="/pos/floor-designer" element={<FloorDesignerPage />} />
@@ -499,6 +547,34 @@ export function App() {
             <Route path="/project-management/:projectId/issues"  element={<ProjectIssuesPage />} />
           </Route>
 
+          {/* ── Manufacturing ───────────────────────────────────────────────── */}
+          <Route element={<ModuleGuard module="manufacturing" />}>
+            <Route path="/manufacturing/orders" element={<ManufacturingOrdersPage />} />
+            <Route path="/manufacturing/boms"   element={<ManufacturingBomsPage />} />
+            <Route path="/manufacturing/dashboard" element={<ManufacturingDashboardPage />} />
+            <Route path="/manufacturing/work-centres" element={<ManufacturingWorkCentresPage />} />
+            <Route path="/manufacturing/planning"     element={<ManufacturingPlanningPage />} />
+          </Route>
+
+          {/* ── Library ─────────────────────────────────────────────────────── */}
+          <Route element={<ModuleGuard module="library" />}>
+            <Route path="/library/dashboard"   element={<LibraryDashboardPage />} />
+            <Route path="/library/circulation" element={<LibraryCirculationPage />} />
+            <Route path="/library/catalogue"   element={<LibraryCataloguePage />} />
+            <Route path="/library/members"     element={<LibraryMembersPage />} />
+            <Route path="/library/fines"       element={<LibraryFinesPage />} />
+            <Route path="/library/setup"       element={<LibrarySetupPage />} />
+          </Route>
+
+          {/* ── Import / Export ─────────────────────────────────────────────── */}
+          <Route element={<ModuleGuard module="trade" />}>
+            <Route path="/trade/dashboard" element={<TradeDashboardPage />} />
+            <Route path="/trade/shipments" element={<TradeShipmentsPage />} />
+            <Route path="/trade/parties"   element={<TradePartiesPage />} />
+            <Route path="/trade/in-transit" element={<TradeInTransitPage />} />
+            <Route path="/trade/duty-rates" element={<TradeDutyRatesPage />} />
+          </Route>
+
           {/* ── Visa Services ───────────────────────────────────────────────── */}
           <Route element={<ModuleGuard module="visa" />}>
             <Route path="/visa/dashboard" element={<VisaDashboardPage />} />
@@ -517,7 +593,12 @@ export function App() {
           <Route element={<ModuleGuard module="hospitality" />}>
             <Route path="/hospitality/bookings"     element={<BookingsPage />} />
             <Route path="/hospitality/rooms"        element={<RoomsPage />} />
-            <Route path="/hospitality/housekeeping" element={<HousekeepingPage />} />
+            <Route path="/hospitality/housekeeping" element={<HousekeepingPage />} />
+            <Route path="/hospitality/front-desk"   element={<HotelFrontDeskPage />} />
+            <Route path="/hospitality/calendar"     element={<HotelCalendarPage />} />
+            <Route path="/hospitality/rates"        element={<HotelRatesPage />} />
+            <Route path="/hospitality/guests"       element={<HotelGuestsPage />} />
+            <Route path="/hospitality/settings"     element={<HotelSettingsPage />} />
           </Route>
 
           {/* ── Master Data ─────────────────────────────────────────────────── */}
@@ -530,6 +611,8 @@ export function App() {
             <Route path="/super-admin/tenants/:id" element={<TenantDetailPage />} />
             {/* Platform payment accounts (Vrodux's own Stripe/PayPal) — not a tenant setting. */}
             <Route path="/super-admin/billing"     element={<PlatformBillingPage />} />
+            {/* Shared object-storage bucket usage, per tenant — not a tenant setting either. */}
+            <Route path="/super-admin/storage"     element={<StorageUsagePage />} />
           </Route>
 
           {/* ── Settings — per-page permission, admin tiers always pass ─────── */}

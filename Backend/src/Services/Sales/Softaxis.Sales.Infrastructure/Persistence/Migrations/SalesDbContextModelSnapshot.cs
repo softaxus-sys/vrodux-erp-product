@@ -18,7 +18,7 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("sales")
-                .HasAnnotation("ProductVersion", "9.0.19")
+                .HasAnnotation("ProductVersion", "9.0.20")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -442,6 +442,10 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("AccentColor")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<Guid?>("ConvertedOrderId")
                         .HasColumnType("uniqueidentifier");
 
@@ -451,6 +455,12 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("CrmCustomerId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("CurrencyCode")
                         .IsRequired()
@@ -479,9 +489,16 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<Guid?>("DealId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("DiscountPercent")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("FooterNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<Guid?>("InvoiceId")
                         .HasColumnType("uniqueidentifier");
@@ -498,6 +515,12 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
                     b.Property<string>("IssueDate")
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid?>("LeadId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("LeadOwnerUserId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
@@ -542,6 +565,14 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<bool>("ShowLogo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<Guid?>("SourceTemplateId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -572,9 +603,15 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CrmCustomerId");
+
                     b.HasIndex("CustomerId");
 
+                    b.HasIndex("DealId");
+
                     b.HasIndex("InvoiceId");
+
+                    b.HasIndex("LeadId");
 
                     b.HasIndex("ShareToken")
                         .IsUnique()

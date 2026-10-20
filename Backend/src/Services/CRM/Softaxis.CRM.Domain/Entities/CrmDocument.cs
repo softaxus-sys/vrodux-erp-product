@@ -9,9 +9,10 @@ namespace Softaxis.CRM.Domain.Entities;
 /// stage: the document travels with the record, and a lead's documents stay reachable after it is
 /// converted because the converted account/opportunity can be queried in its own right.</para>
 ///
-/// <para><b>Bytes are stored in the database</b>, following the existing receipt-attachment
-/// precedent on <c>Expense</c>. That keeps the on-prem deployment free of any blob-store
-/// dependency. <see cref="Data"/> must never be selected in list queries — the read handlers
+/// <para>Bytes live in the shared object storage bucket (see IObjectStorage) once configured —
+/// <see cref="ObjectKey"/> set, <see cref="Data"/> cleared. A row uploaded before object storage
+/// was configured keeps its bytes in <see cref="Data"/> instead; the two are never both populated.
+/// <see cref="Data"/> must never be selected in list queries either way — the read handlers
 /// project only metadata, and only the download handler loads the bytes.</para>
 /// </summary>
 public sealed class CrmDocument
@@ -51,7 +52,16 @@ public sealed class CrmDocument
     public string?   RelatedToName    { get; private set; }
     public string    FileName         { get; private set; } = string.Empty;
     public string    ContentType      { get; private set; } = string.Empty;
+
+    /// <summary>Legacy storage — null/empty once ObjectKey is set (see SetObjectKey). Never both
+    /// populated, so the bytes aren't paid for twice.</summary>
     public byte[]    Data             { get; private set; } = [];
+
+    /// <summary>Key in the shared object storage bucket (see IObjectStorage), e.g.
+    /// "crm/{tenantId}/{relatedToType}/{relatedToId}/{documentId}". Null for a row stored the
+    /// legacy way.</summary>
+    public string?   ObjectKey        { get; private set; }
+
     public long      SizeBytes        { get; private set; }
     public string    DocumentType     { get; private set; } = "other";
     public string?   Description      { get; private set; }
@@ -70,4 +80,12 @@ public sealed class CrmDocument
     }
 
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>Called once the bytes have actually landed in the bucket. Clears Data — the two
+    /// storage locations are never both populated for the same row.</summary>
+    public void SetObjectKey(string key)
+    {
+        ObjectKey = key;
+        Data = [];
+    }
 }

@@ -179,6 +179,10 @@ namespace Softaxis.Support.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("MessageId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ObjectKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint");
 

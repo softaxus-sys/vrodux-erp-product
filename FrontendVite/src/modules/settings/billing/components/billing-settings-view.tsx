@@ -1,17 +1,17 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  CreditCard, Check, Loader2, AlertTriangle, Users, Calendar,
+  CreditCard, Check, Loader2, AlertTriangle, Users, Calendar, HardDrive,
   ExternalLink, ShieldCheck, Sparkles, Receipt, X,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, formatFileSize } from "@/lib/utils";
 import {
   useBillingOverview, useBillingInvoices, useStartCheckout,
-  useBillingPortal, useCancelSubscription, useStartTrial,
+  useBillingPortal, useCancelSubscription, useStartTrial, useTenantStorageUsage,
 } from "@/hooks/billing/use-billing";
-import { formatUsd } from "@/lib/billing/plans";
+import { formatUsd, TRIAL_DAYS } from "@/lib/billing/plans";
 import type { PaymentProviderName, PlanOptionDto } from "@/lib/billing/billing.api";
 
 type Period = "Monthly" | "Annual";
@@ -36,6 +36,7 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
 export function BillingSettingsView() {
   const { data: overview, isLoading } = useBillingOverview();
   const { data: invoices } = useBillingInvoices();
+  const { data: storage } = useTenantStorageUsage();
   const checkout   = useStartCheckout();
   const portal     = useBillingPortal();
   const cancel     = useCancelSubscription();
@@ -113,8 +114,31 @@ export function BillingSettingsView() {
   const atSeatLimit = overview.maxUsers > 0 && overview.usersInUse >= overview.maxUsers;
   const noProviders = overview.availableProviders.length === 0;
 
+  const onTrial = overview.tenantStatus === "Trial";
+  const fitting = overview.plans.find(p => p.selfServe && !p.tooSmallReason);
+
   return (
     <div className="space-y-6">
+      {/* A team larger than its plan: nobody is switched off, but they cannot add users and must
+          choose a plan that fits. Says exactly which one. */}
+      {overview.seatsOverLimit && (
+        <Card className="border border-amber-500/40 bg-amber-500/5">
+          <CardContent className="p-4 flex items-start gap-3">
+            <Users className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-semibold text-amber-700 dark:text-amber-400">
+                You have {overview.usersInUse} active users on a {overview.maxUsers}-user plan
+              </p>
+              <p className="text-muted-foreground mt-0.5">
+                {fitting
+                  ? <>Everyone can keep working, but you can't add users. Pick the {fitting.maxUsers}-user tier ({fitting.label}) below, or deactivate users first.</>
+                  : <>Everyone can keep working, but you can't add users. Contact our sales team about Enterprise, or deactivate users first.</>}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div>
         <h1 className="text-2xl font-bold">Billing &amp; Subscription</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
@@ -136,13 +160,13 @@ export function BillingSettingsView() {
               {overview.canStartTrial && (
                 <div className="pt-1">
                   <p className="text-xs text-muted-foreground mb-2">
-                    Not ready to pay? You can try Vrodux free for 30 days instead — no card required.
+                    Not ready to pay? You can try Vrodux free for {TRIAL_DAYS} days instead — no card required.
                   </p>
                   <Button variant="outline" size="sm" disabled={startTrial.isPending}
                     onClick={() => startTrial.mutate()}>
                     {startTrial.isPending
                       ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Start 30-day free trial instead</>}
+                      : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Start {TRIAL_DAYS}-day free trial instead</>}
                   </Button>
                 </div>
               )}
@@ -189,7 +213,7 @@ export function BillingSettingsView() {
       )}
 
       {/* Current state */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="p-5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Current plan</p>
@@ -215,6 +239,7 @@ export function BillingSettingsView() {
               <p className="text-2xl font-bold">{overview.usersInUse}</p>
               <p className="text-sm text-muted-foreground">
                 / {overview.maxUsers < 0 ? "Unlimited" : overview.maxUsers}
+                {onTrial && <span className="ml-1 text-xs">during your trial</span>}
               </p>
             </div>
             {overview.maxUsers > 0 && (
@@ -226,7 +251,7 @@ export function BillingSettingsView() {
             )}
             {atSeatLimit && (
               <p className="text-[11px] text-destructive mt-1.5">
-                Seat limit reached — upgrade to add more users.
+                Seat limit reached — upgrade, or deactivate a user, to add more.
               </p>
             )}
           </CardContent>
@@ -255,6 +280,37 @@ export function BillingSettingsView() {
             )}
           </CardContent>
         </Card>
+
+        {storage && (
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Storage</p>
+              <div className="flex items-baseline gap-1.5 mt-2">
+                <HardDrive className="h-4 w-4 text-muted-foreground self-center" />
+                <p className="text-2xl font-bold">{formatFileSize(storage.usedBytes)}</p>
+                <p className="text-sm text-muted-foreground">
+                  / {storage.unlimited ? "Unlimited" : formatFileSize(storage.budgetBytes)}
+                </p>
+              </div>
+              {!storage.unlimited && (
+                <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className={cn("h-full rounded-full transition-all",
+                      storage.percentUsed >= 100 ? "bg-destructive"
+                        : storage.nearBudget ? "bg-amber-500" : "bg-primary")}
+                    style={{ width: `${Math.min(100, storage.percentUsed)}%` }} />
+                </div>
+              )}
+              {storage.nearBudget && (
+                <p className={cn("text-[11px] mt-1.5",
+                    storage.percentUsed >= 100 ? "text-destructive" : "text-amber-600")}>
+                  {storage.percentUsed >= 100
+                    ? "Storage limit reached — uploads are blocked until you free up space or upgrade."
+                    : `${storage.percentUsed.toFixed(0)}% used — approaching your plan's storage limit.`}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Carried over from a "Buy Now" signup — confirm the payment method before leaving the app. */}
@@ -392,8 +448,11 @@ export function BillingSettingsView() {
                     )}
                   </div>
 
-                  <p className="text-xs text-muted-foreground mb-4">
+                  <p className="text-xs text-muted-foreground">
                     {plan.maxUsers < 0 ? "Unlimited users" : `Up to ${plan.maxUsers} users`}
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {plan.storageGb < 0 ? "Unlimited storage" : `${plan.storageGb}GB document storage`}
                   </p>
 
                   <div className="mt-auto">
@@ -407,6 +466,13 @@ export function BillingSettingsView() {
                       <Button variant="outline" className="w-full" disabled>
                         <Check className="h-3.5 w-3.5 mr-1.5" />Current plan
                       </Button>
+                    ) : plan.tooSmallReason ? (
+                      // Too small for the team they already have. The server refuses it as well;
+                      // saying why here saves a failed checkout.
+                      <div>
+                        <Button className="w-full" disabled>Too small for your team</Button>
+                        <p className="text-[11px] text-muted-foreground mt-1.5">{plan.tooSmallReason}</p>
+                      </div>
                     ) : (
                       <Button
                         className="w-full"

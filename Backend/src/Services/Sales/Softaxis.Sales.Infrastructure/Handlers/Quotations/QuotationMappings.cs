@@ -28,7 +28,9 @@ internal static class QuotationMappings
             q.ShareToken, q.SentAt, q.SentTo, q.ViewedAt,
             q.RespondedAt, q.RespondedByName, q.ResponseComment,
             q.ConvertedOrderId, q.InvoiceId, q.InvoiceNumber,
-            q.CreatedAt, q.UpdatedAt);
+            q.CreatedAt, q.UpdatedAt,
+            q.AccentColor, q.ShowLogo, q.FooterNote, q.SourceTemplateId,
+            q.LeadId, q.CrmCustomerId, q.DealId);
     }
 
     /// <summary>
@@ -49,7 +51,8 @@ internal static class QuotationMappings
             q.Sections.OrderBy(s => s.SortOrder).Select(ToDto).ToList(),
             OrderedItems(q).Select(ToDto).ToList(),
             q.RespondedAt, q.ResponseComment,
-            branding);
+            branding,
+            q.AccentColor, q.ShowLogo, q.FooterNote);
     }
 
     /// <summary>

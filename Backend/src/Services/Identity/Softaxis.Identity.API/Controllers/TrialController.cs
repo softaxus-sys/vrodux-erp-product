@@ -38,7 +38,7 @@ public sealed class TrialController(ISender sender) : BaseApiController(sender)
     }
 
     // ── POST /api/trial/register ──────────────────────────────────────────────
-    // Creates a new tenant (Trial/Cloud, 30 days) and its first admin user.
+    // Creates a new tenant (Trial/Cloud, 14-day trial) and its first admin user.
     // Requires a valid X-Trial-Token header obtained from GET /challenge.
     // Rate limit: 3 requests / IP / 300 s.
 
@@ -66,7 +66,12 @@ public sealed class TrialController(ISender sender) : BaseApiController(sender)
             req.Plan,
             req.Billing,
             req.Intent,
-            req.UtmSource), ct);
+            req.UtmSource,
+            req.EventId,
+            req.Fbp,
+            req.Fbc,
+            Request.Headers.UserAgent.ToString(),
+            Request.Headers.Referer.ToString()), ct);
 
         return result.IsSuccess ? HandleResult(result, successCode: 201) : HandleResult(result);
     }
@@ -91,5 +96,8 @@ public sealed record TrialRegistrationRequest(
     string?        Plan      = null,
     string?        Billing   = null,
     string?        Intent    = null,
-    string?        UtmSource = null
+    string?        UtmSource = null,
+    string?        EventId   = null,
+    string?        Fbp       = null,
+    string?        Fbc       = null
 );

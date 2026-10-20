@@ -76,6 +76,7 @@ internal sealed class CreateQuotationHandler(SalesDbContext db)
         var validUntil      = cmd.ValidUntil;
         var discountPercent = cmd.DiscountPercent;
         var document        = cmd.Document;
+        QuotationTemplate? appliedTemplate = null;
 
         // A template only ever seeds a NEW draft, and only where the caller left a gap: the
         // quotation keeps its own copy of every value from here on, so editing the template later
@@ -84,12 +85,13 @@ internal sealed class CreateQuotationHandler(SalesDbContext db)
         {
             var template = await db.QuotationTemplates
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == templateId, ct);
+                .FirstOrDefaultAsync(x => x.Id == templateId && !x.IsDeleted, ct);
 
             if (template is null)
                 return Result.Failure<QuotationDto>(
                     Error.Custom("QuotationTemplate.NotFound", "Quotation template not found."));
 
+            appliedTemplate = template;
             validUntil ??= DateTime.UtcNow.AddDays(template.ValidityDays).ToString("yyyy-MM-dd");
             if (discountPercent == 0) discountPercent = template.DefaultDiscount;
 
@@ -112,6 +114,12 @@ internal sealed class CreateQuotationHandler(SalesDbContext db)
 
         QuotationComposer.ApplyDocument(quotation, document);
         QuotationComposer.Apply(quotation, cmd.Items, cmd.Sections);
+
+        if (appliedTemplate is not null)
+            quotation.SetPresentation(appliedTemplate.AccentColor, appliedTemplate.ShowLogo,
+                                      appliedTemplate.FooterNote, appliedTemplate.Id);
+        quotation.SetCrmLinks(cmd.LeadId, cmd.CrmCustomerId, cmd.DealId, cmd.LeadOwnerUserId);
+        quotation.SetCreatedBy(cmd.CreatedByUserId);
 
         db.SalesQuotations.Add(quotation);
         await db.SaveChangesAsync(ct);
@@ -197,6 +205,9 @@ internal sealed class DuplicateQuotationHandler(SalesDbContext db)
                          src.CoverNote, src.TermsAndConditions, src.PaymentTerms, src.PreparedByName,
                          src.CustomFields is null ? null : new Dictionary<string, string>(src.CustomFields));
         copy.SetCustomerContact(src.CustomerEmail, src.CustomerPhone, src.CustomerAddress);
+        // A revision keeps the original's look and stays filed under the same lead / account.
+        copy.SetPresentation(src.AccentColor, src.ShowLogo, src.FooterNote, src.SourceTemplateId);
+        copy.SetCrmLinks(src.LeadId, src.CrmCustomerId, src.DealId, src.LeadOwnerUserId);
 
         // Sections are recreated with fresh ids, so the copied lines are re-pointed by position.
         var sectionMap = new Dictionary<Guid, Guid>();

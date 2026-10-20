@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Softaxis.BuildingBlocks.Domain.Multitenancy;
+using Softaxis.RealEstate.Infrastructure.Handlers.Contracts;
+using Softaxis.RealEstate.Infrastructure.Handlers.RentAlerts;
 using Softaxis.RealEstate.Infrastructure.Persistence;
 
 namespace Softaxis.RealEstate.Infrastructure.Services;
@@ -51,7 +53,7 @@ internal sealed class RentAlertBackgroundService(
             // EF.Property because it is not on the entity.
             tenantIds = await db.LeaseContracts
                 .IgnoreQueryFilters()
-                .Where(c => !c.IsDeleted && c.Status == "active")
+                .Where(c => !c.IsDeleted && (c.Status == "active" || c.Status == "renewed"))
                 .Select(c => EF.Property<Guid?>(c, "OwnerTenantId"))
                 .Where(id => id != null)
                 .Distinct()
@@ -86,6 +88,24 @@ internal sealed class RentAlertBackgroundService(
             try
             {
                 TenantAmbient.Set(tenantId, isSuperAdmin: false, isResolved: true);
+
+                // First, and guarded on its own: a lease whose notice period ran out must end
+                // before the reminders below are worked out, or its tenant is chased for rent on
+                // a lease that is over. A failure here must not stop the reminders.
+                try
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+                    var settings = await RentAlertSettingsStore.FindAsync(db, ct);
+                    var today = settings?.Today() ?? DateTime.UtcNow.ToString("yyyy-MM-dd");
+
+                    var ended = await LeaseLifecycle.TakeEffectWhereDueAsync(db, today, ct);
+                    if (ended > 0)
+                        logger.LogInformation("Workspace {TenantId}: {Count} lease(s) ended on notice.", tenantId, ended);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Ending leases on notice failed for workspace {TenantId}.", tenantId);
+                }
 
                 var sender = scope.ServiceProvider.GetRequiredService<IRentAlertSender>();
                 var result = await sender.RunForCurrentTenantAsync(dryRun: false, ct);

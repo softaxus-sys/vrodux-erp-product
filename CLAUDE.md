@@ -3374,7 +3374,7 @@ after success; re-applying `invoice.paid` would extend a paid period twice. Our 
 
 ### Trial lifecycle + lockout (data is NEVER deleted)
 `TrialLifecycleService : BackgroundService` — daily, 5-min startup delay (never add work to the boot path;
-the deploy health window is unforgiving), fully try/catch-guarded. Emails at **15/7/3/1 days** then on lapse,
+the deploy health window is unforgiving), fully try/catch-guarded. Emails at **7/3/1 days** then on lapse,
 idempotent via `Tenant.LastTrialReminderDaysLeft`; expires lapsed trials.
 **`SubscriptionEnforcementMiddleware` already existed** and blocks Expired/Suspended/elapsed-trial tenants —
 the gap was that `/api/billing/` wasn't exempt, so a lapsed tenant was locked out of the very endpoints
@@ -3392,7 +3392,7 @@ provider webhook ever activates the tenant.
 `lib/billing/{plans.ts,billing.api.ts}`, `hooks/billing/use-billing.ts`,
 `modules/settings/billing/components/billing-settings-view.tsx` (`/settings/billing`, deliberately **not**
 module-guarded), `pages/billing/checkout-result.tsx` (polls our own API — the redirect is not proof of
-payment), `components/billing/trial-banner.tsx` (JWT `trial_days_left`; only inside the final 15 days,
+payment), `components/billing/trial-banner.tsx` (JWT `trial_days_left`; only inside the final 7 days,
 undismissable at ≤3). New JWT claims: `subscription_state`, `trial_days_left`.
 
 ### Gotcha fixed during build
@@ -7354,7 +7354,1158 @@ removed (soft-deleted) from the stock list. Notification only.
 
 ---
 
-## Module 67 — Finance: UAE VAT 201 return preparation + FTA submission seam
+## Module 67 — Finance: recurring expenses (review by default, per-template auto-post)
+
+Finance had recurring **invoices** only; a monthly cost such as a storage subscription had to be
+entered by hand. New `RecurringExpense` template (name, vendor, category, amount, paid-from,
+frequency, next run, end date, `AutoPost`) generates a real `Expense` on each due date.
+
+- **AutoPost off (default):** the expense is created `pending` and goes through approve → pay.
+  **On:** it is approved, marked paid and posted to the ledger (debit the category's expense
+  account, credit cash or bank) with no review. Turning it on needs `finance.expenses.approve`
+  (checked in `RecurringExpensesController`) — otherwise anyone who can create an expense could
+  approve and pay their own by wrapping it in a template.
+- An auto-post expense dated in a **closed fiscal period** is left `pending`, not posted; a ledger
+  refusal (missing account) leaves it `approved` so "Mark as paid" retries. Both are counted as
+  "held for review" and reported, never silently dropped.
+- `ExpensePosting.PayAndPostAsync` is the one place an expense is paid + posted, shared with
+  `MarkExpensePaidHandler`. `MarkPaid()` now runs **after** the journal entry is built.
+- `AnchorDay` pins the day of the month, so a template starting on the 31st does not slide to the
+  28th for good after February (the invoice template's `AddMonths` chain does drift).
+- Runs in the existing daily `RecurringInvoiceHostedService` pass, per workspace with the ambient
+  tenant + currency set, in its own DI scope and try/catch so an expense failure cannot stop
+  invoicing. Tenant enumeration now includes workspaces that only have expense templates.
+- `Expense.RecurringExpenseId` links a generated expense to its template (badge in the list).
+- API `api/finance/recurring-expenses` (list / get / create / update / pause / resume / delete /
+  `{id}/generate` / `run-due`), gated on the existing `finance.expenses.*` keys — no new permissions.
+- Frontend: **Recurring** tab on the Expenses page (`recurring-expenses-panel.tsx`), en + ar.
+- Migration `AddRecurringExpenses` (new table + one nullable column on `expenses`).
+
+**Build:** Finance.API 0 errors · frontend `tsc -p tsconfig.app.json` 0 errors.
+**Not runtime-tested** — needs a gateway restart (migration auto-applies). Check: a review-mode
+template generates a pending expense; an auto-post one generates a paid expense with a journal entry.
+
+### Module 67b — 🔴 Ledger was posted in USD for every non-AED workspace (+ debit/credit accounts on recurring expenses)
+
+Reported as "a 1,000 PKR recurring expense shows 4". The expense row was right (1000.00 PKR); the
+journal entry was 3.61. `GlPoster.GetRateAsync` returned the stored exchange rate as-is, and since
+Module 6e those rates are quoted against **USD** — so every posting (invoices, bills, vouchers,
+expenses) for a PKR workspace landed in USD and was then reported with a PKR label. An AED
+workspace never saw it because of a leftover `if (code == "AED") return 1`.
+
+`GetRateAsync` now converts into the **workspace's operating currency**
+(`TenantCurrency.Resolve()`): document-currency rate ÷ workspace-currency rate, 1 when they match.
+One function, so all six callers are fixed together. **Existing entries are not rewritten** — any
+workspace that is not AED/USD and posted before this has USD-scale ledger amounts.
+
+Recurring expenses also gained explicit **debit / credit ledger accounts**
+(`ExpenseAccountId` / `PaymentAccountId` on `RecurringExpense`, carried onto each generated
+`Expense`; `ExpensePosting` honours them and falls back to category / payment method when unset or
+deleted). Migration `AddExpensePostingAccounts`. The manual expense claim form does not ask for
+accounts — it is filled in by claimants, not accountants.
+
+---
+
+## Module 68 — Restaurant: bulk menu import (categories + dishes + photos) with a photographed sample menu
+
+**Import** button on Menu Management (`restaurant.menu.create`) → `ImportMenuModal`: upload Excel/CSV →
+preview (photo, dish, category, price) → import → result tiles.
+
+- **Backend (CQRS):** `ImportMenuCommand(Rows)` → `ImportMenuHandler` → `POST /api/restaurant/menu/import`.
+  A category is created the first time a row names it (matched case-insensitively against existing ones);
+  a dish already under its category is **skipped**, so re-running a file never doubles the menu. Bad rows are
+  counted and reported (first 100), never abort the batch. Max 2000 rows. Returns `items[{row, itemId}]`.
+  No migration.
+- **Photos are fetched by the browser, not the server.** Each row's `Image URL` is fetched client-side
+  (3 at a time) and uploaded through the existing `POST menu/items/{id}/images` — so the server never fetches
+  a URL a spreadsheet handed it (no SSRF surface), and photos get the usual compression + storage quota.
+  The image host must allow cross-origin reads; a photo that fails is counted and the dish is kept.
+- **Sample menu** `lib/restaurant/menu-sample.ts` — 62 dishes in 9 categories (Pakistani + international),
+  each with description, allergens, prep time and a Wikimedia Commons photo (free licences, mostly CC BY-SA;
+  all 62 links verified 200 + `access-control-allow-origin: *`). The modal offers **Download sample file**
+  (CSV built from this data) and **Import sample menu** (one click, for demos). Prices are PKR-scale plain numbers.
+- Columns auto-detected by header: Category, Category Description, Dish Name, Description, Price,
+  Prep Time (min), Allergens, Image URL. Category, Dish Name and Price are required.
+
+**Build:** Restaurant.API 0 errors · frontend `tsc -p tsconfig.app.json` 0 errors · en/ar strings added.
+**Not runtime-tested** — needs a gateway restart; then import the sample and check the tiles on the till.
+
+---
+
+## Module 69 — Restaurant: job roles, rider deliveries, delivery order flow, customer loyalty
+
+A run of restaurant work after the menu import (Module 68). **None of it was exercised in a browser** —
+everything below is verified by build / type-check only unless it says otherwise.
+
+### 🔴 Restaurant pages were guarded on the POS module
+Every `/pos/*` restaurant route sat under `<ModuleGuard module="pos" />`, so a user holding only a
+restaurant role was bounced to the dashboard on every click. They now sit under
+`<ModuleGuard module="restaurant" />` (`App.tsx`).
+
+### Default roles (`ModuleRoleCatalogue`, restaurant branch)
+Restaurant Manager · Restaurant Staff · **Restaurant Cashier** · **Waiter** · **Kitchen Staff** ·
+**Delivery Rider**. Templates may name keys outside their own module:
+- The order screen is behind the till's `ShiftGate`, so order-taking roles carry `pos.sessions` view/create
+  (Manager: all of `pos.sessions`).
+- Order-taking roles carry `pos.customers` (the customer book / loyalty).
+- **No restaurant role holds `pos.products` or `pos.reports`** — those are what surface the retail till.
+
+`ITenantRoleProvisioner.EnsureRestaurantShiftAccessAsync()` (startup, idempotent) tops up **existing** roles:
+any tenant role holding `restaurant.orders.create` gains `pos.sessions` + `pos.customers` view/create.
+Needed because `SyncNewTemplatePermissionsAsync` only grants keys nobody holds yet, and these keys are old.
+
+### Menus by role (`config/navigation.ts`)
+- Retail items need a retail key as well as the module: Retail POS / Low Stock → `pos.products.view`,
+  POS Dashboard → `pos.reports.view`, Customers → `pos.customers.view`. `/pos/retail` redirects to
+  `/pos/restaurant` without `pos.products.view`.
+- Each restaurant item names its job's key (POS → `restaurant.orders.create`, Kitchen Display →
+  `restaurant.kitchen.view`, Floor → `restaurant.tables.create`, Menu / Kitchen Config →
+  `restaurant.menu.create`, Delivery → `restaurant.delivery.view`, Reports / Dashboards →
+  `restaurant.reports.view`, …). **Menu only** — a typed URL still opens the page shell; the API refuses the data.
+
+### Waiter picker
+`GET /api/users?role=` (new exact-name role filter, tenant-scoped in `UserRepository.GetPagedAsync`).
+"Who is serving?" passes `role: "Waiter"`.
+
+### Riders
+- **Scoping (`DeliveryScope`, in `DeliveryOrderHandlers.cs`):** a *dispatcher* is anyone with
+  `restaurant.delivery.create`. Anyone else is a rider and sees only deliveries whose driver is linked to
+  their login (`Driver.LinkedUserId`) — applied to list, by-id (404), summary and status change. Only a
+  dispatcher can assign a driver (`Delivery.Conflict`).
+- **Riders are automatic:** `GetDriversHandler` creates a linked `Driver` for every active login holding the
+  **Delivery Rider** role (cross-schema read of `[identity]`; on first read, not at startup — a startup pass has
+  no tenant). `DriverDto.ActiveDeliveries` = runs not yet delivered/failed. `UpdateDriverCommand` gained
+  `LinkedUserId`; the Drivers form has a "Login account" select.
+- **`DeliveryOrderDto`** gained `CustomerName` (a delivery order stores the guest in `Order.Waiter`),
+  `OrderNotes`, `AmountToCollect` (`Order.Outstanding`) and `Items`.
+- **Rider screen** `rider-deliveries.tsx` — shown by `DeliveryView` to non-dispatchers: To deliver / Finished,
+  progress strip, destination headline, Navigate (Google Maps) + Call, items, amount to collect, one
+  full-width next step. POS pages live in a fixed-height shell (`<main overflow-hidden>`), so the screen
+  scrolls itself (`flex-1 min-h-0 overflow-y-auto`); the dispatcher board had the same bug.
+
+### Delivery orders are punched on the order screen
+The Delivery button opens `OrderScreen` with `newDelivery` instead of the old side form
+(`NewDeliveryOrderModal` is now unused, not deleted). Header collects name / phone / address / zone / rider;
+save is disabled until the first three are filled. The rider defaults to the freest one
+(`byAvailability`). Submit = create order (`orderType: "delivery"`) → create delivery leg → assign.
+
+`useOrderStatusLabel()` — a delivery order past the kitchen shows the rider's leg status; with no rider
+update, `served` reads "Delivered". Label only: a rider marking delivered does **not** change `Order.Status`.
+
+### Customers + loyalty
+- `OrderCustomer` (`order-customer.tsx`) puts the POS customer picker on every open bill (it used to be
+  reachable only inside the pay dialog), with the points balance.
+- **`LoyaltySupport`** (points live on the POS `Customer`, via `POSDbContext` like `CustomerPaymentSupport`):
+  earn `floor(Total / 100)` when a payment moves the order **into** paid (`EarnIfJustPaidAsync`, never fails
+  the payment); 1 point = 1 currency unit. Same rules as the retail till; both are constants, not settings.
+- **Redeem:** `POST /api/restaurant/orders/{id}/loyalty { points }` → `RedeemOrderLoyaltyCommand`, gated on
+  `restaurant.orders.edit` (the customer's entitlement, not a staff discount). Stored as an `OrderDiscount`
+  of type `"loyalty"`; `points = 0` removes it. Moves only the difference when the amount changes.
+  The generic discount endpoint still rejects type `loyalty`, so it cannot be applied without spending points.
+- Points are returned when the discount is removed, superseded by an ordinary discount, or the order is
+  cancelled (`ReturnSpentPointsAsync`). The customer cannot be changed while their points are on the bill.
+- Like the wallet charge, redemption runs once outside the concurrency-retried block; if the order save then
+  fails, points and bill can disagree — the same accepted gap documented on `CustomerPaymentSupport`.
+
+### Other
+- Tax receipt on screen after payment and from a paid order (`order-receipt.tsx`, print via a new window).
+- Order-screen categories are one scrolling row with back/next arrows (`CategoryRail`).
+- POS Reports' Session tab crashed outside `ShiftGate` → `useOptionalShift()`.
+
+### Local test data (SHAHBAZ-QFINITY only — not in any migration or seed)
+Workspace "Softaxis": `admin@softaxis.io` + restaurant manager / cashier / 2 waiters / chef / rider on
+`@softaxis.io`; 3 floors, 7 dining areas, 35 tables; the four new roles were created by hand.
+
+### Build / Verification Status
+- **Restaurant.API, Identity.Infrastructure:** 0 errors · **Frontend `tsc -p tsconfig.app.json`:** 0 errors.
+- No migration in this module.
+- **Pending (restart + re-login):** as a rider — only own runs, status changes work, others' 404; punch a
+  delivery order and confirm the rider is assigned; link a customer, pay, confirm points earned; redeem points,
+  then remove / cancel and confirm they return.
+- **Not built:** rider on/off-duty, configurable loyalty rates, automatic per-customer or per-group discounts,
+  route-level permission guards for the restaurant pages.
+
+### Module 69b — Waiters work under the cashier's shift (no till of their own)
+
+A waiter used to hit `ShiftGate` and had to open and count a cash drawer to take an order.
+- `pages/pos/restaurant.tsx` — `ShiftGate` only for users who hold `pos.sessions.create`. Everyone else
+  (floor staff) goes straight to the floor, with a banner when no till is open
+  (`GET /api/restaurant/orders/open-shift` → `GetOpenShiftQuery`, polled every 30 s).
+- `CreateOrderHandler` — an order arriving with no `SessionId` is attached to the workspace's newest open
+  shift (`PosSessionLedger.FindOpenSessionAsync`), so its payments land in that cashier's Z-report. With no
+  shift open, a caller who cannot open one is refused (`PosSession.Conflict`, 409); one who can is not.
+- `OrderScreen` and the restaurant dashboards read the shift with `useOptionalShift()`.
+- The **Waiter** template no longer holds `pos.sessions`; `EnsureRestaurantShiftAccessAsync` skips shift keys
+  for a role named "Waiter" (it still gets `pos.customers`).
+- Unchanged, and a known departure from stricter setups: a waiter can still take payment and sees every table.
+
+**Build:** Restaurant.API, Identity.Infrastructure 0 errors · frontend `tsc` 0 errors. Not runtime-tested.
+
+---
+
+## Module 70 — Manufacturing (new module) — Phase 1: BOMs + production orders + stock issue/receipt
+
+**New service `Softaxis.Manufacturing`** (schema `manufacturing`, clean CQRS). Sold as its own module
+(code `manufacturing`, un-retired). Customers buy modules separately, so the only hard dependency is
+**Inventory**; links to Sales / Purchase / Finance / HR are later phases and must stay optional.
+Restaurant **Recipe stays separate** (per-serving menu costing, tied to a menu item).
+
+### Model
+- `BillOfMaterials` + `BomLine` — finished product, batch size (`OutputQuantity`), components with
+  scrap %. Status `draft | active | archived`. Component name / SKU / unit / cost are read from
+  Inventory on save, never trusted from the client.
+- `ProductionOrder` + `ProductionOrderComponent` — `planned → released → in_progress → completed`,
+  `cancelled` only while nothing has been issued. The component list is **copied and scaled from the
+  BOM at creation**, so editing a BOM never changes an order on the floor.
+- Cost: `MaterialCost` = materials actually issued; `UnitCost` = that ÷ quantity produced (materials
+  only — no labour/overhead yet).
+
+### Stock — Inventory stays the only ledger
+`IManufacturingStock` → `InventoryStockGateway` is the single door: reads via `IProductReadService`,
+moves stock by sending Inventory's own `CreateStockMovementCommand` through `ISender` (project
+reference to `Inventory.Application`). New movement types **`ProductionIssue`** (out) and
+**`ProductionReceipt`** (in) — kept apart from Sale/Receipt so production never shows as sales or
+purchases in the stock reports.
+- Issue checks every line's stock first (one shortage message, nothing moved), then issues line by
+  line, saving the order after each — each movement is its own Inventory transaction.
+- Complete can backflush (`IssueRemaining`), refuses if nothing was ever issued, then receives the
+  finished goods. The receipt commits before the order save: if that save fails the order stays open
+  with goods in stock (accepted gap, commented in the handler).
+- Stock check is against the product's **global** quantity, like the sales path; the per-warehouse
+  bucket still clamps at zero in Inventory.
+
+### Licensing / entitlement
+- `Tenant.ResolvedModules`: `manufacturing` adds `inventory` (manual grant included).
+  `LicensedModules.Requires["manufacturing"] = ["inventory"]`. `ModuleEnforcementMiddleware` maps
+  `/api/manufacturing/`. Plan: Enterprise only; other tiers get it by super-admin manual grant
+  (module-selector chip added).
+- Product / warehouse pickers are served by `api/manufacturing/lookups/*`, so a Manufacturing user
+  needs **no Inventory permission**.
+- Permissions `manufacturing.boms` / `manufacturing.orders` (view/create/edit/delete); order `edit`
+  covers release / issue / complete / cancel. Default roles Manufacturing Manager + Staff.
+- Connection string `ManufacturingDb`, falling back to `IdentityDb` (not added to appsettings).
+
+### API
+`api/manufacturing/boms` (CRUD + `PATCH {id}/status`), `api/manufacturing/orders` (list, `summary`,
+get, create, update-while-planned, `release`, `issue`, `complete`, `cancel`, delete),
+`api/manufacturing/lookups/products|warehouses`.
+
+### Frontend
+`lib/manufacturing/manufacturing.api.ts`, `hooks/manufacturing/use-manufacturing.ts`,
+`modules/manufacturing/{boms,orders,shared}`, routes `/manufacturing/orders` + `/manufacturing/boms`,
+nav group under Operations (icon `Factory`), `manufacturing` i18n namespace (en + ar, 142 keys each).
+
+### Migrations
+`InitialManufacturing` (4 tables) · Identity `AddManufacturingPermissions` (8 rows). Both applied to
+SHAHBAZ-QFINITY.
+
+### Verified
+- Gateway build 0 errors · frontend `tsc -p tsconfig.app.json` 0 errors.
+- Run against the local DB with a test-signed JWT: 401 anonymous, 403 without permission, 403
+  `MODULE_NOT_LICENSED` without the module; BOM create/update/activate; order plan → re-plan →
+  release → partial issue → shortage refusal → backflush complete. Stock ended exactly right
+  (oak 100→56, screws 1000→760, table 0→9, unit cost 6,000) with 0 NULL-tenant rows.
+- Same flow clicked through in the browser (plan, release, complete; BOM edit + component picker).
+- **Local test data left in the Softaxis tenant:** warehouse "MFG Test Store", products `MFG-OAK`,
+  `MFG-SCR`, `MFG-TBL`, one BOM, two completed orders.
+
+### Module 70b — Manufacturing phases 2–4 + industry attach (same day)
+
+**Industry attach.** `Tenant.IndustryPackModule["manufacturing"] = "manufacturing"`: a tenant whose
+industry is Manufacturing (website signup or super-admin create) gets the module on every plan,
+with Inventory. Unlike the CRM verticals it does **not** pull in CRM. Onboarding picker, industry
+pack list and module-selector defaults updated to match.
+
+**Phase 2 — routing and full cost.**
+- `WorkCentre` (labour + overhead rate per hour), `BomOperation` (setup minutes once per order, run
+  minutes per batch; rates snapshotted from the work centre on save), `ProductionOrderOperation`
+  (copied + scaled at order creation; `RecordOperationCommand` stores actual minutes).
+- Cost = materials issued + labour + overhead from **actual** operation time. Completing an order
+  takes any untimed operation at its planned time, so conversion cost is never silently missing.
+  `UnitCost` = total ÷ good units, and that is the cost the finished goods are received at.
+- Re-planning a planned order rebuilds the routing from the BOM (setup is not scaled by quantity).
+- **Finance posting is explicit and optional.** "Post cost to Finance" on a completed order opens a
+  dialog that shows the three accounts (finished goods / raw materials / labour + overhead),
+  guessed by name and remembered per device, and the resulting lines before anything is created.
+  The client creates a **draft** journal entry through the Finance API, then
+  `PATCH orders/{id}/journal` records it; a second posting is refused. Same-account lines are
+  netted, so a single "Inventory" account posts only the conversion cost.
+
+**Phase 3 — optional links** (`hooks/manufacturing/use-manufacturing-links.ts`, each gated by
+`useModuleLink(module, permission)` — other module present **and** permission held).
+- Shortage → purchase requisition: button on the order drawer and on Planning, through
+  `POST /api/purchase/approvals` (`approvalsApi.create` added; new category `raw_materials`).
+- Sales order → production: "Plan production" in the Sales order drawer, lines matched to an
+  active BOM by product; the sales order number becomes the production order's reference.
+
+**Phase 4 — planning, quality, scrap.**
+- `GET planning/material-requirements` — components still to issue across open orders vs stock.
+- Completion takes `ScrappedQuantity` + `QualityNotes`; scrapped units are not received.
+- `GET planning/yield?from=&to=` — completed output, scrap, yield % and average unit cost by product.
+- Pages `/manufacturing/work-centres`, `/manufacturing/planning`. Work centres use the
+  `manufacturing.boms.*` keys, planning `manufacturing.orders.view` — no new permissions.
+
+Migration `AddRoutingCostingAndQuality` (3 tables + 6 columns on `production_orders`), applied locally.
+
+### 🔴 Found on the way — Purchase API refused every tenant
+`ModuleEnforcementMiddleware` maps `/api/purchase/` and `/api/vendors` to `ModuleCodes.Purchasing`
+("purchasing"), while `Tenant.ResolvedModules` (and so the JWT) carries the canonical "purchase".
+`ModuleCodes.Satisfies` compared them literally, so those routes returned `MODULE_NOT_LICENSED` for
+any non-super-admin. `Satisfies` now treats the two spellings as one. Verified: a token with
+`purchase` → 200, without it → 403.
+
+### Verified (phases 2–4)
+- Gateway build 0 errors · frontend `tsc -p tsconfig.app.json` 0 errors · en/ar key parity.
+- 18 scripted API checks against the local DB all pass (BOM cost 5,400 + 1,350 = 6,750/unit;
+  re-plan 270 → 150 min; actual 120 min → labour 1,200 / overhead 600; 1 good + 1 scrapped →
+  unit cost 12,600; stock exact; yield 92.9 %; journal link once only).
+- In the browser: Planning, Work Centres, order drawer (operations + cost), BOM routing section,
+  and Finance posting end to end (a draft JE was created and linked).
+- **Not clicked through:** the Sales "Plan production" dialog, the purchase-request buttons (their
+  API call is verified), and signup with the Manufacturing industry.
+
+### Not built
+Returning issued materials (an order with issued stock can only be completed) · updating the
+product's cost price in Inventory on receipt · per-warehouse stock check · capacity scheduling ·
+dashboard · AI-assistant tools.
+
+---
+
+## Module 71 — CRM: long notes failed to save; activity dates and meeting time
+
+- **Bug:** a note's whole text is stored in `Activity.Subject`, which was `nvarchar(300)`, so a
+  longer note failed in the database with a generic error. Now 4,000 (`Activity.SubjectMaxLength`),
+  with validators returning a readable 422 above that.
+- **Meeting / call time:** new `Activity.DueTime` ("HH:mm"). Kept apart from `DueDate` because every
+  due-today / overdue query compares `DueDate` as a plain `yyyy-MM-dd` string.
+- **Timeline:** notes and emails use a multi-line box (Ctrl+Enter adds); meetings and calls get a
+  time picker; each entry shows its scheduled date and time and a "Logged {date, time}" line; long
+  notes keep their line breaks. Shared parts in `modules/crm/activities/components/activity-parts.tsx`
+  and `lib/crm/activity-format.ts`, used by the lead/deal timeline, the account timeline and the
+  Activities page.
+- Migration `AddActivityLongNotesAndDueTime` (widen + one column), applied locally.
+- Verified against the local DB: a 1,979-character note saves, 4,001 is refused with the message,
+  a meeting keeps 12:00 and still counts as due today; timeline checked in the browser.
+
+---
+
+## Module 72 — Library Management (new module + "Library" industry)
+
+**New service `Softaxis.Library`** (schema `library`, clean CQRS, same shape as Manufacturing). Built for a
+customer enquiry: books, lending and everything around them, across several locations. Sold as its own
+module (code `library`) and **stands alone** — no Inventory, CRM or Finance needed.
+
+### Model
+- `LibraryBranch` — a location. Every copy sits at one; every loan is issued at one.
+- `BookTitle` (the work: title, authors, ISBN, category, type, replacement cost) and `BookCopy` (one physical
+  item: barcode, branch, shelf, condition, status `available | on_loan | reserved | in_transit | lost |
+  damaged | withdrawn`). Members borrow copies, not titles.
+- `MembershipType` — the borrowing rules: items allowed, loan days, renewals, fine per day, reservations.
+- `Member` (card number, type, home branch, expiry, `active | suspended`).
+- `Loan`, `Reservation` (`waiting | ready | fulfilled | cancelled`), `Fine` (`unpaid | paid | waived`).
+- Dates are calendar days (`yyyy-MM-dd` strings). **"Overdue" and "expired" are never stored** — they are the
+  date against today. The client sends its own `today`; the server uses it when it is within a day of UTC
+  (`LibraryDates.Today`), so a late-evening loan is not dated tomorrow.
+
+### Rules (handlers in `Infrastructure/Handlers`)
+- **Issue**: member must be active and unexpired and under their item limit; the copy must be available, or
+  held for *this* member. The loan is issued at the branch the copy is at.
+- **Return** at any branch: the copy then lives at that branch (send it back with a transfer). Late days ×
+  the member's daily rate becomes an overdue `Fine`. If someone is waiting for the title **at that branch**,
+  the copy is set aside for the longest-waiting member (`LibraryRules.HoldForNextReservationAsync`, 3-day hold).
+- **Renew**: refused past the renewal limit or while anyone is waiting; days already overdue are charged first.
+- **Lost**: copy → lost, member charged the title's replacement cost (else the copy's price).
+- **Reserve**: a copy on the shelf at the pickup branch is held at once; otherwise the member joins the queue.
+- **Transfer**: available copy → `in_transit` → received at the destination (which re-checks the queue).
+- On loan / reserved / in transit are set by circulation only; a librarian can set available / damaged / lost /
+  withdrawn by hand.
+- Deletes are refused while they would strand something (member with items or unpaid fines, title with a copy
+  out, branch holding copies, membership type in use).
+- Default branch ("Main Library") and three membership types are created **per tenant on first read**, never
+  at startup (a startup seed has no tenant).
+
+### Licensing
+- `Tenant.IndustryPackModule["library"] = "library"` — a tenant whose industry is Library gets the module on
+  every plan, **without** CRM being pulled in. Onboarding industry "Library" normalises to `library`.
+- Enterprise plan includes it; other tiers by industry or super-admin manual grant (module-selector chip).
+- `ModuleEnforcementMiddleware` maps `/api/library/`. Connection string `LibraryDb`, falling back to `IdentityDb`.
+- Permissions: `library.catalog` / `library.members` (view/create/edit/delete), `library.circulation`
+  (view / create = issue + reserve / edit = return, renew, lost), `library.fines` (view / create / edit =
+  take payment / approve = waive), `library.setup` (view/edit). Default roles **Library Manager** and
+  **Library Staff** (Staff cannot delete or waive). Catalogue and member reads are also open to the desk.
+
+### API (`api/library`)
+`dashboard` · `branches` · `membership-types` · `titles` (+ `categories`, `{id}/copies`) · `copies`
+(`by-barcode/{code}`, `in-transit`, `{id}/transfer`, `{id}/receive`) · `members` · `loans`
+(`{id}/return|renew|lost`) · `reservations` (`{id}/cancel`) · `fines` (`summary`, `{id}/pay|waive`).
+
+### Frontend
+`lib/library/library.api.ts`, `hooks/library/use-library.ts`, `modules/library/{dashboard,catalogue,
+circulation,members,fines,setup,shared}`, routes `/library/*`, nav group "Library", `library` i18n namespace
+(en + ar, 322 keys each, generated from one table so they cannot drift).
+- **Circulation** has four tabs: Issue / Return desk (barcode box fires on Enter, i.e. a handheld scanner),
+  Loans, Reservations, Transfers. The desk's branch is remembered per device (`useWorkingBranch`).
+- `shared/ui.tsx` `Modal` centres with a flex wrapper, **not** `left-1/2 -translate-x-1/2`: framer-motion
+  writes its own `transform` on the panel, which cancels the translate and pushes the dialog off-centre.
+- EF gotcha hit again: a query projected into a **positional record** cannot be filtered or sorted
+  afterwards — `LoanReader.Row` is a class with init properties for that reason.
+
+### Migrations
+`InitialLibrary` (8 tables; barcode and member number unique per tenant) · Identity `AddLibraryPermissions`
+(17 rows). Both applied to SHAHBAZ-QFINITY.
+
+### Verified
+- Gateway build 0 errors · frontend `tsc -p tsconfig.app.json` 0 errors.
+- **90 scripted API checks pass** against the local DB with a test-signed JWT: access control (401 / 403 no
+  module / 403 no permission / desk-only limits), the whole issue → reserve → return → renew → late fine →
+  lost → transfer flow, every guard above, dashboard figures, and tenant isolation (a second workspace sees
+  nothing, 404s on the first one's ids, and gets its own default branch and card numbers).
+- A Micro-plan test tenant with industry `library` was given Library Manager (17) and Library Staff (14)
+  roles at startup — the industry → module → roles chain works. 0 NULL-tenant rows.
+- In the browser: dashboard, catalogue + title drawer, issue and return at the desk, loans, a member record,
+  fines, setup, and adding a title through the form.
+- Test tenants and all their rows were removed afterwards; no test data is left.
+- **Not clicked through in the browser:** the member, reserve, add-copies, transfer and fine payment forms
+  (their API calls are covered by the script), Arabic / RTL, and signup with the Library industry.
+
+### Not built
+Bulk import of an existing catalogue or member list (Excel/CSV) · overdue / pickup reminder emails or SMS ·
+barcode label and member card printing · restricting a librarian to one branch · a member self-service
+portal (search, renew, reserve online) · posting fines to Finance · e-books · Reports-hub entries and
+AI-assistant tools · automatic expiry of a hold nobody collected (it is flagged; staff cancel it).
+
+### Module 72b — Library: Excel / CSV import for the catalogue and members
+
+**Import** button on Catalogue and on Members (`library.catalog.create` / `library.members.create`) →
+`modules/library/shared/import-modal.tsx`: upload → match columns → result. One component, two field lists.
+
+- **Endpoints:** `POST api/library/titles/import` (`ImportTitlesCommand`) and `POST api/library/members/import`
+  (`ImportMembersCommand`), handlers in `Infrastructure/Handlers/Import`. Max 1,000 rows a call; the screen
+  sends a larger file 500 rows at a time. Each handler reads what it matches against once, then works in
+  memory and saves once (1,000 titles + 2,000 copies ≈ 1.2 s locally). No migration.
+- **Running a file twice is safe** — that is the design rule, since a first import always has rows to fix:
+  - Title: same ISBN (hyphens ignored), or with no ISBN the same title + author (case and spacing ignored),
+    is the same book. The row adds copies to it instead of creating a second title.
+  - `Copies` is **how many the branch should hold**, not how many to add, so a re-run tops up to that number
+    rather than doubling the shelf. Given barcodes already in the library are skipped.
+  - Member: same card number; without one, same email, or same name + phone → skipped as already there.
+- A branch named in the file but not on record is created (switchable off in the dialog). An unknown
+  **membership type fails the row** rather than falling back: importing "Student" as "Standard" would quietly
+  give those members the wrong limits and fines.
+- A bad row never stops the file. It is counted and reported with **its row number in the sheet** and a reason
+  (first 100 shown). Descriptive text that is too long is cut to fit; a title, barcode or name that is too long
+  fails the row.
+- **Dates:** Excel is read in the modal itself (`readSheet`, `cellDates: true`) and written as `yyyy-MM-dd`,
+  not through `parseDelimitedFile` — that helper returns dates as Excel displays them ("1/5/25", month first),
+  which cannot be told apart from a day-first date. Text dates from CSV are accepted as `yyyy-MM-dd` or
+  day-first with a four-digit year (`ImportText.Date`); anything else fails the row instead of being guessed.
+  An unreadable expiry is an error, never treated as "does not expire".
+- Column headings are matched automatically (exact synonym first, then partial; each field used once), and
+  "Download a template" gives a CSV whose headings always map themselves.
+
+**Verified:** 28 scripted API checks pass (matching, top-up, re-run adds nothing, branch creation on/off,
+barcode handling, 1,000-row limit, each member failure reason, permissions). In the browser: a real `.xlsx`
+with date cells and non-standard headings ("Student Name", "Mobile No", "Member Since", "Valid Till",
+"Roll No") auto-mapped and imported with the right dates; the catalogue template's 17 headings all mapped
+and a 3-row CSV imported with the expected counts. Test workspace removed afterwards.
+
+**Known limits:** only the first sheet of a workbook is read · existing titles and members are never
+*updated* by an import, only added to or skipped · Excel drops a leading zero from a phone number stored
+as a number (format the column as text) · the import does not set aside new copies for waiting reservations.
+
+### Module 72c — Library: member reminders by email (due soon, overdue, ready for pickup)
+
+**Email only** — the product has no SMS sender. **Off per workspace until the library switches it on**
+(Library → Branches & Rules → Member reminders): a deploy must never start emailing a library's members.
+
+- **Three notices.** Due soon (default 2 days before; the due date is in the key, so a renewed loan earns a
+  fresh one) · Overdue (first the day after the due date, then every 7 days, at most 3 per loan) · Ready for
+  pickup (when a reserved copy is set aside). **One email per member per kind**, listing all their books.
+- `ReminderSettings` (one row per tenant, created on first read) + `ReminderLog`. Migration
+  `AddLibraryReminders` (2 tables).
+- **Claim, then send** (`LibraryReminderSender`): the log row is written first under a tenant-unique `Key`,
+  then the email goes. A crash in between leaves a visible `pending` row instead of a repeated email. A
+  failed send gives its key back (`ReminderLog.MarkFailed`), so it is retried — at most once in 20 hours, so
+  a bouncing address does not add a row every pass.
+- `LibraryReminderBackgroundService` wakes **every 15 minutes** (a held copy is kept only 3 days, so a daily
+  job would be too slow for pickup notices) and runs the due / overdue pass **once a day from 08:00 in the
+  library's own time zone** (`ReminderSettings.TimeZoneId`, `LastDailyRunOn`). 5-minute startup delay, fresh
+  scope and `TenantAmbient` per workspace (cleared in `finally`), honours `ITenantWorkFilter` so a cloud
+  mirror does not email twice, and does nothing at all when the server has no mail account.
+- `ILibraryEmailService` reads the shared `Email` config section. New optional **`Email:PickupDirectory`**:
+  writes each notice as an `.eml` file instead of sending — for trying reminders on a machine with no SMTP.
+- API `api/library/reminders`: `settings` (GET / PUT), `run` (`dryRun` = preview), `log`. Reads need
+  `library.setup.view`; changing settings and sending need `library.setup.edit`. "Send now" is refused, not
+  faked, when no mail account is configured.
+- Members with no email address are counted in the preview and skipped. Emails are English; names and titles
+  are HTML-encoded.
+
+**Verified:** 25 scripted checks against the local DB with emails written to a pickup folder and read back —
+defaults, validation, preview sends nothing, grouping, the no-address member, content and recipient of each
+email, HTML escaping, same-day re-run sends nothing, second overdue notice next day, per-loan limit, a
+returned book is not chased, ready notices switchable, permissions. The background job was left running and
+sent a pending pickup notice by itself five minutes after startup. The settings card was checked in the
+browser. **Not verified:** delivery through a real SMTP server (local dev has none configured).
+
+**Not built:** SMS / WhatsApp · Arabic email text · a notice when a membership is about to expire ·
+re-sending one notice by hand from the log.
+
+### Module 72d — Library: barcode labels and member cards
+
+Printed through the browser like every other document (`lib/pdf.ts` pattern): a window with the laid-out
+sheet, then the print dialog. Frontend only apart from one read endpoint. No migration, no new dependency.
+
+- **`lib/library/barcode.ts`** — Code 128 as SVG, written here rather than pulled in. Set B for text; an
+  all-digit, even-length value uses set C (half the width). Printable ASCII only: a barcode with other
+  characters prints as text with no bars, and the dialogs say how many. Checked **bar for bar against
+  jsbarcode on 817 values** (the reference was installed in a scratch folder only, not in the project).
+- **`lib/library/print.ts`** — `printLabels` (A4 sheets of 21 / 24 / 65 Avery-style labels, or 50 × 25 and
+  38 × 25 mm label-printer rolls; "labels already used" offsets onto a part-used sheet) and
+  `printMemberCards` (85.6 × 54 mm; ten to an A4 sheet with cut lines, or one per page for a card printer).
+  All sizes are in millimetres; **the print dialog must be at 100% with no margins** — the dialogs say so.
+- **`shared/print-modals.tsx`** — `LabelsModal` (Catalogue → Print labels: filter by branch, by "added on or
+  after" — the case after an import — or by search, then untick what is not wanted; also on each title) and
+  `CardsModal` (Members → Print cards for the page shown; also on each member). The name printed defaults to
+  the workspace name and an edit is remembered per device.
+- New `GET api/library/copies` (`GetCopiesQuery`: search, branch, title, status, addedFrom; paged, up to
+  1,000) — the flat copy list labels are chosen from. Readable with catalogue or circulation view.
+- **Scanning a member card at the desk picks the member**: `MemberPicker` remembers an Enter and, once the
+  search for that text returns, selects the exact card number (or the only match). A scanner types faster
+  than the search answers, so acting on Enter directly would find nothing.
+
+**Verified:** `tsc` clean. In the browser, with the print window captured instead of opened: 27 labels on
+two A4 sheets measured at exactly 63.5 × 38.1 mm, first label 7.2 / 15.1 mm from the sheet edge, 66 mm
+column pitch, none overflowing (including a title far too long for one line); 12 cards at exactly
+85.6 × 54 mm, centred; typing a card number + Enter at the desk selected that member.
+**Not verified:** a print on real label stock, and a scan of a printed label with a physical scanner — the
+encoding is proven identical to a known-good library, but printer scaling can only be checked on paper.
+
+**Not built:** spine labels (call number only) · a photo or logo on the card · QR codes · custom label sizes.
+
+### Module 72e — Library: staff limited to their own branch
+
+**Rule:** staff assigned to one or more branches are limited to them. Staff assigned to none can work at
+every branch. Anyone holding `library.setup.edit`, and super admins, are **never** limited — they decide
+who works where, and must not be able to lock themselves out by adding their own name. No new permission.
+
+- `BranchStaff` (branch, user id, name as it was when assigned) + migration `AddBranchStaff`. Managed from
+  Library → Branches & Rules → the **Staff** column (`BranchStaffModal`, user search via Identity's
+  `/api/users`). `PUT api/library/branches/{id}/staff` replaces the list; `GET branches/mine` tells a client
+  whether the caller is limited. Deleting a branch removes its assignments.
+- **Enforced in the handlers** through `IBranchAccess` (`Infrastructure/Services/BranchAccess.cs`, resolved
+  once per request from the Library's own `ICurrentUser`, registered in the gateway). A refusal is
+  `Branch.Forbidden` → 403 (`LibraryControllerBase` maps the `.Forbidden` suffix).
+- **What a limited librarian can do, by branch:**
+  - Issue: only a copy held by their branch.
+  - Return: only received **at** their branch — but any branch's book can be handed in. With no branch named,
+    theirs is assumed, not the issuer's.
+  - Report lost: only a loan their branch issued. **Renew is allowed at any counter** (a member service).
+  - Reservations: create, see and cancel only those to be collected at their branch.
+  - Copies: add, edit, delete only at their branch. Transfer **out of** their branch to anywhere; receive
+    only what is sent **to** their branch.
+  - Import: rows for their branch only; a default branch they are not assigned to falls back to their own;
+    they cannot create branches.
+  - Lists and dashboard: loans, reservations, in-transit, the copy list (labels) and the dashboard are
+    narrowed to their branches.
+- **Deliberately not limited:** the catalogue and barcode lookup (they must see availability elsewhere, and
+  take a return from anywhere), members and fines (they belong to the whole library), and one member's own
+  loans / reservations (the desk has to answer "what do you have out?").
+- Frontend: `useMyBranches()` gives the branches the user may *act* at; forms that choose where to act
+  (working branch, add copies, import, reserve, labels) use it, while views that only *look* across the
+  library (catalogue filter, transfer destination) keep `useBranches`. This only keeps wrong choices off
+  screen — the server is what enforces.
+- EF note: narrowing is done by composing `.Where(allowed.Contains(...))` only when `allowed` is not null,
+  never as `allowed == null || allowed.Contains(...)` inside the expression.
+
+**Verified:** 47 scripted checks (every rule above, a manager listed under a branch staying unlimited,
+assignment changes, branch deletion) and the original 90-check suite re-run on fresh workspaces — no
+regressions. In the browser: a limited librarian sees "Your branch: Main Library", only that branch in the
+desk and loan filters, and a one-branch dashboard; the manager sees the Staff column and dialog.
+**Not verified:** the user search inside the staff dialog (the test workspace had no user accounts to find).
+
+**Not built:** a member seeing only "their" branch · per-branch fines · an audit of who did what where.
+
+### Module 72f — Library: wait before reserving a title the member already holds
+
+A member with a title on loan used to be refused a reservation for it outright. Now it is a wait, set
+per membership type: `MembershipType.SameTitleReserveAfterDays` (default **1**, 0 = no wait, max 365).
+The reservation is refused while the member's latest active loan of that title is younger than that many
+days, and the message gives the date it becomes possible.
+
+- Field on the membership type form ("Days before the same title can be reserved again"), en + ar.
+- Migration `AddSameTitleReserveWait` — column default hand-set to **1** so existing types keep a one-day
+  wait. Deliberately **no** `HasDefaultValue(1)` in the EF config: with a store default, EF would treat a
+  saved 0 as "unset" and write 1.
+- **Build:** no compile errors (gateway build stopped only on file locks from the running gateway);
+  frontend `tsc` 0 errors. **Not runtime-tested** — needs a gateway restart (migration auto-applies).
+
+### Module 72g — Library: member self-service portal (card number + PIN)
+
+A public page per library, `/library-portal/{tenant-slug}`, where a member sees their loans, renews them,
+searches the catalogue, reserves and cancels reservations, and sees unpaid fines. **Off per workspace
+until the library opens it** (Library → Branches & Rules → Member portal), and a member can sign in only
+after staff give them a PIN (member record → Online access).
+
+- **Members are not Identity users.** No plan seat, no staff permissions, no way into the app. They sign
+  in with card number + a 6-digit PIN; the session is the portal's own HMAC-signed token (12 h), sent in
+  the `X-Member-Token` header. `PortalSecurity` derives its key from `Jwt:Secret` under its own label, so
+  the token cannot be used as a staff token (and a staff JWT is refused as a member session).
+- **PIN:** PBKDF2 hash on `Member.PortalPinHash`; shown to staff once and never readable again. Five wrong
+  PINs lock sign-in for 15 minutes (`PortalFailedAttempts` / `PortalLockedUntil`); a new PIN from the desk
+  lifts the lock. The token carries a stamp of the PIN hash and the member is re-read on every request,
+  so a changed or removed PIN, or a deleted member, ends open sessions at once. Members can change their
+  own PIN (4–8 digits).
+- **`PortalSettings`** (one row per tenant): `Enabled`, `AllowRenewals`, `AllowReservations`,
+  `PublicCatalogue` (search without signing in — titles and availability only).
+- **Tenant from the slug** (`TenantLookup` over `identity.tenants`, like Careers). An anonymous request has
+  no tenant and the query filter then lets every workspace through, so each public handler calls
+  `PortalGate.OpenAsync` and then **`door.Enter()` — a plain, non-async call**: a `TenantAmbient` value set
+  inside an awaited helper is gone when the helper returns.
+- Renew / reserve / cancel go through the **desk's own commands** via `ISender` after an ownership check,
+  so every rule (renewal limit, queue, same-title wait, suspended or expired member) is the same online.
+  Someone else's loan or reservation is a 404. The member id always comes from the session, never the body.
+- An unknown address, a closed portal and a suspended workspace all answer the same 404. Unknown card, no
+  PIN and wrong PIN all answer the same 401 text.
+- Rate limits `library_portal` (120/min/IP) and `library_portal_signin` (30/min/IP — a school sits behind
+  one address), registered in the gateway (`AddLibraryPortalRateLimiting`).
+- API: public `api/library/portal/{slug}` (info, `sign-in`, `change-pin`, `account`, `search`,
+  `loans/{id}/renew`, `reservations`, `reservations/{id}/cancel`); staff `api/library/portal-settings`
+  (`library.setup.*`) and `members/{id}/portal-pin` POST / DELETE (`library.members.edit`).
+  `LibraryControllerBase` maps `.Unauthorized` → 401.
+- Frontend: `pages/public/library-portal.tsx` (self-contained: plain `fetch`, no auth store, no theme,
+  **English only**), `lib/library/portal.api.ts`, `setup/components/portal-card.tsx`, `PortalAccess` in
+  the member drawer. Staff strings en + ar.
+- Migration `AddMemberPortal` (3 columns on `members` + `portal_settings`).
+
+**Verified:** 78 scripted checks against a local gateway (closed by default, permissions, sign-in, lockout,
+PIN change / replace / remove ending sessions, own-data-only, the switches, two libraries kept apart,
+rate limit). In the browser: member sign-in, account, renew, reserve, reservations and fines tabs; the
+setup card; giving a new PIN from a member record. Test tenants removed afterwards.
+**Not verified:** how the page looks (the preview pane could not take screenshots), Arabic, and a phone.
+
+**Not built:** member self-registration · PIN reset by email · paying fines online · a member changing
+their own contact details · Arabic member page · the portal link on printed cards and reminder emails.
+
+---
+
+## Module 73 — Finance: Integration Center (module → ledger audit, posting queue, account mapping)
+
+Full audit and design: **`docs/finance-integration-center.md`**. Page `/finance/integrations`
+(nav "Integration Center"), API `api/finance/integrations`.
+
+### Audit result (code-traced)
+- **Posts to the ledger:** only Finance's own documents (invoice send/pay, receipt + payment vouchers,
+  purchase bill, expense), all through `GlPoster` with hardcoded account numbers.
+- **Browser-driven, not guaranteed:** payroll (accounts matched by name; silently skips), production
+  cost (draft entry), visa invoice, quotation → invoice.
+- **Nothing posts:** POS, Restaurant, Real Estate rent, Library fines, sales returns, GRN, stock
+  movements, hotel bookings, and Finance's own **bank transactions**.
+- **Fixed in passing:** `FiscalPeriod.Locked` (8 handlers) returned HTTP 500 — now 409.
+- **Not changed:** stock is not carried in the ledger (purchases are expensed at bill approval), so
+  GRN / stock / production receipts have no account to move until that policy changes.
+
+### Built (Finance service, CQRS)
+- `IntegrationCatalogue` — every transaction type and how it reaches the ledger
+  (`native | queue | client | none`). Queue kinds: `pos.sale`, `pos.refund`, `restaurant.order`,
+  `restaurant.refund`, `realestate.rent`, `library.fine`, `hr.payroll`.
+- `PostingSources` — Finance **reads** other schemas with raw SQL; no other module's code changed.
+  Every query compares its tenant column by hand (`real_estate` uses `OwnerTenantId`).
+- `posting_items` unique on (tenant, integration, source id) = duplicate-posting guard.
+  `PostingEngine.PostAsync` claims an item with one `UPDATE` before posting; journal entry + item
+  status are one save. Failures store their reason on the item and can be retried.
+- `integration_settings`: **no row = off**. `review` queues, `auto` queues and posts
+  (`PostingQueueHostedService`, 15 min, honours `ITenantWorkFilter`).
+- `integration_account_mappings`: role → account; no row = the default account number.
+- Payroll posted from the queue writes its entry id back to `hr.payroll_runs` (only into an empty
+  link column) — the one place Finance writes outside its schema; without it the HR approval screen
+  could post the same run again.
+- Permissions `finance.integrations` = view / edit / approve (`approve` is what writes to the ledger).
+- Migrations `AddFinanceIntegrationCenter` (Finance, 3 tables) + `AddFinanceIntegrationPermissions`
+  (Identity, 3 rows). Both applied to SHAHBAZ-QFINITY.
+- **First test project in the repo:** `Backend/tests/Softaxis.Finance.Tests` (xunit, 43 tests) —
+  `dotnet test tests/Softaxis.Finance.Tests`. Finance.Infrastructure exposes internals to it.
+
+### Verified
+- 43 unit tests pass (line builder, catalogue integrity, every source's amounts balance, item states).
+- 63 scripted API checks against the local gateway + database: permissions (401/403), validation,
+  off-by-default, collect is idempotent, preview writes nothing, mapping changes the entry, a failed
+  post leaves no journal entry and retries cleanly, posted entry is balanced and tenant-stamped,
+  **six simultaneous posts of one item create exactly one journal entry**, reverse, auto mode.
+- In the browser (DOM text, the pane was not painting so no screenshot): overview, integration
+  drawer with account selects, queue list, preview drawer with entry lines and journal link.
+- Test data was removed from the local database afterwards.
+
+### Not verified / not built
+- **Only `restaurant.order` was posted end to end** — the only source with rows in the dev database.
+  The other six sources ran their count queries against the real tables without error, and their
+  amount rules are unit-tested, but no POS sale, refund, rent, fine or payroll run was posted.
+- Isolation between two workspaces was not exercised at runtime (one usable tenant locally). All
+  queue reads go through EF's tenant filter; source reads are tenant-compared in SQL.
+- Skip / requeue only at the domain level (unit tests), not through the API.
+- Not built: server-side posting for bank transactions, sales returns, GRN, stock movements,
+  production cost, bookings; mapping for Finance's own documents; a source link on the journal entry.
+- The accounting choices in §3 of the doc (tips as a liability, gross payroll, UTC document dates)
+  need an accountant's confirmation before a customer switches an integration to automatic.
+
+### Module 72h — Library: reports in the Reports hub, and collected fines posted to Finance
+
+**Fine payments are now rows.** `FinePayment` (fine, member, amount, method, paid-on, journal entry link).
+A fine only carried its running total, so nobody could say what was collected on a given day or which
+money was already in the accounts. `PayFineHandler` adds one per payment. Migration `AddFinePayments`
+creates the table and **backfills one payment per existing fine with money on it** (dated settled-on, else
+raised-on), left unposted.
+
+**Reports hub — new "Library" category, 12 reports**, run in the tabular runner through
+`GET api/library/reports/run/{id}?from=&to=&today=` (`RunLibraryReportHandler`):
+Overdue Loans · Loans Register · Daily Circulation · Most Borrowed Titles · Branch Activity · Stock by
+Category · Titles Not Borrowed · Lost, Damaged and Withdrawn · Member Activity · Expiring Memberships
+(lapsed or within 60 days) · Fines Collected · Outstanding Fines.
+- **No new permission.** Each report needs the view permission of the area it reads
+  (`library.circulation|catalog|members|fines.view`), checked in the handler; the hub hides what the user
+  cannot run. Someone without Fines access cannot read the fines reports.
+- Staff limited to a branch get loan and copy figures for their branches only; members and fines are not
+  narrowed (same line as the screens).
+- Dates are the library's calendar-day strings; range defaults to the last 30 days; 5,000-row cap.
+- Registry: `LIBRARY_REPORTS` in `report-registry.ts`, `Library` in `CATEGORY_MODULE` / `CATEGORY_CONFIG` /
+  `CATEGORY_RUNNERS`, client `lib/library/reports.api.ts`.
+
+**Post to Finance (optional link).** Fines page → "Post to Finance", shown only when the workspace has
+Finance **and** the user holds `finance.journals.create` and `library.fines.approve`
+(`useCanPostFines`). The dialog shows what is unposted up to a chosen day (total, by method, by fine type),
+the two accounts (money received in = debit, fines income = credit — guessed by name, remembered per
+device, always shown) and the resulting lines. Same shape as Manufacturing's cost posting:
+1. the client creates one **draft** journal entry through Finance's own API;
+2. `POST api/library/fines/finance/posted` marks those payments with the entry's id and number.
+- Marking is all-or-nothing: a batch containing an already-posted or unknown payment is refused whole, so a
+  payment can never be in two entries.
+- If step 2 fails after step 1, the error names the draft entry and says to delete it before retrying.
+- `GET fines/finance/unposted?through=` and `fines/finance/history` need `library.fines.view`.
+- The library never writes into Finance's schema. Waived fines are not posted. One debit account per
+  posting — cash and card takings are not split onto separate accounts.
+
+**Verified:** 56 scripted checks on a local gateway — every report's shape, the figures against a known
+data set, per-area permissions, branch-limited staff, part-payments, and the full posting including a real
+draft journal entry found in Finance, double-posting refused. In the browser: the Library category and a
+report run in the hub; the posting dialog created an entry and then showed nothing left to post.
+**Not verified:** PDF / Excel / CSV export of a library report (the hub's shared exporter), and Arabic.
+
+**Found on the way (not changed):** Finance creates a workspace's chart of accounts at **gateway startup**,
+so a workspace created while the gateway is running has no accounts or account types until the next
+restart. Test workspaces from earlier sessions had left Finance and role rows behind; all were removed.
+
+### Module 73b — Post to Finance from each module, check before posting, guarded auto-posting
+
+- **Per-module button.** `components/finance/post-to-finance.tsx` — `PostToFinanceButton({module})` on POS
+  dashboard (`pos`), Restaurant reports (`restaurant`), Real Estate contracts (`real-estate`), Library
+  fines (`library`), HR payroll (`hr`). Renders nothing without the Finance module +
+  `finance.integrations.view`, so a module sold without Finance is unchanged. Posting stays a Finance
+  permission (`finance.integrations.approve`), not a module one. Only the seven queue integrations are
+  covered; `client` kinds keep their own screens and `none` kinds still have nothing to post.
+- The drawer lists an integration's waiting / failed / posted documents, collects new ones, and offers
+  "Switch on manual posting" (mode `review`) when it is off. `GET api/finance/integrations?module=`.
+- **Check before posting.** `POST queue/check {ids}` (view) → `PostingChecker`: per document, the
+  problems posting would hit (status, missing/inactive account, no amounts, closed period); totals and a
+  per-account summary over the ready documents only. Writes nothing; never cached on the client.
+- **Control total.** `POST queue/post {ids, controlTotal}` re-runs the same check and refuses with 409
+  if the total differs from what the user approved or does not balance; then posts only the documents
+  that passed (a blocked one is left as it is, not marked failed). Without `controlTotal` the old
+  behaviour is unchanged. The Integration Center's bulk post uses the same dialog.
+- **Auto-posting.** `PUT {key}/setting {mode, startDate, acknowledgeAuto}`: switching to `auto`, or
+  changing the start date while auto, needs `acknowledgeAuto: true` (else 400), every role's account
+  present and active (else 409), and `finance.integrations.approve` (else 403 — `edit` alone could
+  otherwise post without holding it). `GET {key}/auto-readiness` feeds the warning dialog (blockers,
+  pending / failed counts, documents not yet collected, run interval).
+- No migration. Tests: `Softaxis.Finance.Tests` now 48 (5 for `AutoReadiness.Blockers`).
+- **Verified** against a local gateway + database: 48 scripted checks (module filter, readiness, each
+  auto refusal, check totals, control-total refusal, an account switched off between check and post,
+  mixed selection, no duplicate entry). In the browser: button → drawer → collect → check dialog →
+  post on the Restaurant page, and the auto warning with its confirm disabled until ticked.
+- **Not verified:** the button on the POS, Real Estate, Library and HR pages was not opened (same
+  component; no source rows locally); Arabic; nothing was posted for any source except `restaurant.order`.
+- **Known:** amounts in the check dialog use `formatCurrency`, which shows PKR without decimals, so
+  1,333.50 reads as 1,334. The control total sent to the server is exact.
+
+---
+
+## Module 74 — Real Estate: lease renewal and early termination
+
+Leases could only be created and deleted. The drawer's "Terminate" button just flipped the status
+word: no date, no reason, no final account, and the schedule's remaining payments stayed owed.
+
+### Renewal — a new lease, linked to the old one
+- `POST contracts/{id}/renew` (`real-estate.contracts.create`) → `RenewContractCommand`. Creates the next
+  lease for the same unit and tenant with its own schedule; the current lease is marked `renewed`.
+  `LeaseContract.RenewedFromContractId` / `RenewedToContractId` / `RenewalNumber` / `PreviousAnnualRent`.
+- Refused when: the lease is terminated or already renewed, notice to end it is on record, the new term
+  starts on or before the current end date, or the unit has another active lease.
+- **Rent unpaid on the renewed lease stays owed.** The chase queue, the summary and the reminder sweep
+  now include `renewed` leases for rent (never for expiry notices).
+- Deleting a renewal puts the lease it replaced back to `active`; a lease that has a renewal cannot be
+  deleted until the renewal is.
+- `ContractDetailDto.History` = every lease in the tenancy, oldest first.
+
+### Termination — date, reason, final account
+- `LeaseTermination` (one row per lease): `scheduled → pending_settlement → settled`.
+- `GET contracts/{id}/termination-preview?date=&penalty=&deductions=` — the account for that date, changes nothing.
+- `POST contracts/{id}/terminate` (`contracts.edit`). Date today or earlier: the lease ends at once and the
+  unit is vacated. **A later date is notice**: the lease stays active and `RentAlertBackgroundService` ends
+  it on the day (`LeaseLifecycle.TakeEffectWhereDueAsync`), recomputing the account then.
+- `DELETE contracts/{id}/termination` withdraws notice that has not taken effect.
+- `POST contracts/{id}/termination/settle` (`real-estate.rent.record`) records the refund or collection.
+- **Net = deposit + rent paid − rent owed − penalty − deductions** (positive = refund to tenant).
+  Rent owed is by the day inside the payment period the last day falls in (`LeaseContract.RentOwedThrough`).
+- Payments falling due after the last day and not yet paid become `cancelled` (new installment status,
+  counted as settled). Paid-ahead payments are left alone and show up as a refund in the account.
+- A terminated lease takes no more rent payments (409) and is out of the chase queue — what it owes is the
+  final account.
+- `PATCH contracts/{id}/status` now accepts only `expired`.
+
+No new permission keys. Migration `AddLeaseRenewalAndTermination` (4 columns + `LeaseTerminations`).
+Frontend: `contracts/components/lease-lifecycle.tsx` (renew + terminate dialogs, final-account card,
+settle dialog, tenancy history); English only, like the rest of the Contracts screen.
+
+### Verified
+- Gateway build 0 errors · frontend `tsc -p tsconfig.app.json` 0 errors.
+- 21 domain checks (pro-rata rent, cancel / reinstate, net figure, renewal links) run in a scratch console.
+- 45 scripted API checks against a local gateway + database: every refusal above, notice → withdraw,
+  renew → delete renewal, terminate → settle, unit status, chase queue. Test rows removed afterwards.
+- In the browser: lease list chips, renew dialog, terminate dialog with live account, terminated lease card.
+- **Not run:** the background job ending a lease on its notice date (it calls the same code as an
+  immediate termination, but the timed path itself was not exercised), and the settle dialog in the browser.
+
+### Not built
+Emails to the tenant for renewal / termination · posting the deposit refund or penalty to Finance ·
+renewing several leases at once · automatic expiry of a lease that passes its end date (it shows
+"Past end date" with a "Mark expired" button) · Arabic strings.
+
+### Module 73c — Automatic posting hardened: nothing guessed, everything re-checked at post time
+
+Audit of every queue source for ways unattended posting could write a wrong entry. Found and fixed:
+
+- **Wallet / store-credit / house-account payments were booked as bank money** (POS `StoreCredit`,
+  restaurant `Wallet` and `House Account`). New role `customer` (default account 1200) on
+  `pos.sale`, `pos.refund`, `restaurant.order`, `restaurant.refund`.
+- **POS refunds always credited cash.** They now follow the refund's own payment rows.
+- **Library fines could be posted twice.** The Library module has its own posting screen over
+  `library.fine_payments`; the queue read `library.fines`. The queue source is now
+  `fine_payments WHERE JournalEntryId IS NULL` (per payment, cash vs bank by method), and posting
+  writes the entry id onto the payment row, so each side stops seeing what the other posted.
+- **Figures were silently repaired** (`Math.Min`/`Math.Abs` clamps; payroll gross plugged). Removed.
+  Each source has a `Check`: tax outside the total, payments that do not cover the document, a
+  payment method with no rule (POS `Mixed`, restaurant `Voucher`, rent with no method, fine paid as
+  `other`), payroll totals that disagree by more than 1. Such a document is collected but **held**
+  (`failed`, `LastError` starts `Held for review: `) and cannot be posted by any route.
+- **The snapshot could go stale.** `PostingEngine.VerifyAsync` re-reads the source document inside
+  `PostAsync`: gone (cancelled, deleted, posted from its own module) → refused; figures changed →
+  snapshot refreshed and the item failed for a person to re-check; unreadable → refused. The check
+  dialog runs the same verification. `ReconcileOpenAsync` (every sync) refreshes waiting items and
+  skips ones whose document no longer qualifies.
+- **Currency.** A queue item is always in the workspace currency; if its code differs from the ledger
+  currency it is refused, never converted. The background pass skips a workspace with no currency
+  (it used to fall back to AED while a signed-in user's token could say something else).
+- **Link-back is in the posting transaction** (payroll run, fine payment): if the document was posted
+  from its own module in the meantime the whole posting rolls back.
+- **Cancelled after posting.** A POS sale voided (not refunded) or a restaurant order cancelled after
+  its entry was posted is flagged on the item and raised as an issue. It is not reversed automatically.
+- **Automatic posting needs a start date** (400 without one).
+- Restaurant order date is now the last payment's date, not `UpdatedAt`.
+
+No migration. Tests: `Softaxis.Finance.Tests` 114 — includes `SourceSchemaTests`, which run every
+source's SQL against a real database when `FINANCE_TEST_DB` is set (no-ops without it).
+
+**Verified** on the local database with one test document of every kind (POS sale ×4, POS refund,
+restaurant orders and refunds, rent ×3, fine payments ×5, payroll ×2): 89 scripted checks — held
+documents, change after collection, posted-elsewhere, the exact ledger lines automatic posting wrote
+for each module, link-back, no double posting on repeat passes, void-after-post flag, reversal. Test
+data removed afterwards.
+
+**Not verified:** the background service's own 15-minute pass (the same `SyncAsync` was driven
+through the API); the dialogs in a browser after these changes; Arabic.
+
+**Decisions an accountant should confirm:** wallet top-ups are still not posted anywhere, so the
+customer-balances account only sees the spending side; payroll withholdings and tips both default to
+2400; rent paid in several parts by different methods is posted under the last method.
+
+### Module 73d — Finance Posting screen, approval levels, sales returns, reverse and post again
+
+- **Screen:** `/finance/posting` (nav "Finance Posting", `finance.integrations.view`): module tiles (waiting,
+  held, mode, limit, second approver), one queue across modules, approval column, and a "not posted from
+  here yet" panel with the reason for each gap. `modules/finance/posting/components/posting-hub-view.tsx`;
+  it reuses `PostingQueue` (new `module` prop) and `PostingCheckDialog`.
+- **Only licensed modules:** the controller reads the `modules` claim and passes it to the overview and
+  queue queries; `ModuleAccess.Allows` (purchase/purchasing treated as one). Posting, submitting and
+  reversing a document of an unlicensed module is refused. Super admins and tokens with no claim are unrestricted.
+- **Approval levels:** new permissions `finance.integrations.submit` and `.approve-high` (migration
+  `AddFinancePostingLevelPermissions`); per-integration `ApprovalLimit` and `RequireSeparateApprover`
+  (`IntegrationSetting`, migration `AddPostingApprovalLevels`); `PostingItem.SubmittedAt/ByUserId/ByName`.
+  `ApprovalGate` is the single place the rules live (post, check, retry, reverse). A refused document is
+  reported as `refused` and left pending. Submission is voided when a document's figures change or it is
+  held. Automatic posting skips documents above the limit and is refused while a second approver is required.
+  Endpoints: `POST queue/submit`, `PUT {key}/approval`. `RequirePermission` now accepts "a,b" = any of.
+- **Sales returns** joined the queue (`sales.return`, Dr 4001 / Cr 1200), **manual only**
+  (`IntegrationDefinition.AutoAllowed = false`): no tax, no invoice link.
+- **Bank transactions deliberately not posted** (one-sided, would double-count vouchers); the hub says so.
+- **Reverse** needs a reason (kept on the item); reversing above the limit needs high-value approval;
+  a reversed item can be put back in the queue ("Post again"). The reversed entry stays in the ledger.
+- Tests: `Softaxis.Finance.Tests` 139. Verified on the local DB/gateway: 54 checks (module visibility,
+  sales returns, limit, second approver, auto-skip) + 24 (no duplicates, reverse, post again), and the
+  hub and drawer in a browser for a full workspace and a Finance + Inventory workspace.
+- **Not verified:** Arabic layout; the submit/approve flow with two real logins (two user ids in
+  tokens were used); a workspace on the cloud mirror.
+
+### Module 73e — Wallet, cash in/out and hotel payments post to Finance; bank reconciliation
+
+- **New queue sources** (`pos.wallet`, `pos.cash`, `hospitality.booking`) in `PostingSources`. To make them
+  postable the source rows now record what was missing: `customer_wallet_transactions.PaymentMethod`,
+  `cash_movements.Category` (required when a cashier records cash in/out, also in offline day-end sync), and a new
+  `hospitality.BookingPayments` table (a booking kept only a running paid total). Migrations `AddWalletPaymentMethod`,
+  `AddCashMovementCategory` (POS), `AddBookingPayments` (Hospitality). Older rows with no method/category are held for review.
+- **Cash movement type codes:** `Type = 1` is cash in, `Type = 2` is cash out (0 is neither). Category must fit the direction.
+- **Held items are not refreshed** when their source row is later corrected; delete the held item and collect again.
+- **Bank reconciliation:** `BankAccount.LedgerAccountId`; `BankTransaction.MatchedJournalLineId/EntryId/EntryNumber/At/By`
+  (unique on the line). API under `api/finance/banking`: `accounts/{id}/reconciliation`, `accounts/{id}/ledger-account`,
+  `accounts/{id}/auto-match`, `transactions/{id}/match`, `transactions/{id}/unmatch`. Migration `AddBankReconciliation`.
+  Details in `docs/finance-integration-center.md`. Frontend `reconcile-panel.tsx`.
+- **Verified:** 166 unit tests; 39 live API checks for reconciliation (permissions, direction/amount/draft/deleted
+  refusals, window, auto-match only when unambiguous, balances, unmatch) and the live posting of wallet, cash and
+  hotel entries; the panel match flow in a browser. **Not verified:** Arabic layout of the panel, the new dialogs
+  (wallet top-up, cash in/out category, hotel Collect Payment) in a browser, and a real statement larger than 500 open lines.
+- **Known gaps:** the Add Booking form payload does not match the API (flagged earlier); Hospitality has no permission keys;
+  the inventory-in-ledger decision still blocks goods receipts, purchase returns, stock adjustments and Manufacturing cost.
+
+---
+
+## Module 75 — POS: buying on credit (house account with due dates, ageing, collections)
+
+Builds on the existing house account (`Customer.CreditLimit/CreditBalance`, used by Restaurant). Retail could not sell on credit at all.
+
+- **Sale:** payment method `HouseAccount` (enum 8). Server rules in `CreateSaleCommandHandler`: customer required and active, not on hold, within available limit, never more than still owed (credit gives no change), refused offline. Part credit + part cash/card is supported. Each sale writes a `house_charge` ledger row with `DueOn` = today + the customer's terms.
+- **Customer:** `CreditTermsDays` (default 30), `CreditHold` + reason. Migration `AddCustomerCredit` (POS; existing customers get 30 days).
+- **Ageing is computed, not stored** (`CreditAgeing`, pure): a refund/void is applied to its own sale's charge first (ledger `OrderId` = the sale), payments and leftovers settle the oldest charge first. Buckets: not due, 1–30, 31–60, 61–90, 90+. A balance the ledger cannot explain is shown as brought forward, not late.
+- **Refund of a credit sale:** the part that was on credit (capped at what the customer still owes) must go back to the account (`house_refund`); the rest by the chosen method. **Void** reverses the charge, and is refused if the customer has already paid part of it (refund instead). Overpaying a balance is now refused (it used to be silently dropped).
+- **API** (`api/customers`): `GET {id}/credit` (till + customer view), `GET credit/overview` (`pos.customers.view`), `PUT {id}/credit-terms`, `PUT {id}/credit-hold` (`pos.customers.edit`).
+- **Finance:** HouseAccount payments post to receivables like store credit (`PosCustomer` = methods 4, 8).
+- **Frontend:** Credit Control page `/pos/credit` (receivables, ageing bar, filters, export); customer credit file drawer (open invoices, history, collect payment, terms/limit/stop-credit, statement PDF, WhatsApp reminder); retail till **Credit** button → `credit-sale-dialog.tsx`; receipt shows credit, due date, balance and signature line; refund dialog splits account/cash.
+- **Verified:** 45-check live API run (limits, hold, part credit, ageing bands, FIFO payments, refund/void, overview, permissions); the Credit Control page and customer file in a browser. **Not verified:** the till's credit dialog and receipt in a browser (shift screen would not pick up an API-opened shift), Restaurant house-account due-date display, Arabic.
+- **Reminder emails:** `CreditReminderSettings` + `CreditReminderLog` (migration `AddCreditReminders`), off per workspace until switched on in Credit Control → Customer reminders. Daily background pass (9am local, 5-minute startup delay) + per-customer "Email reminder" button + preview/send-now. Rules: one email before a due date (once per due date), overdue after N days then every N days up to a maximum; claim-then-send under a unique key so nothing is sent twice; customers with no email are counted and skipped; a failed send backs off 20h. Uses the shared `Email` config (`Email:PickupDirectory` writes .eml files for testing). Verified live (23 checks: preview writes nothing, sent mail content, no duplicate on a re-run, repeat after a week, manual send, permissions).
+- **Also done:** `CreditAgeing` unit tests (`Softaxis.POS.Tests`, 14), retail store-credit payments now deduct the wallet (refund/void return it), Restaurant House Account blocked while credit is stopped.
+- **Not built:** reminder emails in Arabic, SMS/WhatsApp sending, restaurant UI for terms/hold.
+- **Also this session (Purchase):** receiving a PO now adds stock for lines linked to an inventory product (`GrnStockReceiver`, only for workspaces with Inventory); the GRN form shows subtotal, tax (from the PO line rates, display only) and total; fixed the untranslated confirm button and notes placeholder.
+
+---
+
+## Module 76 — Import / Export (Trade): shipments, documents, landed cost, payments + "Import & Export" industry
+
+**New standalone service `Softaxis.Trade`** (schema `trade`, clean CQRS, same shape as Library/Manufacturing). Module code
+`trade`; stands alone — Inventory, Purchase, Sales and Finance are suggested in onboarding but never required.
+
+### Industry attach
+- Tenant industry `import_export` → module `trade` on every plan (`Tenant.IndustryPackModule`), no CRM/Inventory pulled in.
+  Signup label **"Import & Export"** (`geo-data.ts` INDUSTRIES) normalises to `import_export` in `RegisterTrialCommandHandler`;
+  onboarding pre-selects `trade, inventory, purchase, sales, finance, hr`. Create-Tenant picker gets it from `industry-packs.ts`
+  (`import_export` / `trade`); super-admin module selector has a Trade chip + `import_export` defaults. Enterprise plan includes it;
+  other tiers via industry or manual grant. `ModuleEnforcementMiddleware`: `/api/trade/` → `ModuleCodes.Trade`.
+- Permissions `trade.shipments|parties|documents|costs` (view/create/edit/delete) + `trade.payments` (view/create/edit).
+  Costs and payments are separate keys on purpose: a user who sees where cargo is need not see what it cost.
+  Migration `AddTradePermissions` (Identity). Default roles "Trade Manager" / "Trade Staff" come from `ModuleRoleCatalogue`.
+
+### Model
+`TradeParty` (supplier / buyer / forwarder / clearing agent / carrier / bank), `Shipment` (import|export; `booked → in_transit →
+arrived → customs → cleared → delivered → closed`, forward-only, cancel allowed until cleared) with `ShipmentItem` (HS code, qty,
+weight, volume), `ShipmentContainer`, `ShipmentMilestone` (history), `ShipmentCost`, `ShipmentPayment` (advance / balance / L/C / TT;
+paid date is the single source of truth for "paid"), `TradeDocument` (optional file ≤ 8 MB stored as varbinary, expiry watched).
+Dates are `DateOnly`. Migration `InitialTrade`.
+- **Landed cost** (`LandedCost`, pure): goods converted at the shipment's rate into the workspace currency + each cost shared by
+  value / weight / volume / quantity; a basis with nothing to share by falls back to value, then equal split; rounding remainder goes
+  on the largest line so parts always sum to the whole. Costs are entered in the workspace currency (no per-cost FX).
+- **Visibility**: `ShipmentDto.Costs/Payments` and the per-line landed fields are `null` unless the caller holds
+  `trade.costs.view` / `trade.payments.view`; documents list needs `trade.documents.view`.
+- Free days at port + arrival date → `FreeTimeEnds`; dashboard flags demurrage, late ETAs, due/overdue payments, expiring L/Cs and documents.
+- Commercial invoice and packing list PDFs are generated in the browser (`shipment-print.ts` via `exportPdf`).
+
+### Frontend
+`lib/trade/trade.api.ts`, `hooks/trade/use-trade.ts`, `modules/trade/{dashboard,shipments,parties,shared}`, pages `/trade/dashboard|shipments|parties`,
+nav group "Import / Export", `trade` i18n namespace (en + ar, key parity verified).
+
+### Verified
+- Gateway + frontend build 0 errors; `vite build` ✅; 98 scripted API checks against a local gateway + dev DB (access, validation, landed-cost
+  maths, visibility, documents incl. byte-identical download, status machine, dashboard, filters, 0 NULL-tenant rows) — 97 pass, the one miss was
+  a test assumption about milestone ordering. UI exercised in the browser (list, drawer, landed-cost tab, dashboard, create form → create).
+- Not verified: two-tenant isolation at runtime (only one usable tenant locally), Arabic/RTL screens, signup/Create-Tenant with the new industry,
+  document upload from the browser file picker.
+
+### Module 76b — Trade follow-ups: alerts, Reports hub, goods import, order link
+- **Daily alert (bell only, no email):** `TradeAlertService` (7-minute startup delay, sweeps every 6 h, one digest per workspace per day via
+  `trade.alert_states`). The shipment digest (late ETA, port free days used or running out, documents expired or expiring) goes to holders of
+  `trade.shipments.edit`; the payment digest (overdue or due payments, L/Cs expiring) to `trade.payments.view`. Both read through the one
+  `AttentionCalculator` the dashboard uses, so the bell and the dashboard cannot disagree. New notification module key `trade` (gated by the
+  Trade licence in `NotificationModuleAccess`), events `trade.attention` and `trade.payments-attention`.
+- **Reports hub:** new "Import / Export" category with 8 reports (register, delayed, by supplier/buyer, port free days, landed cost, cost
+  breakdown, payments schedule, expiring documents), served by `GET api/trade/reports/run/{id}`. Each needs the permission of the area it
+  reads (the cost reports need `trade.costs.view`, and so on). The hub sends ids as `trade-<id>`; the handler accepts both forms. The API tests
+  used bare ids and missed this; it was found by running a report from the hub in the browser.
+- **Goods import:** Excel/CSV packing list or invoice, map columns, and the lines are added to the shipment form for review. It is client-side:
+  nothing is saved until the shipment is. Shared helpers in `lib/import-sheet.ts`. Rows with no description or quantity are skipped and counted.
+- **Order link:** optional `LinkedOrderType` (purchase|sales) + `LinkedOrderId` on a shipment, picked in the form when the workspace has Purchase
+  (imports) or Sales (exports) and the user can see its orders. "Use its lines" copies the order's lines, with their product ids. It renders only
+  when both conditions hold, so a Trade-only workspace never sees it. Migration `AddOrderLinkAndAlertState`.
+- **Verified:** 24 new scripted API checks (links, every report's figures, per-report permissions, dashboard) plus the earlier 97 still pass.
+  The alert service ran against the dev DB and produced both digests for the right recipients. Goods import and the Reports-hub category were
+  checked in the browser. **Not verified:** order-link search against a live Purchase/Sales API (the test token had no such module), Arabic screens.
+
+### Still not built (flagged)
+Posting landed cost or payments to Finance, and updating the Inventory product cost from landed cost (both need an accounting decision, since
+inventory is not carried in the ledger today); stock-in-transit; HS-code duty rates; e-mail/push alerts; AI-assistant tools; bulk import of whole shipments.
+
+### Module 75b — Hospitality permissions, working check-in/out, and the Finance-integration close-out
+
+- **Hospitality had no permission keys** (any signed-in user could read bookings and take payments). Seeded `hospitality.bookings` (view/create/edit), `hospitality.rooms` (view), `hospitality.housekeeping` (view/create/edit); migration `AddHospitalityPermissions` (Identity). All 15 endpoints carry `[RequirePermission]`; the rooms list also opens to anyone who can create a booking (the booking form needs it). "Hospitality" group added to the roles matrix. `Hospitality Manager` roles are topped up by the existing template sync.
+- **Check In / Check Out were dead buttons** in the booking drawer; wired to `PATCH bookings/{id}/checkin|checkout` (refresh bookings, rooms, housekeeping), gated on `hospitality.bookings.edit`; New Booking gated on `.create`.
+- **Verified live:** 13 checks (403 without a key, view-only cannot create/check in, creator can load rooms, create → check in → room occupied → payment → check out). The booking form and the House Account / reminders screens were also checked in the browser.
+- **Finance integration status:** wallet top-ups, POS cash in/out, hotel payments and bank reconciliation are built and verified (Modules 73d, 73e). Remaining by design: goods receipts, purchase returns, stock adjustments and Manufacturing cost wait on the decision to carry inventory in the ledger; bank-statement import / one-to-many matching are not built.
+
+---
+
+## Module 77 — CRM ↔ Sales: quote a lead or account from a Sales template
+
+From a CRM lead or account: **New quotation → pick a Sales quotation template → a complete draft is generated for that customer → Preview (the exact branded document) → send by email / copy link / download PDF.** Everything is a normal Sales quotation (also under Sales → Quotations).
+
+### Backend (Sales, CQRS)
+- `SalesQuotation` gained `LeadId` / `CrmCustomerId` / `DealId` (plain ids, **no FK** — CRM lives in another schema; `CustomerId` is Sales' own customer table), `LeadOwnerUserId`, `CreatedByUserId`, and the look copied from the template: `AccentColor`, `ShowLogo`, `FooterNote`, `SourceTemplateId`. Migration `AddQuotationCrmLinksAndLook` (additive; `ShowLogo` defaults true). New `SalesDbContextFactory` (design-time, mirrors HR) — without it `dotnet ef` builds the standalone API host, which lacks the gateway's notification dispatcher.
+- `POST api/sales/quotations/from-template` (`CreateQuotationFromTemplateCommand`) — server builds lines, sections, terms, validity, look from the template. `{customer}` / `{contact}` placeholders in template text are filled (`TemplateText`); the builder fills them at save for the manual path. Malformed lead emails are dropped, not refused. `CreatedByUserId` always comes from the JWT (controller), never the body.
+- `POST api/sales/quotations/relink-lead` — after a lead converts, its quotations are also filed under the new account/opportunity. Called from `useConvertLead` (covers drawer and kanban drag), best-effort, only with `sales.quotations.create`.
+- `GET api/sales/quotations?leadId=&crmCustomerId=&dealId=`; `GET api/sales/quotations/branding` (the in-app preview/PDF previously had **no logo** because branding only reached the public page).
+- **Default template**: `DefaultQuotationTemplate` ("Standard Quotation", logo on) is created per workspace on first read of the templates list (never at startup — no ambient tenant), only if the workspace has never had one. The company details are **not copied** into it: the letterhead (logo, name, address, TRN, signature, stamp) is read live from Settings → General → Company, so a logo change reaches every later quotation.
+- Branding now includes `SignatureUrl` / `StampUrl`. The email carries the letterhead; the logo (a data: URI in settings) is attached inline via `cid:` because mail clients strip data: images. Raster only — SVG logos are skipped in email.
+- Customer accepts/declines on the public link → creator + lead owner get a bell/realtime alert (`quotation.accepted|declined`, module `crm` when raised from a lead, else `sales`), tenant passed explicitly (anonymous request).
+- Fixed: TenantIsolation replaces the soft-delete filter, so quotation list/get and template reads now apply `!IsDeleted` by hand (deleted quotations/templates were showing).
+
+### Frontend
+`modules/crm/quotations/` — `QuotationTemplatePicker` (portalled), `CrmQuotationsPanel` (list + create + preview + edit; logs "Quotation … emailed" on the CRM timeline as the sender). Lead drawer gets a **Quotations** tab + footer button; account drawer gets the tab. Both exist only when the workspace has Sales and the user holds `sales.quotations.view` (create: `.create`). `QuotationDrawer` gained a **Preview** tab (sandboxed iframe of `buildHtml`), `initialTab`, `onSent`. Print/PDF and the public page honour the quotation's accent, logo switch, signature, stamp and footer note. Overlays are portalled because the lead drawer is transformed (fixed children would be clipped).
+
+### Verified
+Gateway build 0 errors, frontend `tsc` 0 errors. Run against a local gateway + LocalDB with test JWTs: 35 checks pass (403s, default template created once, token filling, CRM link, list by lead/account, relink, send honesty without SMTP, public page, accept → both recipients notified, double answer 409, 0 NULL-tenant rows).
+**Not verified:** real SMTP delivery / inline logo in a mail client, clicking through the CRM drawers while signed in, Arabic layout.
+**Not built:** server-side PDF attachment (the customer link has Download PDF); per-lead team-visibility of quotes (they follow Sales permissions).
+
+---
+
+## Module 78 — Free trial is exactly 14 days (was 30)
+
+One number, defined once: `TrialPolicy.DurationDays = 14` (`Identity.Domain/Entities/TrialPolicy.cs`). `Tenant.StartTrial()` **takes no argument any more**, so self-serve signup, super-admin Create Tenant and "claim the trial" on the billing page all get the same period and none can pass another. Web mirror: `TRIAL_DAYS` in `lib/billing/plans.ts` — every label (signup badge, "N days free", billing page, create-tenant checkbox, toast, onboarding stat tile) reads it; never type a literal number of trial days in a label. Translations use `{{days}}` (`onboarding.trialBadge`, en + ar).
+- Reminder emails move from 15/7/3/1 to **7/3/1** (a 15-day notice would fire on day one of a 14-day trial). In-app banner window: last **7** days (was 15).
+- **Existing trials are NOT shortened** — tenants already on a 30-day trial keep their `TrialEndsAt`. Only trials started after this deploys are 14 days.
+- On-premises trial licences are signed keys; docs now say to issue them with validity 14 days.
+
+---
+
+## Module 79 — Every module on every tier; price is seats only; unlimited users in trial; no buying a plan smaller than your team
+
+Decided with the owner: customers pick any modules (or all); the only pricing dimension is users (tiers 3 / 10 / 50 for now — more bands such as 25 will be added once the matching Stripe/PayPal products exist, so none is added in code before then).
+
+- **Modules:** `PlanDefinitions.AllModules` is the module list for **all four tiers** (the old Core/Professional/Enterprise split and the "Professional unlocks POS/Restaurant/Hospitality" rule are gone). `Tenant.ResolvedModules` is now just the tenant's own selection (or everything if none was made); the old behaviour of silently dropping a module ticked at signup because the plan was too small is gone. `ModulesManuallyGranted` is kept for super-admin explicit lists. The AI assistant remains bring-your-own-key. Descriptive tier perks (warehouses, branches, multi-currency, API, white-label, storage) are **still not enforced** except storage — see open items.
+- **Trial = unlimited users.** `PlanSeatGuard` reads the tenant status from the database and applies no seat limit while it is `Trial`. The signup line "Unlimited users during trial" is now true (it was a label with no code behind it).
+- **Seats counted properly:** new `IUserRepository.CountSeatsAsync` = live, non-super-admin users whose status is not `Inactive`. Deactivating a user now frees a seat (previously every row counted, so "deactivate users" would not have helped).
+- **Checkout can't buy too small:** `CreateCheckoutSessionCommandHandler` runs `PlanFit.Check` before talking to the provider. Message: "You have 42 active users. Pick the 50-user tier (Professional), or deactivate users first." Above the largest self-serve tier it says to contact sales about Enterprise. Nothing is ever deleted or switched off. Billing overview gained `seatsOverLimit`, a per-tier `tooSmallReason`, and `maxUsers = -1` during a trial; the billing page shows an over-limit banner and disables too-small tiers with the reason.
+- **Known gap:** a paying tenant can still move to a smaller tier through the Stripe customer portal — the webhook just follows the subscription. They then show `seatsOverLimit` (cannot add users, banner explains) but are not blocked. Fix by turning off plan switching in the Stripe portal configuration.
+- Frontend plan cards no longer claim POS/Hospitality as a Professional-only feature. Marketing site pricing must be kept in step.
+
+### Verified (local gateway + LocalDB, test JWTs)
+11/12 scripted checks pass: 5 users created on a Micro trial; overview shows unlimited during trial; Micro flagged too small with the exact message; every tier lists every module; checkout on Micro refused with the message; deactivating frees a seat; after the trial a new user is refused with the count; the over-limit flag is set. The 12th "failure" was a wrong assertion in my script (new users are `PendingVerification`, not `Active`) — no user was switched off. Dev tenant and test users restored afterwards.
+**Not verified in a browser:** the billing page banner / disabled tier cards.
+
+### Open items
+- Tier perks beyond seats/storage are descriptive only and not enforced (warehouses, branches, multi-currency, API, white-label).
+- The AI assistant has its own starter/growth/enterprise feature tiers (voice, Telegram, automations, autopilot) — decide whether those should also stop depending on the plan.
+### Module 76c — Trade: stock in transit, duty rates, AI tools, and signup / isolation verification
+
+- **Signup with the new industry, run for real:** `POST /api/trial/register` with industry "Import & Export" creates a tenant with
+  `Industry = import_export`, its Trade Manager (19 trade permissions) and Trade Staff (15) roles, and a real login returns a JWT whose
+  `modules` claim contains `trade` and which carries all 19 trade permissions. A Trade-only signup gets no CRM / Inventory pulled in.
+  Super-admin Create Tenant shares the same industry map but was **not** run.
+- **Two-workspace isolation, run for real (37 checks, 0 failed):** two fresh tenants. The same party name is allowed in both; every read,
+  edit, delete, status change, cost, payment, document download, report and the dashboard of A's data returns 404 / empty for B, and B cannot
+  attach A's party to its own shipment. The 3 test tenants were purged (identity rows) and their trade rows deleted.
+- **Stock in transit:** `GET api/trade/in-transit` (`trade.shipments.view`) — quantity on open imports (incoming) and open exports (outgoing)
+  per product, next arrival, and whether any is late. A line with no Inventory product is grouped by its wording, so cargo is counted before
+  anyone links it. Page `/trade/in-transit`; the Inventory stock drawer shows an "On its way" box via
+  `components/trade/incoming-stock.tsx`, which renders nothing unless the workspace has Trade and the user may see shipments.
+- **Duty rates:** `HsDutyRate` per workspace (digits-only code, unique among live rows; the longest matching code wins, so a rate for `7306`
+  covers `7306.30` unless a more specific one exists). CRUD under the existing `trade.costs.*` keys (no new permission, no Identity migration).
+  `GET shipments/{id}/duty-estimate?includeFreightInsurance=` returns line-by-line duty; lines with no code or no matching rate are
+  reported as unmatched, never counted as duty-free. Optional CIF basis shares the shipment's freight + insurance across lines by value. The
+  Costs tab "Estimate duty" dialog shows the working and only adds a customs-duty cost when the user presses the button. Migration `AddDutyRates`.
+- **AI assistant (agent `trade`, 15 tools):** list shipments / parties / in-transit / duty rates, dashboard; get shipment and duty estimate;
+  create party, duty rate and (bespoke, with goods + containers) shipment; update shipment (read-then-merge, keeps goods and product links);
+  change status; add cost; add payment; register a document (no file from chat). All writes are confirm-gated by the orchestrator. No delete
+  tools. Run as real tools over HTTP against a real gateway as a real signed-up user: 202 checks, 0 failed.
+- **Verified in the browser:** stock-in-transit page, duty-rates page, the estimate dialog (10 % on the specific code, valve flagged "No rate",
+  CIF toggle raised customs value by the 360 of freight + insurance). **Not verified:** the Inventory drawer badge (no inventory product in the
+  test workspace), Arabic screens, the order-link search against live Purchase / Sales data.
+- **Observation, not changed:** an Administrator's JWT now carries ~406 permission claims (about 12 KB). Module 61e already raised the Kestrel and
+  nginx limits for the SignalR query-string token; the claim set keeps growing with every module.
+- **Still not built:** posting landed cost / payments to Finance and updating Inventory product cost (need an accounting decision), email / push
+  alerts, bulk import of whole shipments.
+
+---
+
+## Module 80 — Mobile & tablet responsiveness (whole web app)
+
+Goal: every screen usable on phones and tablets, signup/trial included. Frontend only; no backend, no migration.
+
+- **Shell (< `lg`, 1024px):** `layouts/mobile-layout.tsx` replaces all four layout variants with an off-canvas
+  drawer (opened from a topbar menu button; closes on navigation / backdrop / Esc; language + theme live in its
+  footer). `useIsMobile()` in `hooks/use-media-query.ts`. Topbar shows only the current breadcrumb, a search icon,
+  and hides language/theme below `sm`. Content padding `p-3 sm:p-4 lg:p-6`. `viewport-fit=cover`, `100dvh`.
+- **Global CSS (`index.css`):** below `lg` every `main table` scrolls sideways (most were inside `overflow-hidden`
+  cards that clipped columns); below `sm` unprefixed `grid-cols-3..6` become 2 columns and page-header / toolbar
+  button groups wrap; below `md` inputs are 16px (stops iOS zoom) and centred modals are capped to screen height.
+  Rules skip POS (`<main data-pos>`).
+- **Primitives:** `Dialog` is scrollable (`max-h-[90dvh]`) with a smaller mobile gutter; AI panel is near full-screen on phones.
+- **Signup / trial (`pages/trial/onboarding.tsx`):** paired fields stack on phones, module cards are one column (names
+  were being squeezed out), footer padding, step counter shown on phones.
+- **Master/detail layouts stacked:** Roles & Permissions (matrix scrolls sideways), per-user permissions, floor designer,
+  menu management, kitchen display, Master Data (list → detail with a back button).
+- **POS:** retail cashier + retail POS cart and the restaurant order ticket become bottom sheets on phones with a
+  floating "View cart" bar (`cartPanelClass`, `MobileCartBar` in `retail/components/pos-ui.tsx`).
+- **PWA:** `public/manifest.webmanifest` + meta tags — installable to the home screen (SVG icon only; add 192/512 PNGs
+  for best Android/iOS results).
+- **Verified:** `tsc` 0 errors, `vite build` ok. In a browser at 375px and 768px with a fake local session (no API):
+  signup steps 1–3, login, shell + drawer, Leads, Visa Cases; an overflow/clipping sweep over ~110 routes found no
+  page-level horizontal scroll. **Not verified:** pages with real data (no backend available), real devices / iOS Safari,
+  the cart sheets and master-data back button in a browser, Arabic/RTL on phones, Electron.
+
+---
+
+## Module 81 — Hospitality: Hotel PMS (phase 1 of the Hotel + Tourism module)
+
+Hospitality extended into a hotel property-management system. The tourism-agency side (packages,
+itineraries, supplier bookings, group payments) is a later phase in the same module.
+
+- **Domain** (`HotelPms.cs`): `RoomType`, `Guest` (profile kept across stays; a booking finds a returning
+  guest by id, then email, then phone), `RatePlan` (meal plan, refundable, one default "BAR" per tenant),
+  `SeasonalRate` (per plan + room type, weekday/weekend rate, minimum stay; the latest-starting season wins),
+  `RoomBlock` (out of order), `BookingNight` (price snapshot per night), `FolioCharge` (voidable),
+  `HotelSettings` (check-in/out times, weekend days, service %, tax %, fixed nightly fee).
+  `Booking` gains guest/type/plan links, totals, discount, cancel reason, actual check-in/out times.
+- **Pricing:** season → room's own rate → room type base rate. Totals (GCC): sub = room + extras − discount;
+  service = sub × %; tax = (sub + service) × %; fee = nightly fee × nights. Bookings keep the rates they were sold at.
+- **Stay lifecycle:** check-in (optional room change), check-out (refused with a balance unless allowed; creates a
+  housekeeping task), amend dates (re-prices), move room (optionally re-price), cancel with reason + fee, no-show.
+  Availability ignores cancelled/no-show stays and respects out-of-order blocks. A stay covers nights [in, out).
+- Settings, BAR plan and room types from legacy room strings are created per tenant on first read, never at startup.
+- Permissions added: `hospitality.rooms` create/edit/delete, `hospitality.rates`, `hospitality.guests`,
+  `hospitality.folio` (view/create/approve), `hospitality.settings` (migration `AddHotelPmsPermissions`).
+  Migration `AddHotelPms` (additive; unique per-tenant room number, room-type code, rate-plan code —
+  ⚠️ existing duplicate room numbers in a tenant would block it).
+- **Frontend:** Front Desk, Room Calendar (tape chart), Reservations, Rooms (rooms / types / out of order),
+  Housekeeping, Rates, Guests, Hotel Settings; booking drawer with folio, payments, charges, discount, printed bill.
+- **Verified:** backend build 0 errors; 55 scripted API checks against a local gateway (availability, pricing,
+  folio maths, lifecycle, permissions); frontend `tsc` 0 errors, `vite build` ✅.
+- **Not verified:** the screens in a browser with a signed-in session; Arabic. Tape chart shades Fri/Sat as
+  weekend regardless of the hotel setting. Local test rows (tagged room types, rooms, bookings) remain in the dev DB.
+
+## Module 82 — Finance: UAE VAT 201 return preparation + FTA submission seam
 
 Full details: `docs/uae-vat-integration.md`. **FTA publishes no direct VAT-return API or sandbox** (their
 Tax Accounting Software spec lists "Option 2" ITAS upload as future); so Vrodux prepares, validates,

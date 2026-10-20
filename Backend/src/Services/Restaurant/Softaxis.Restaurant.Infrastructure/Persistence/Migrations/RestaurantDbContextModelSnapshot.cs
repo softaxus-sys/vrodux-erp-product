@@ -18,7 +18,7 @@ namespace Softaxis.Restaurant.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("restaurant")
-                .HasAnnotation("ProductVersion", "9.0.18")
+                .HasAnnotation("ProductVersion", "9.0.20")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -658,6 +658,59 @@ namespace Softaxis.Restaurant.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId");
 
                     b.ToTable("MenuItems", "restaurant");
+                });
+
+            modelBuilder.Entity("Softaxis.Restaurant.Domain.Entities.MenuItemImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("MenuItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ObjectKey")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MenuItemId");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("MenuItemImages", "restaurant");
                 });
 
             modelBuilder.Entity("Softaxis.Restaurant.Domain.Entities.MenuItemModifierGroup", b =>

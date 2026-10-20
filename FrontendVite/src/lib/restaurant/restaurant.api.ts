@@ -1,7 +1,17 @@
-import { rawApiClient } from "@/lib/api-client";
+import { rawApiClient, ApiError } from "@/lib/api-client";
+import { useAuthStore } from "@/store/auth.store";
 
 import { getApiBaseUrl } from "@/lib/desktop";
 const BASE = `${getApiBaseUrl()}/api/restaurant`;
+
+/** GET a binary resource with the bearer token and return an object URL — dish photos sit behind
+ * a permission check, so their URL cannot simply be put in an <img src>. */
+async function fetchBlobUrl(url: string): Promise<string> {
+  const token = useAuthStore.getState().token;
+  const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : undefined });
+  if (!res.ok) throw new ApiError(res.status, null, `HTTP ${res.status}`);
+  return URL.createObjectURL(await res.blob());
+}
 
 // ── Types (mirror the Restaurant service DTOs) ─────────────────────────────────
 
@@ -134,6 +144,9 @@ export interface ModifierGroup {
   modifiers: Modifier[];
 }
 
+/** Photo metadata only — the bytes come from getItemImageObjectUrl(). */
+export interface MenuItemImage { id: string; isPrimary: boolean; sortOrder: number; fileName: string | null }
+
 export interface MenuItem {
   id: string;
   categoryId?: string;
@@ -146,6 +159,20 @@ export interface MenuItem {
   modifierGroups: ModifierGroup[];
   kitchenStationId: string | null;
   isOnlineOrderable: boolean;
+  /** Cover first. Absent on the response of a create/update, which does not reload photos. */
+  images?: MenuItemImage[] | null;
+}
+
+export interface ImportMenuRow {
+  category: string; name: string; price: number;
+  description?: string | null; prepTimeMinutes?: number | null; allergens?: string | null;
+  categoryDescription?: string | null;
+}
+/** `items[].row` is the zero-based index into the rows sent — used to attach each dish's photo. */
+export interface ImportMenuResult {
+  categoriesCreated: number; itemsCreated: number; skipped: number; failed: number;
+  errors: { row: number; message: string }[];
+  items: { row: number; itemId: string }[];
 }
 
 export interface MenuCategory {
@@ -196,7 +223,7 @@ export interface OrderPaymentDto {
   createdAt: string;
 }
 
-export type DiscountType = "flat" | "percentage" | "voucher";
+export type DiscountType = "flat" | "percentage" | "voucher" | "loyalty";
 
 export interface OrderDiscountDto {
   id: string;
@@ -358,6 +385,8 @@ export interface DeliveryZone {
 export interface Driver {
   id: string; branchId: string | null; linkedUserId: string | null; name: string; phone: string;
   vehicleInfo: string | null; isActive: boolean;
+  /** Runs this rider is still on. 0 = free. */
+  activeDeliveries?: number;
 }
 
 export type DeliveryStatus = "assigned" | "picked_up" | "enroute" | "delivered" | "failed";
@@ -370,6 +399,9 @@ export interface DeliveryOrder {
   estimatedDeliveryAt: string | null; deliveredAt: string | null; deliveryFee: number;
   thirdPartyProvider: string | null; thirdPartyOrderRef: string | null;
   trackingToken: string; createdAt: string;
+  /** Who it is for, what is in the bag, and what is still owed at the door. */
+  customerName?: string | null; orderNotes?: string | null; amountToCollect?: number;
+  items?: { name: string; quantity: number; notes: string | null }[] | null;
 }
 
 export interface DeliverySummary {
@@ -470,10 +502,20 @@ export const restaurantApi = {
   updateItem:      (id: string, p: { name: string; description?: string | null; price: number; prepTimeMinutes: number; allergens?: string | null; isOnlineOrderable: boolean }): Promise<MenuItem> =>
     rawApiClient.put(`${BASE}/menu/items/${id}`, p),
   deleteItem:      (id: string): Promise<void> => rawApiClient.delete(`${BASE}/menu/items/${id}`),
+  importMenu:      (rows: ImportMenuRow[]): Promise<ImportMenuResult> =>
+    rawApiClient.post(`${BASE}/menu/import`, { rows }),
   setItemStation:     (id: string, kitchenStationId: string | null): Promise<MenuItem> =>
     rawApiClient.patch(`${BASE}/menu/items/${id}/kitchen-station`, { kitchenStationId }),
   setCategoryStation: (id: string, kitchenStationId: string | null): Promise<MenuCategory> =>
     rawApiClient.patch(`${BASE}/menu/categories/${id}/kitchen-station`, { kitchenStationId }),
+  getItemImageObjectUrl: (itemId: string, imageId: string): Promise<string> =>
+    fetchBlobUrl(`${BASE}/menu/items/${itemId}/images/${imageId}`),
+  addItemImages:      (itemId: string, images: { data: string; fileName?: string }[]): Promise<MenuItemImage[]> =>
+    rawApiClient.post(`${BASE}/menu/items/${itemId}/images`, { images }),
+  deleteItemImage:    (itemId: string, imageId: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/menu/items/${itemId}/images/${imageId}`),
+  setPrimaryItemImage:(itemId: string, imageId: string): Promise<void> =>
+    rawApiClient.patch(`${BASE}/menu/items/${itemId}/images/${imageId}/primary`, {}),
   getItemModifierGroups:    (itemId: string): Promise<string[]> =>
     rawApiClient.get(`${BASE}/menu/items/${itemId}/modifier-groups`),
   assignItemModifierGroups:(itemId: string, modifierGroupIds: string[]): Promise<void> =>
@@ -503,12 +545,19 @@ export const restaurantApi = {
     rawApiClient.post(`${BASE}/orders`, p),
   setCustomer:      (id: string, customerId: string | null): Promise<RestaurantOrder> =>
     rawApiClient.patch(`${BASE}/orders/${id}/customer`, { customerId }),
+  setWaiter:        (id: string, waiter: string): Promise<RestaurantOrder> =>
+    rawApiClient.patch(`${BASE}/orders/${id}/waiter`, { waiter }),
   addItems:         (id: string, items: OrderLineInput[]): Promise<RestaurantOrder> =>
     rawApiClient.post(`${BASE}/orders/${id}/items`, { items }),
   voidItem:         (id: string, itemId: string, reason: string): Promise<RestaurantOrder> =>
     rawApiClient.post(`${BASE}/orders/${id}/items/${itemId}/void`, { reason }),
   applyDiscount:    (id: string, p: { type: DiscountType; amount: number; reason: string }): Promise<RestaurantOrder> =>
     rawApiClient.patch(`${BASE}/orders/${id}/discount`, p),
+  /** Spend the linked customer's loyalty points on this bill; 0 takes them back off. */
+  /** Whether a till shift is open for floor staff (who run no till of their own) to order under. */
+  getOpenShift:     (): Promise<{ isOpen: boolean; sessionId: string | null }> => rawApiClient.get(`${BASE}/orders/open-shift`),
+  redeemLoyalty:    (id: string, points: number): Promise<RestaurantOrder> =>
+    rawApiClient.post(`${BASE}/orders/${id}/loyalty`, { points }),
   removeDiscount:   (id: string, reason: string): Promise<RestaurantOrder> =>
     rawApiClient.post(`${BASE}/orders/${id}/discount/remove`, { reason }),
   sendToKitchen:    (id: string) => rawApiClient.patch(`${BASE}/orders/${id}/send`),
@@ -585,7 +634,7 @@ export const restaurantApi = {
     rawApiClient.get(`${BASE}/drivers${activeOnly ? "?activeOnly=true" : ""}`),
   createDriver: (p: { name: string; phone: string; vehicleInfo?: string | null; linkedUserId?: string | null; branchId?: string | null }): Promise<Driver> =>
     rawApiClient.post(`${BASE}/drivers`, p),
-  updateDriver: (id: string, p: { name: string; phone: string; vehicleInfo?: string | null; isActive: boolean }): Promise<Driver> =>
+  updateDriver: (id: string, p: { name: string; phone: string; vehicleInfo?: string | null; isActive: boolean; linkedUserId?: string | null }): Promise<Driver> =>
     rawApiClient.put(`${BASE}/drivers/${id}`, p),
   deleteDriver: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/drivers/${id}`),
 

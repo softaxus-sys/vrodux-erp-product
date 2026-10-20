@@ -103,6 +103,7 @@ services:
       # var sends production at that machine instead — which is what took the gateway
       # down (DNS failure on a named instance, error 26) and rolled the release back.
       ConnectionStrings__NotificationsDb: "Server=vrodux-stage-sqlserver;Database=SoftaxisErpDb_Staging;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__CalendarDb: "Server=vrodux-stage-sqlserver;Database=SoftaxisErpDb_Staging;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
       Support__OperatorTenantId: "${SUPPORT_OPERATOR_TENANT_ID:-}"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: "Softaxis.Identity.API"

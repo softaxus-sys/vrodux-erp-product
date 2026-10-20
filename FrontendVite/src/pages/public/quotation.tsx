@@ -86,7 +86,11 @@ export default function PublicQuotationPage() {
 
   const cur    = data.currencyCode;
   const brand  = data.branding;
-  const accent = brand.accentColor?.trim() || "#0f172a";
+  // The quotation's own accent (from its template) wins over the company's; hex only, since it
+  // is written into inline styles.
+  const hex    = (c?: string | null) => (c && /^#[0-9a-fA-F]{3,8}$/.test(c.trim()) ? c.trim() : null);
+  const accent = hex(data.accentColor) ?? hex(brand.accentColor) ?? "#0f172a";
+  const showLogo = data.showLogo !== false;
   const answered = data.status === "approved" || data.status === "rejected";
 
   const billable = data.items.filter(i => !i.isOptional);
@@ -99,7 +103,7 @@ export default function PublicQuotationPage() {
       <div className="px-6 sm:px-10 pt-8 pb-6 border-b-4" style={{ borderColor: accent }}>
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div>
-            {brand.logoUrl
+            {showLogo && brand.logoUrl
               ? <img src={brand.logoUrl} alt="" className="max-h-14 max-w-[200px] object-contain mb-2" />
               : <Building2 className="h-7 w-7 mb-2" style={{ color: accent }} />}
             <p className="text-lg font-bold" style={{ color: accent }}>{brand.companyName}</p>
@@ -262,6 +266,27 @@ export default function PublicQuotationPage() {
               </div>
             )}
           </div>
+        )}
+
+        {(brand.signatureUrl || brand.stampUrl) && (
+          <div className="flex flex-wrap items-end gap-12 pt-2">
+            {brand.signatureUrl && (
+              <div>
+                <img src={brand.signatureUrl} alt="" className="max-h-14 max-w-[180px] object-contain" />
+                <p className="mt-1 pt-1 border-t border-slate-300 text-[10px] uppercase tracking-widest text-slate-400">Authorised signature</p>
+              </div>
+            )}
+            {brand.stampUrl && (
+              <div>
+                <img src={brand.stampUrl} alt="" className="max-h-20 max-w-[120px] object-contain" />
+                <p className="mt-1 pt-1 border-t border-slate-300 text-[10px] uppercase tracking-widest text-slate-400">Company stamp</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {data.footerNote && (
+          <p className="text-center text-sm text-slate-600 whitespace-pre-line pt-2">{data.footerNote}</p>
         )}
       </div>
 

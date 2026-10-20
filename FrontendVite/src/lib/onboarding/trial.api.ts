@@ -39,6 +39,10 @@ export interface TrialRegistrationRequest {
   billing?:      string;
   intent?:       string;
   utmSource?:    string;
+  /** Shared with the browser Pixel so the server-side Conversions API event de-duplicates. */
+  eventId?:      string;
+  fbp?:          string;
+  fbc?:          string;
 }
 
 export interface TrialRegistrationResponse {

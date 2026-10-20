@@ -4,12 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 using Softaxis.Hospitality.API.Controllers.Common;
 using Softaxis.Hospitality.Application.Housekeeping.Commands;
 using Softaxis.Hospitality.Application.Housekeeping.Queries;
+using Softaxis.Hospitality.API.Authorization;
 
 namespace Softaxis.Hospitality.API.Controllers;
 
 [ApiController][Route("api/hospitality/housekeeping")][Authorize]
 public sealed class HousekeepingController(ISender sender) : HospitalityControllerBase
 {
+    [RequirePermission("hospitality.housekeeping.view")]
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
@@ -17,6 +19,7 @@ public sealed class HousekeepingController(ISender sender) : HospitalityControll
         return OkOrError(result);
     }
 
+    [RequirePermission("hospitality.housekeeping.view")]
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? status = null,
@@ -30,6 +33,7 @@ public sealed class HousekeepingController(ISender sender) : HospitalityControll
         return OkOrError(result);
     }
 
+    [RequirePermission("hospitality.housekeeping.create")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateTaskReq req, CancellationToken ct)
     {
@@ -38,6 +42,7 @@ public sealed class HousekeepingController(ISender sender) : HospitalityControll
         return CreatedOrError(result);
     }
 
+    [RequirePermission("hospitality.housekeeping.edit")]
     [HttpPatch("{id:guid}/start")]
     public async Task<IActionResult> Start(Guid id, CancellationToken ct)
     {
@@ -45,6 +50,7 @@ public sealed class HousekeepingController(ISender sender) : HospitalityControll
         return OkOrError(result);
     }
 
+    [RequirePermission("hospitality.housekeeping.edit")]
     [HttpPatch("{id:guid}/complete")]
     public async Task<IActionResult> Complete(Guid id, CancellationToken ct)
     {
@@ -52,6 +58,7 @@ public sealed class HousekeepingController(ISender sender) : HospitalityControll
         return OkOrError(result);
     }
 
+    [RequirePermission("hospitality.housekeeping.edit")]
     [HttpPatch("{id:guid}/verify")]
     public async Task<IActionResult> Verify(Guid id, CancellationToken ct)
     {

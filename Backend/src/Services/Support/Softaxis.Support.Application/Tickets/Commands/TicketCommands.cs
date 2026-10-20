@@ -58,6 +58,25 @@ public static class TicketAttachmentLimits
         return bytes.LongLength;
     }
 
+    /// <summary>Decodes the actual bytes (unlike <see cref="TryGetSizeBytes"/>, which discards
+    /// them) — needed only on the upload path, to hand the bytes to object storage.</summary>
+    public static bool TryDecodeBytes(string dataUri, out byte[] bytes)
+    {
+        bytes = [];
+        if (string.IsNullOrWhiteSpace(dataUri)) return false;
+        var commaIndex = dataUri.IndexOf(',');
+        var payload = commaIndex >= 0 ? dataUri[(commaIndex + 1)..] : dataUri;
+        try
+        {
+            bytes = Convert.FromBase64String(payload);
+            return bytes.Length > 0;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
+
     public static IRuleBuilderOptions<T, IReadOnlyList<AttachmentInput>?> ValidateAttachments<T>(
         IRuleBuilder<T, IReadOnlyList<AttachmentInput>?> rule) =>
         rule.Must(list => list is null || list.Count <= MaxAttachmentsPerMessage)

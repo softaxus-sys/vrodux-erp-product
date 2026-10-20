@@ -19,6 +19,7 @@ internal sealed class GetMenuHandler(RestaurantDbContext db)
 
         var itemIds = cats.SelectMany(c => c.Items).Where(i => !i.IsDeleted).Select(i => i.Id).ToList();
         var groupsByItem = await ModifierGroupLookup.GetGroupsForItemsAsync(db, itemIds, ct);
+        var imagesByItem = await MenuItemImages.ForItemsAsync(db, itemIds, ct);
         static IReadOnlyList<ModifierGroupDto> GroupsFor(Dictionary<Guid, List<ModifierGroupDto>> map, Guid itemId) =>
             map.TryGetValue(itemId, out var g) ? g : [];
 
@@ -27,7 +28,7 @@ internal sealed class GetMenuHandler(RestaurantDbContext db)
             c.Items.Where(i => !i.IsDeleted).Select(i => new MenuItemDto(
                 i.Id, i.CategoryId, i.Name, i.Description, i.Price,
                 i.PrepTimeMinutes, i.Allergens, i.IsAvailable, GroupsFor(groupsByItem, i.Id), i.KitchenStationId,
-                i.IsOnlineOrderable)).ToList(),
+                i.IsOnlineOrderable, imagesByItem.GetValueOrDefault(i.Id) ?? [])).ToList(),
             c.KitchenStationId))
             .ToList();
 

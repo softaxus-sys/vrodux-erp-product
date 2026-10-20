@@ -7,6 +7,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { ProductSummaryDto } from "@/lib/inventory/types";
 import { useProductStock, useProductBatches } from "@/hooks/inventory/use-product-stock";
+import { IncomingStock } from "@/components/trade/incoming-stock";
 
 interface StockDrawerProps {
   item: ProductSummaryDto | null;
@@ -106,6 +107,9 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
                   </div>
                 </div>
               </div>
+
+              {/* Goods still on a ship — only when the workspace also has Import / Export */}
+              <IncomingStock productId={item.id} unit={item.unit} />
 
               {/* Stock by warehouse */}
               {stockBreakdown && stockBreakdown.warehouses?.length > 0 && (

@@ -29,6 +29,7 @@ public sealed class PropertyImage
     public string? ObjectKey { get; private set; }
 
     public string ContentType { get; private set; } = "image/jpeg";
+    public long SizeBytes { get; private set; }
     public string? FileName { get; private set; }
     public string? Caption { get; private set; }
 
@@ -48,6 +49,7 @@ public sealed class PropertyImage
         PropertyId = propertyId;
         Data = data;
         ContentType = string.IsNullOrWhiteSpace(contentType) ? "image/jpeg" : contentType.Trim();
+        SizeBytes = data.LongLength;
         FileName = string.IsNullOrWhiteSpace(fileName) ? null : fileName.Trim();
         SortOrder = sortOrder;
     }
@@ -57,11 +59,14 @@ public sealed class PropertyImage
     public void SetCaption(string? caption) => Caption = string.IsNullOrWhiteSpace(caption) ? null : caption.Trim();
     public void Delete() => IsDeleted = true;
 
-    /// <summary>Called once the bytes have actually landed in the bucket. Clears Data — the two
-    /// storage locations are never both populated for the same row.</summary>
-    public void SetObjectKey(string key)
+    /// <summary>Called once the bytes have actually landed in the bucket. ContentType/SizeBytes are
+    /// updated too — compression may have changed the re-encoded format/size — and Data is cleared,
+    /// since the two storage locations are never both populated for the same row.</summary>
+    public void SetObjectKey(string key, string contentType, long sizeBytes)
     {
         ObjectKey = key;
+        ContentType = contentType;
+        SizeBytes = sizeBytes;
         Data = [];
     }
 }

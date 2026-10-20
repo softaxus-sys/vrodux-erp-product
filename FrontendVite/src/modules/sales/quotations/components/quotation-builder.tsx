@@ -222,6 +222,12 @@ export function QuotationBuilder({ open, onClose, editing }: Props) {
   };
 
   // ── Submit ──
+  // Templates are written without a customer, so their wording may carry {customer} / {contact}
+  // placeholders. They are resolved here, at save time, once the customer is known — otherwise the
+  // customer would read "Dear {contact}".
+  const fillTokens = (s: string) =>
+    s.replace(/\{customer\}/gi, customerName.trim()).replace(/\{contact\}/gi, customerName.trim());
+
   const buildPayload = () => {
     const usedSections = sections.filter(s => s.title.trim());
     const sectionReq: QuotationSectionRequest[] = usedSections.map((s, i) => ({
@@ -263,12 +269,12 @@ export function QuotationBuilder({ open, onClose, editing }: Props) {
       items: itemReq,
       sections: sectionReq.length ? sectionReq : null,
       document: {
-        title: title.trim() || null,
+        title: fillTokens(title).trim() || null,
         reference: reference.trim() || null,
         issueDate: issueDate || null,
-        coverNote: coverNote.trim() || null,
-        termsAndConditions: terms.trim() || null,
-        paymentTerms: payTerms.trim() || null,
+        coverNote: fillTokens(coverNote).trim() || null,
+        termsAndConditions: fillTokens(terms).trim() || null,
+        paymentTerms: fillTokens(payTerms).trim() || null,
         preparedByName: preparedBy.trim() || null,
         customerEmail: email.trim() || null,
         customerPhone: phone.trim() || null,

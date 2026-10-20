@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.POS.Infrastructure.Persistence;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Restaurant.Application.Abstractions;
 using Softaxis.Restaurant.Application.Orders.Commands;
@@ -9,11 +10,15 @@ using Softaxis.Restaurant.Infrastructure.Persistence;
 
 namespace Softaxis.Restaurant.Infrastructure.Handlers.Orders;
 
-internal sealed class VoidOrderHandler(RestaurantDbContext db, ICurrentUser currentUser)
+internal sealed class VoidOrderHandler(RestaurantDbContext db, POSDbContext posDb, ICurrentUser currentUser)
     : ICommandHandler<VoidOrderCommand, OrderDto>
 {
-    public Task<Result<OrderDto>> Handle(VoidOrderCommand cmd, CancellationToken ct) =>
-        ConcurrencyRetry.ExecuteAsync(db, () => HandleOnce(cmd, ct));
+    public async Task<Result<OrderDto>> Handle(VoidOrderCommand cmd, CancellationToken ct)
+    {
+        // A cancelled bill gives back any points the customer had put towards it.
+        await LoyaltySupport.ReturnSpentPointsAsync(db, posDb, cmd.OrderId, ct);
+        return await ConcurrencyRetry.ExecuteAsync(db, () => HandleOnce(cmd, ct));
+    }
 
     private async Task<Result<OrderDto>> HandleOnce(VoidOrderCommand cmd, CancellationToken ct)
     {

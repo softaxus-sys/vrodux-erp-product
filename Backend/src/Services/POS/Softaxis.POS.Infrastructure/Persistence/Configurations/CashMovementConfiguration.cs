@@ -18,6 +18,7 @@ public sealed class CashMovementConfiguration : IEntityTypeConfiguration<CashMov
         builder.Property(m => m.Reason).IsRequired().HasMaxLength(300);
 
         builder.Property(m => m.ClientRef).HasMaxLength(64);
+        builder.Property(m => m.Category).HasMaxLength(30);
 
         builder.HasIndex(m => m.SessionId);
 

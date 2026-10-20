@@ -575,7 +575,7 @@
         "IT Services / SaaS": "خدمات تقنية المعلومات / SaaS",
         "Real Estate": "العقارات",
         "Construction": "الإنشاءات",
-        "Hospitality": "الضيافة",
+        "Hospitality & Tourism": "الضيافة والسياحة",
         "Retail": "التجزئة",
         "Manufacturing": "التصنيع",
         "Healthcare": "الرعاية الصحية",
@@ -791,7 +791,7 @@
       "realEstateDesc": "العقارات والمستأجرون والعقود",
       "construction": "الإنشاءات",
       "constructionDesc": "المشاريع وجداول الكميات والمقاولون",
-      "hospitality": "الضيافة",
+      "hospitality": "الضيافة والسياحة",
       "hospitalityDesc": "الحجوزات والغرف والتدبير الفندقي",
       "pos": "نقطة البيع",
       "posDesc": "التجزئة والمطاعم والمطبخ",
@@ -932,7 +932,9 @@
       "record": "تسجيل دفعة الإيجار",
       "remind": "إرسال تذكير بالإيجار",
       "import": "استيراد بيانات خارجية",
-      "view-confidential": "عرض بيانات العقار السرية"
+      "view-confidential": "عرض بيانات العقار السرية",
+      "submit": "إرسال للاعتماد",
+      "approve-high": "اعتماد المبالغ الكبيرة"
     },
     "actionShort": {
       "view": "عرض",
@@ -953,7 +955,9 @@
       "record": "تسجيل",
       "remind": "تذكير",
       "import": "استيراد",
-      "view-confidential": "سرية"
+      "view-confidential": "سرية",
+      "submit": "إرسال",
+      "approve-high": "كبير"
     },
     "group": {
       "inventory": "المخزون",
@@ -1047,7 +1051,21 @@
       "crm.pipeline-assigned": "الصفقات (المسندة إليّ فقط)",
       "crm.pipeline-team": "الصفقات (فريقي)",
       "crm.customers-assigned": "العملاء (المسندون إليّ فقط)",
-      "crm.customers-team": "العملاء (فريقي)"
+      "crm.customers-team": "العملاء (فريقي)",
+      "manufacturing.work-centres": "مراكز العمل",
+      "manufacturing.boms": "قوائم المواد",
+      "manufacturing.orders": "أوامر الإنتاج",
+      "manufacturing.planning": "التخطيط والتقارير",
+      "library.catalog": "الفهرس (العناوين والنسخ)",
+      "library.members": "الأعضاء",
+      "library.circulation": "الإعارة (إعارة، إعادة، حجز)",
+      "library.fines": "الغرامات",
+      "library.setup": "الفروع وقواعد العضوية",
+      "trade.shipments": "الشحنات",
+      "trade.parties": "الموردون والمشترون والوكلاء",
+      "trade.documents": "المستندات التجارية",
+      "trade.costs": "التكاليف الواصلة",
+      "trade.payments": "دفعات الشحنات والاعتمادات"
     }
   },
   "roles": {

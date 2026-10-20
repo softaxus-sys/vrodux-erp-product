@@ -6,6 +6,7 @@
  * an empty range shows zeros and empty states, not sample data.
  */
 
+import { PostToFinanceButton } from "@/components/finance/post-to-finance";
 import * as React from "react";
 import { Link } from "react-router-dom";
 import {
@@ -97,6 +98,7 @@ function Dashboard() {
           <p className="text-sm text-muted-foreground">Retail takings, trends and what's happening at the tills.</p>
         </div>
         <div className="flex items-center gap-2">
+          <PostToFinanceButton module="pos" />
           <Button variant="outline" size="sm" asChild>
             <Link to="/pos/retail"><ShoppingBag className="h-4 w-4 me-1.5" />Open POS</Link>
           </Button>
@@ -416,7 +418,7 @@ function LowStockCard() {
   const items = data?.items ?? [];
   return (
     <Card title="Low stock" subtitle="At or below reorder level"
-      action={<Link to="/inventory/stock"className="text-xs text-primary hover:underline shrink-0">View all</Link>}>
+      action={<Link to="/pos/low-stock" className="text-xs text-primary hover:underline shrink-0">View all</Link>}>
       {isLoading ? (
         <Empty message="Loading…" />
       ) : items.length === 0 ? (

@@ -252,7 +252,7 @@ public sealed class SyncOfflineDayCommandHandler(
                     return new(e.ClientRef, sessionRef, "duplicate", dup.Id.ToString(), null, null);
 
                 var r = await sender.Send(new RecordCashMovementCommand(
-                    session.Id, e.CashType ?? "", e.Amount ?? 0, e.Reason ?? "", offline), ct);
+                    session.Id, e.CashType ?? "", e.Amount ?? 0, e.Reason ?? "", offline, e.CashCategory), ct);
                 return r.IsFailure
                     ? Rejected(r.Error.Description)
                     : new(e.ClientRef, sessionRef, "applied", r.Value.Id.ToString(), null, null);

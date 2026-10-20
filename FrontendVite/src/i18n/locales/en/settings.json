@@ -575,7 +575,7 @@
         "IT Services / SaaS": "IT Services / SaaS",
         "Real Estate": "Real Estate",
         "Construction": "Construction",
-        "Hospitality": "Hospitality",
+        "Hospitality & Tourism": "Hospitality & Tourism",
         "Retail": "Retail",
         "Manufacturing": "Manufacturing",
         "Healthcare": "Healthcare",
@@ -791,7 +791,7 @@
       "realEstateDesc": "Properties, tenants, and contracts",
       "construction": "Construction",
       "constructionDesc": "Projects, BOQ, and contractors",
-      "hospitality": "Hospitality",
+      "hospitality": "Hospitality & Tourism",
       "hospitalityDesc": "Bookings, rooms, and housekeeping",
       "pos": "Point of Sale",
       "posDesc": "Retail, restaurant, and kitchen",
@@ -928,7 +928,9 @@
       "record": "Record rent payment",
       "remind": "Send rent reminder",
       "import": "Import external data",
-      "view-confidential": "View confidential listing details"
+      "view-confidential": "View confidential listing details",
+      "submit": "Submit for approval",
+      "approve-high": "Approve high-value"
     },
     "actionShort": {
       "view": "VIE",
@@ -949,7 +951,9 @@
       "record": "REC",
       "remind": "REM",
       "import": "IMP",
-      "view-confidential": "CONF"
+      "view-confidential": "CONF",
+      "submit": "SUB",
+      "approve-high": "HIGH"
     },
     "group": {
       "inventory": "Inventory",
@@ -1043,7 +1047,21 @@
       "crm.pipeline-assigned": "Pipeline (Assigned only)",
       "crm.pipeline-team": "Pipeline (My team)",
       "crm.customers-assigned": "Customers (Assigned only)",
-      "crm.customers-team": "Customers (My team)"
+      "crm.customers-team": "Customers (My team)",
+      "manufacturing.work-centres": "Work Centres",
+      "manufacturing.boms": "Bills of Materials",
+      "manufacturing.orders": "Production Orders",
+      "manufacturing.planning": "Planning & Reports",
+      "library.catalog": "Catalogue (titles & copies)",
+      "library.members": "Members",
+      "library.circulation": "Circulation (issue, return, reserve)",
+      "library.fines": "Fines",
+      "library.setup": "Branches & Membership Rules",
+      "trade.shipments": "Shipments",
+      "trade.parties": "Suppliers, buyers & agents",
+      "trade.documents": "Trade documents",
+      "trade.costs": "Landed costs",
+      "trade.payments": "Shipment payments & LCs"
     }
   },
   "roles": {

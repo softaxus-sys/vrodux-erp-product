@@ -11,7 +11,9 @@ public sealed record RecordCashMovementCommand(
     decimal Amount,
     string  Reason,
     // Set only by the offline day-end sync — never bound from a request (see OfflineContext).
-    Common.OfflineContext? Offline = null) : ICommand<CashMovementDto>;
+    Common.OfflineContext? Offline = null,
+    // What the cash was for. Required for a live movement; a replay from an older offline queue may lack it.
+    string? Category = null) : ICommand<CashMovementDto>;
 
 public sealed class RecordCashMovementCommandValidator : AbstractValidator<RecordCashMovementCommand>
 {

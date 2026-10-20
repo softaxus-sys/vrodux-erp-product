@@ -5,10 +5,11 @@ using Softaxis.Purchase.Application.GoodsReceiptNotes.Commands;
 using Softaxis.Purchase.Application.GoodsReceiptNotes.Dtos;
 using Softaxis.Purchase.Domain.Entities;
 using Softaxis.Purchase.Infrastructure.Persistence;
+using Softaxis.Purchase.Infrastructure.Services;
 
 namespace Softaxis.Purchase.Infrastructure.Handlers.GoodsReceiptNotes;
 
-internal sealed class CreateGoodsReceiptNoteHandler(PurchaseDbContext db)
+internal sealed class CreateGoodsReceiptNoteHandler(PurchaseDbContext db, GrnStockReceiver stock)
     : ICommandHandler<CreateGoodsReceiptNoteCommand, GoodsReceiptNoteDto>
 {
     public async Task<Result<GoodsReceiptNoteDto>> Handle(
@@ -67,6 +68,9 @@ internal sealed class CreateGoodsReceiptNoteHandler(PurchaseDbContext db)
 
         await db.SaveChangesAsync(ct);
 
+        // The receipt is saved first: a delivery that arrived is a fact even if stock cannot be updated.
+        var stockOutcome = await stock.ReceiveAsync(grn, order.OrderNumber, ct);
+
         return Result.Success(new GoodsReceiptNoteDto(
             grn.Id, grn.GrnNumber, grn.PurchaseOrderId, order.OrderNumber,
             grn.VendorId, order.Vendor?.Name ?? "Unknown",
@@ -74,6 +78,6 @@ internal sealed class CreateGoodsReceiptNoteHandler(PurchaseDbContext db)
             grn.Items.Select(i => new GoodsReceiptNoteItemDto(
                 i.Id, i.PurchaseOrderItemId, i.ProductId, i.Description,
                 i.OrderedQuantity, i.ReceivedQuantity, i.UnitCost, i.LineTotal)).ToList(),
-            grn.CreatedAt, grn.UpdatedAt));
+            grn.CreatedAt, grn.UpdatedAt, stockOutcome.LinesAdded, stockOutcome.Note));
     }
 }

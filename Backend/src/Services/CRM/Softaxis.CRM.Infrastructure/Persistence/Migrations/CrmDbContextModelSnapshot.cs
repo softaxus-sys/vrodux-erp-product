@@ -53,6 +53,10 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("DueTime")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -72,8 +76,8 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Subject")
                         .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uniqueidentifier");
@@ -492,6 +496,10 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
+
+                    b.Property<string>("ObjectKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<Guid>("RelatedToId")
                         .HasColumnType("uniqueidentifier");

@@ -26,6 +26,10 @@ const TYPE_CONFIG: Record<string, { color: string; bg: string; Icon: React.Eleme
   WriteOff:   { color: "text-destructive", bg: "bg-destructive/10", Icon: AlertTriangle },
   Return:     { color: "text-blue-600",    bg: "bg-blue-500/10",    Icon: RotateCcw },
   Opening:    { color: "text-slate-600",   bg: "bg-slate-100",      Icon: Sliders },
+  // Written by the Manufacturing module.
+  ProductionIssue:   { color: "text-destructive", bg: "bg-destructive/10", Icon: TrendingDown },
+  ProductionReceipt: { color: "text-success",     bg: "bg-success/10",     Icon: TrendingUp },
+  ProductionReturn:  { color: "text-blue-600",    bg: "bg-blue-500/10",    Icon: RotateCcw },
 };
 
 /** Localized label for a backend movement type (falls back to the raw key). */

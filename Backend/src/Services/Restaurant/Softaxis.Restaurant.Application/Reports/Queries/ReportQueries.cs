@@ -30,3 +30,12 @@ public sealed record GetTaxSummaryReportQuery(DateOnly From, DateOnly To, Guid? 
 /// <summary>GET /api/restaurant/reports/z-report?sessionId= / /x-report?sessionId= — same handler,
 /// the controller exposes both routes (Z = closed session, X = still-open snapshot).</summary>
 public sealed record GetSessionReportQuery(Guid SessionId) : IQuery<SessionReportDto>;
+
+/// <summary>GET /api/restaurant/reports/shifts — recent till shifts to pick a Z/X report from, newest first.</summary>
+public sealed record GetReportShiftsQuery : IQuery<IReadOnlyList<ReportShiftDto>>;
+
+/// <summary>GET /api/restaurant/reports/run/{reportId} — one report for the central Reports hub, as a
+/// table. <c>UtcOffsetMinutes</c> is the caller's clock, so "today" and each hour are theirs.</summary>
+public sealed record RunRestaurantReportQuery(
+    string ReportId, DateOnly From, DateOnly To, int UtcOffsetMinutes = 0,
+    string? OrderType = null, string? Status = null) : IQuery<TabularReportDto>;

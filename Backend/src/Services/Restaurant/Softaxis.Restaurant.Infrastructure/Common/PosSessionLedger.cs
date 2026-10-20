@@ -53,6 +53,54 @@ internal static class PosSessionLedger
     /// <summary>Returns "open"/"closed" for the given session, or null if it doesn't exist for this
     /// tenant — used by the Z/X report, which is read-only and shouldn't hard-fail just because a
     /// stale/foreign session id was passed in (the order-derived totals are still meaningful).</summary>
+    /// <summary>
+    /// The till shift a floor order should ride on when the person taking it has no shift of their
+    /// own — a waiter works under the cashier's shift. Newest open shift in this workspace, or null.
+    /// </summary>
+    public static async Task<Guid?> FindOpenSessionAsync(RestaurantDbContext db, CancellationToken ct)
+    {
+        int bypass = TenantAmbient.BypassFilter ? 1 : 0;
+        Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
+
+        var row = await db.Database
+            .SqlQuery<SessionRow>($"""
+                SELECT TOP 1 Id, CashierId, Status
+                FROM [pos].[pos_sessions]
+                WHERE Status = {OpenStatus} AND IsDeleted = 0 AND ({bypass} = 1 OR TenantId = {tenant})
+                ORDER BY OpenedAt DESC
+                """)
+            .FirstOrDefaultAsync(ct);
+        return row?.Id;
+    }
+
+    public sealed class ShiftRow
+    {
+        public Guid Id { get; set; }
+        public int Status { get; set; }
+        public string? RegisterId { get; set; }
+        public string? CashierName { get; set; }
+        public DateTime OpenedAt { get; set; }
+        public DateTime? ClosedAt { get; set; }
+    }
+
+    /// <summary>The workspace's most recent till shifts, newest first, with the cashier's name.</summary>
+    public static async Task<List<ShiftRow>> GetRecentSessionsAsync(RestaurantDbContext db, int take, CancellationToken ct)
+    {
+        int bypass = TenantAmbient.BypassFilter ? 1 : 0;
+        Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
+
+        return await db.Database
+            .SqlQuery<ShiftRow>($"""
+                SELECT TOP ({take}) s.Id, s.Status, s.RegisterId, s.OpenedAt, s.ClosedAt,
+                       NULLIF(LTRIM(RTRIM(CONCAT(u.FirstName, ' ', u.LastName))), '') AS CashierName
+                FROM [pos].[pos_sessions] s
+                LEFT JOIN [identity].[users] u ON u.Id = s.CashierId
+                WHERE s.IsDeleted = 0 AND ({bypass} = 1 OR s.TenantId = {tenant})
+                ORDER BY s.OpenedAt DESC
+                """)
+            .ToListAsync(ct);
+    }
+
     public static async Task<string?> GetStatusLabelAsync(RestaurantDbContext db, Guid sessionId, CancellationToken ct)
     {
         int bypass = TenantAmbient.BypassFilter ? 1 : 0;

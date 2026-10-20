@@ -7,7 +7,7 @@ using Softaxis.Identity.Domain.Repositories;
 namespace Softaxis.Identity.Application.Billing.Commands;
 
 /// <summary>
-/// Claim the 30-day free trial from the billing page.
+/// Claim the 14-day free trial from the billing page.
 ///
 /// <para>
 /// Only reachable by a tenant that signed up through a "Buy Now" link and never paid — those
@@ -40,7 +40,7 @@ public sealed class StartTrialCommandHandler(
                 "Billing.TrialUnavailable",
                 "A free trial isn't available on this account. Choose a plan to continue."));
 
-        tenant.StartTrial(30);
+        tenant.StartTrial();
         await uow.SaveChangesAsync(ct);
 
         // Drop the cached "blocked" decision so access resumes on the next request rather than

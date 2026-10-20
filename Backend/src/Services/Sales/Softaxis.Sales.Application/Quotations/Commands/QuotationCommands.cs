@@ -55,8 +55,40 @@ public sealed record CreateQuotationCommand(
     IReadOnlyList<QuotationItemRequest>    Items,
     IReadOnlyList<QuotationSectionRequest>? Sections = null,
     QuotationDocumentRequest?               Document = null,
-    Guid?                                   TemplateId = null
+    Guid?                                   TemplateId = null,
+    Guid?                                   LeadId = null,
+    Guid?                                   CrmCustomerId = null,
+    Guid?                                   DealId = null,
+    Guid?                                   LeadOwnerUserId = null,
+    // Set by the controller from the signed-in user — never trusted from the request body.
+    Guid?                                   CreatedByUserId = null
 ) : ICommand<QuotationDto>;
+
+/// <summary>
+/// "Raise a quotation for this person from that template." The server builds the whole draft —
+/// lines, sections, terms, validity, look — from the template and the customer details passed
+/// in, so a CRM user does not have to assemble anything: pick a template, review, send.
+/// </summary>
+public sealed record CreateQuotationFromTemplateCommand(
+    Guid    TemplateId,
+    string  CustomerName,
+    string? ContactName,
+    string? CustomerEmail,
+    string? CustomerPhone,
+    string? CustomerAddress,
+    string? PreparedByName,
+    Guid?   LeadId = null,
+    Guid?   CrmCustomerId = null,
+    Guid?   DealId = null,
+    Guid?   LeadOwnerUserId = null,
+    Guid?   CreatedByUserId = null
+) : ICommand<QuotationDto>;
+
+/// <summary>
+/// After a lead converts, its quotations are also filed under the account and opportunity it
+/// became. Best-effort from the caller's side: a failure must never block the conversion.
+/// </summary>
+public sealed record RelinkLeadQuotationsCommand(Guid LeadId, Guid? CrmCustomerId, Guid? DealId) : ICommand<int>;
 
 public sealed record UpdateQuotationCommand(
     Guid    Id,
@@ -172,6 +204,21 @@ public sealed class CreateQuotationValidator : AbstractValidator<CreateQuotation
             .When(x => x.Sections is not null);
         RuleFor(x => x.Document!).SetValidator(new QuotationDocumentRequestValidator())
             .When(x => x.Document is not null);
+    }
+}
+
+public sealed class CreateQuotationFromTemplateValidator : AbstractValidator<CreateQuotationFromTemplateCommand>
+{
+    public CreateQuotationFromTemplateValidator()
+    {
+        RuleFor(x => x.TemplateId).NotEmpty().WithMessage("Choose a quotation template.");
+        RuleFor(x => x.CustomerName).NotEmpty().WithMessage("Customer name is required.").MaximumLength(200);
+        RuleFor(x => x.ContactName).MaximumLength(200);
+        RuleFor(x => x.CustomerAddress).MaximumLength(500);
+        RuleFor(x => x.CustomerPhone).MaximumLength(50);
+        RuleFor(x => x.PreparedByName).MaximumLength(200);
+        // A lead rarely has a clean email, and the quotation can still be created and shared by
+        // link — so an unusable address is dropped by the handler rather than refused here.
     }
 }
 

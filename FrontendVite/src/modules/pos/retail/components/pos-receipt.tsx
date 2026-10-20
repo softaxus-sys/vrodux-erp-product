@@ -33,6 +33,35 @@ export interface ReceiptPayment {
   amount: number;
 }
 
+export interface ReceiptCredit { amount: number; dueOn: string; customerName: string; balanceAfter: number }
+
+const methodLabel = (m: string) => (m === "HouseAccount" ? "On credit" : m);
+
+/** The payment breakdown, shown for split payments and always for a sale bought on credit. */
+function PaymentsBlock({ payments, credit, currency }: { payments?: ReceiptPayment[]; credit?: ReceiptCredit | null; currency: string }) {
+  if (!payments || (payments.length <= 1 && !credit)) return null;
+  return (
+    <>
+      <Divider />
+      <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Payments</p>
+      {payments.map((p, i) => (
+        <Row key={i} label={methodLabel(p.method)} value={fmtMoney(p.amount, currency)} />
+      ))}
+      {credit && (
+        <>
+          <Divider />
+          <p className="text-[10px] font-bold text-gray-700 dark:text-gray-200 uppercase mb-1">Bought on credit</p>
+          <Row label="Customer" value={credit.customerName} />
+          <Row label="Due date" value={credit.dueOn} bold />
+          <Row label="Total owed after this sale" value={fmtMoney(credit.balanceAfter, currency)} />
+          <p className="mt-3 text-[10px] text-gray-500">Customer signature</p>
+          <div className="mt-5 border-b border-gray-400" />
+        </>
+      )}
+    </>
+  );
+}
+
 export interface PosReceiptProps {
   cart:           ReceiptLineItem[];
   subtotal:       number;          // sum of totals before tax
@@ -42,6 +71,8 @@ export interface PosReceiptProps {
   total:          number;          // grand total
   paymentMethod:  string;
   payments?:      ReceiptPayment[]; // split-tender breakdown (when >1 method)
+  /** Set when part or all of the sale was put on the customer's account. */
+  credit?:        ReceiptCredit | null;
   tendered:       number;          // cash handed over (0 if card)
   txnNumber:      string;          // e.g. "TXN-000123"
   sessionId?:     string;
@@ -225,7 +256,7 @@ function FbrBlock({ status, number }: { status?: string | null; number?: string 
 
 function PakistanReceipt({
   cart, subtotal, discountAmount, discountLabel, taxAmount, total,
-  paymentMethod, payments, tendered, txnNumber, cashierName,
+  paymentMethod, payments, credit, tendered, txnNumber, cashierName,
   serviceFee = 0, fbrStatus, fbrInvoiceNumber,
   cfg, companyName,
 }: PosReceiptProps & { cfg: ReceiptConfig; companyName: string }) {
@@ -305,15 +336,7 @@ function PakistanReceipt({
       </div>
 
       {/* ── Split payment breakdown ── */}
-      {payments && payments.length > 1 && (
-        <>
-          <Divider />
-          <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Payments</p>
-          {payments.map((p, i) => (
-            <Row key={i} label={p.method} value={fmtMoney(p.amount, cfg.currency)} />
-          ))}
-        </>
-      )}
+      <PaymentsBlock payments={payments} credit={credit} currency={cfg.currency} />
 
       {/* ── Cash change ── */}
       {paymentMethod === "Cash" && tendered > 0 && (
@@ -353,7 +376,7 @@ function PakistanReceipt({
 
 function UAEReceipt({
   cart, subtotal, discountAmount, discountLabel, taxAmount, total,
-  paymentMethod, payments, tendered, txnNumber, cashierName,
+  paymentMethod, payments, credit, tendered, txnNumber, cashierName,
   cfg, companyName,
 }: PosReceiptProps & { cfg: ReceiptConfig; companyName: string }) {
   const change     = Math.max(0, tendered - total);
@@ -429,15 +452,7 @@ function UAEReceipt({
       </div>
 
       {/* ── Split payment breakdown ── */}
-      {payments && payments.length > 1 && (
-        <>
-          <Divider />
-          <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Payments</p>
-          {payments.map((p, i) => (
-            <Row key={i} label={p.method} value={fmtMoney(p.amount, cfg.currency)} />
-          ))}
-        </>
-      )}
+      <PaymentsBlock payments={payments} credit={credit} currency={cfg.currency} />
 
       {/* ── Cash change ── */}
       {paymentMethod === "Cash" && tendered > 0 && (

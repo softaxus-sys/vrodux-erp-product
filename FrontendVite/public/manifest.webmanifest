@@ -1,0 +1,14 @@
+{
+  "name": "Vrodux ERP",
+  "short_name": "Vrodux",
+  "description": "Enterprise Resource Planning Platform",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

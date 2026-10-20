@@ -36,10 +36,18 @@ export function useCreateGoodsReceiptNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateGoodsReceiptNoteRequest) => goodsReceiptNotesApi.create(payload),
-    onSuccess: () => {
+    onSuccess: (grn) => {
       qc.invalidateQueries({ queryKey: grnKeys.lists() });
       qc.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
-      toast.success("Goods receipt note created.");
+      // Receiving changes stock, so every stock screen must refetch.
+      qc.invalidateQueries({ queryKey: ["inventory-products"] });
+      qc.invalidateQueries({ queryKey: ["inventory-movements"] });
+      qc.invalidateQueries({ queryKey: ["inventory-product-stock"] });
+      const added = grn?.stockLinesAdded ?? 0;
+      toast.success(added > 0
+        ? `Goods receipt created. Stock updated for ${added} item${added === 1 ? "" : "s"}.`
+        : "Goods receipt note created.");
+      if (grn?.stockNote) toast.warning(grn.stockNote, { duration: 10000 });
     },
     onError: (err: Error) => toast.error(err.message),
   });

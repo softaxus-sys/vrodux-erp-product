@@ -1,10 +1,16 @@
 import { useMemo, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useTables, useTablesSummary } from "@/hooks/use-restaurant";
+import { hasPermission } from "@/store/auth.store";
+import { RESTAURANT_ORDERS_CREATE } from "@/lib/restaurant.api";
 import { TABLE_STATUS_LABELS, TABLE_STATUS_TONE } from "@/types/restaurant";
 import type { TableDto } from "@/types/restaurant";
 import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
+import type { RestaurantStackParamList } from "@/navigation/types";
+
+type Props = NativeStackScreenProps<RestaurantStackParamList, "TablesList">;
 
 const FILTERS: { key: string; label: string }[] = [
   { key: "all", label: "All" },
@@ -14,10 +20,13 @@ const FILTERS: { key: string; label: string }[] = [
   { key: "cleaning", label: "Cleaning" },
 ];
 
-export default function TablesListScreen() {
+/** A table row opens the order already sitting on it, or starts a new one -- the one entry point
+ *  into order-taking that doesn't require already knowing an order id. */
+export default function TablesListScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [status, setStatus] = useState("all");
+  const canOrder = hasPermission(RESTAURANT_ORDERS_CREATE);
 
   const summary = useTablesSummary();
   const tables = useTables();
@@ -55,7 +64,19 @@ export default function TablesListScreen() {
           contentContainerStyle={filtered.length === 0 ? undefined : styles.list}
           refreshControl={<RefreshControl refreshing={tables.isRefetching} onRefresh={() => tables.refetch()} tintColor={colors.primary} />}
           ListEmptyComponent={<EmptyListState icon="grid" title="No tables in this status" />}
-          renderItem={({ item }) => <TableRow table={item} />}
+          renderItem={({ item }) => (
+            <TableRow
+              table={item}
+              canOrder={canOrder}
+              onPress={() => {
+                if (item.currentOrderId) {
+                  navigation.navigate("OrderDetail", { orderId: item.currentOrderId });
+                } else if (canOrder) {
+                  navigation.navigate("NewOrder", { tableId: item.id, tableNumber: item.tableNumber });
+                }
+              }}
+            />
+          )}
         />
       )}
     </View>
@@ -73,11 +94,12 @@ function SummaryTile({ label, value }: { label: string; value: string }) {
   );
 }
 
-function TableRow({ table }: { table: TableDto }) {
+function TableRow({ table, canOrder, onPress }: { table: TableDto; canOrder: boolean; onPress: () => void }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isTappable = Boolean(table.currentOrderId) || canOrder;
   return (
-    <ListItemCard>
+    <ListItemCard onPress={isTappable ? onPress : undefined}>
       <View style={styles.rowTop}>
         <Text style={styles.name}>
           Table {table.tableNumber} <Text style={styles.section}>· {table.section}</Text>
@@ -86,6 +108,7 @@ function TableRow({ table }: { table: TableDto }) {
       </View>
       <Text style={styles.meta}>
         Seats {table.capacity}
+        {!table.currentOrderId && canOrder ? " · Tap to start an order" : ""}
         {table.currentWaiter ? ` · ${table.currentWaiter}` : ""}
       </Text>
     </ListItemCard>

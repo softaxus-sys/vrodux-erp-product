@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.POS.Infrastructure.Persistence;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Restaurant.Application.Abstractions;
 using Softaxis.Restaurant.Application.Orders.Commands;
@@ -9,11 +10,15 @@ using Softaxis.Restaurant.Infrastructure.Persistence;
 
 namespace Softaxis.Restaurant.Infrastructure.Handlers.Orders;
 
-internal sealed class ApplyOrderDiscountHandler(RestaurantDbContext db, ICurrentUser currentUser)
+internal sealed class ApplyOrderDiscountHandler(RestaurantDbContext db, POSDbContext posDb, ICurrentUser currentUser)
     : ICommandHandler<ApplyOrderDiscountCommand, OrderDto>
 {
-    public Task<Result<OrderDto>> Handle(ApplyOrderDiscountCommand cmd, CancellationToken ct) =>
-        ConcurrencyRetry.ExecuteAsync(db, () => HandleOnce(cmd, ct));
+    public async Task<Result<OrderDto>> Handle(ApplyOrderDiscountCommand cmd, CancellationToken ct)
+    {
+        // A new discount replaces the one on the bill; if that one was paid for in points, they go back.
+        await LoyaltySupport.ReturnSpentPointsAsync(db, posDb, cmd.OrderId, ct);
+        return await ConcurrencyRetry.ExecuteAsync(db, () => HandleOnce(cmd, ct));
+    }
 
     private async Task<Result<OrderDto>> HandleOnce(ApplyOrderDiscountCommand cmd, CancellationToken ct)
     {

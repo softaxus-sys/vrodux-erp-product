@@ -14,6 +14,8 @@ public sealed class Room
     public string? CurrentBookingId { get; private set; }
     public string? View { get; private set; } // sea/city/garden/pool
     public bool HasBalcony { get; private set; }
+    public Guid? RoomTypeId { get; private set; }
+    public string? Notes { get; private set; }
     public bool IsDeleted { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
@@ -36,6 +38,23 @@ public sealed class Room
         CurrentGuestName = null; CurrentBookingId = null;
         Status = "available"; HousekeepingStatus = "dirty"; UpdatedAt = DateTime.UtcNow;
     }
+
+    private Room() { }
+
+    public void Update(string roomNumber, Guid? roomTypeId, string roomType, int floor, int capacity,
+        decimal ratePerNight, string? view, bool hasBalcony, string? notes)
+    {
+        RoomNumber = roomNumber.Trim(); RoomTypeId = roomTypeId; RoomType = roomType; Floor = floor;
+        Capacity = Math.Max(1, capacity); RatePerNight = Math.Round(ratePerNight, 2);
+        View = string.IsNullOrWhiteSpace(view) ? null : view.Trim(); HasBalcony = hasBalcony;
+        Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void LinkType(Guid roomTypeId) { RoomTypeId = roomTypeId; UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>Back in service after maintenance.</summary>
+    public void SetAvailable() { if (Status == "maintenance") Status = CurrentBookingId is null ? "available" : "occupied"; UpdatedAt = DateTime.UtcNow; }
 
     public void SetHousekeeping(string status) { HousekeepingStatus = status; UpdatedAt = DateTime.UtcNow; }
     public void SetMaintenance() { Status = "maintenance"; UpdatedAt = DateTime.UtcNow; }

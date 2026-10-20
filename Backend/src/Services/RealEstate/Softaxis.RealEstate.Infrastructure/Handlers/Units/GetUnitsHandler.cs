@@ -2,13 +2,14 @@ using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.RealEstate.Application.Abstractions;
 using Softaxis.RealEstate.Application.Units.Dtos;
 using Softaxis.RealEstate.Application.Units.Queries;
 using Softaxis.RealEstate.Infrastructure.Persistence;
 
 namespace Softaxis.RealEstate.Infrastructure.Handlers.Units;
 
-internal sealed class GetUnitsHandler(RealEstateDbContext db)
+internal sealed class GetUnitsHandler(RealEstateDbContext db, ICurrentUser user)
     : IQueryHandler<GetUnitsQuery, PagedResult<UnitDto>>
 {
     /// <summary>Capped so a hand-edited pageSize cannot ask for the whole set back.</summary>
@@ -42,6 +43,6 @@ internal sealed class GetUnitsHandler(RealEstateDbContext db)
             .ToListAsync(ct);
 
         return Result.Success(PagedResult<UnitDto>.Create(
-            items.Select(UnitMappings.ToDto).ToList(), total, page, pageSize));
+            items.Select(u => UnitMappings.ToDto(u, user)).ToList(), total, page, pageSize));
     }
 }

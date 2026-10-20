@@ -44,6 +44,7 @@ public sealed record OfflineEventPayload(
     Guid?                           TargetTransactionId = null,
     // cash movement
     string?                         CashType = null,
+    string?                         CashCategory = null,
     decimal?                        Amount   = null,
     string?                         Reason   = null);
 

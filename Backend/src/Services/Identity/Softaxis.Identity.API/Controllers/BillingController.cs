@@ -49,7 +49,7 @@ public sealed class BillingController(ISender sender) : BaseApiController(sender
         HandleResult(await Sender.Send(new CreatePortalSessionCommand(), ct));
 
     /// <summary>
-    /// Claim the 30-day free trial. Only valid for a "Buy Now" signup that never paid — the
+    /// Claim the 14-day free trial. Only valid for a "Buy Now" signup that never paid — the
     /// self-rescue path for an abandoned checkout.
     /// </summary>
     [HttpPost("start-trial")]

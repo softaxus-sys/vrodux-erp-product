@@ -18,7 +18,8 @@ import i18n from "@/i18n";
 import { MODULES, BUSINESS_TYPES, MODULE_CATEGORIES, resolveModules, needsBusinessType, moduleLabel, moduleDesc, moduleCategoryLabel, businessTypeLabel, type ModuleId, type ModuleDef } from "@/lib/onboarding/module-data";
 import { registerTrial, type TrialRegistrationRequest } from "@/lib/onboarding/trial.api";
 import { useSignupAttribution, clearSignupAttribution } from "@/hooks/use-signup-attribution";
-import { getPlan, amountFor, formatUsd } from "@/lib/billing/plans";
+import { loadMetaPixel, trackPixelEvent, getMetaIdentifiers, newEventId } from "@/lib/analytics/meta-pixel";
+import { getPlan, amountFor, formatUsd, TRIAL_DAYS } from "@/lib/billing/plans";
 import { authApi } from "@/lib/identity/auth.api";
 import { useAuthStore } from "@/store/auth.store";
 import { ApiError } from "@/lib/api-client";
@@ -43,14 +44,17 @@ function getInitialMode(): "light" | "dark" {
 // ── Industry → modules ────────────────────────────────────────────────────────
 
 const INDUSTRY_MODULES: Record<string, ModuleId[]> = {
-  "All Industries":           ["pos","inventory","sales","purchase","finance","hr","crm","hospitality","real-estate","construction","healthcare","education"],
+  "All Industries":           ["pos","inventory","sales","purchase","finance","hr","crm","hospitality","real-estate","construction","healthcare","education","visa","library","manufacturing","trade"],
   "Retail & E-Commerce":      ["pos","inventory","sales","crm","finance"],
   "Real Estate":              ["real-estate","crm","finance"],
   "Construction":             ["construction","purchase","hr","finance"],
   "Hospitality & Tourism":    ["hospitality","pos","hr","finance"],
   "Healthcare":               ["healthcare","hr","finance"],
   "Education":                ["education","hr","finance"],
-  "Manufacturing":            ["inventory","purchase","hr","finance"],
+  "Manufacturing":            ["manufacturing","inventory","purchase","hr","finance"],
+  "Library":                  ["library","hr","finance"],
+  "Import & Export":          ["trade","inventory","purchase","sales","finance","hr"],
+  "Visa Services":            ["visa","crm","finance","hr"],
   "Finance & Banking":        ["finance","hr","crm"],
   "Logistics & Supply Chain": ["inventory","purchase","hr"],
   "Food & Beverage":          ["pos","inventory","purchase","hr"],
@@ -199,7 +203,7 @@ function WizardContextPanel({ D }: { D:P }) {
         {/* Trial badge */}
         <div className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border self-start mb-6"
           style={{ color:"#22c55e",borderColor:"#22c55e40",background:"#22c55e10" }}>
-          <Sparkles className="h-3 w-3"/>{t("trialBadge")}
+          <Sparkles className="h-3 w-3"/>{t("trialBadge", { days: TRIAL_DAYS })}
         </div>
 
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-4" style={{ color:D.muted }}>{t("aside.setupSteps")}</p>
@@ -268,7 +272,7 @@ function Sidebar({ D,step,showBT,darkMode,toggleDarkMode }: { D:P;step:number;sh
         </div>
         <div className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border"
           style={{ color:"#22c55e",borderColor:"#22c55e30",background:"#22c55e10" }}>
-          <Sparkles className="h-2.5 w-2.5"/>30-day free trial
+          <Sparkles className="h-2.5 w-2.5"/>{TRIAL_DAYS}-day free trial
         </div>
       </div>
 
@@ -414,7 +418,7 @@ function ApiErrorBanner({ D, err, email, onChangeEmail }: { D:P; err:{ code:stri
 
 function NavBar({ D,onBack,onNext,nextLabel,loading,formId }: { D:P;onBack?:()=>void;onNext?:()=>void;nextLabel?:string;loading?:boolean;formId?:string }) {
   return(
-    <div className="shrink-0 px-8 py-4 border-t flex items-center justify-between" style={{ background:D.panel,borderColor:D.border }}>
+    <div className="shrink-0 px-4 sm:px-8 py-4 border-t flex items-center justify-between gap-3" style={{ background:D.panel,borderColor:D.border }}>
       {onBack
         ?<button type="button" onClick={onBack}
             className="inline-flex items-center gap-2 h-10 px-5 rounded-xl border font-semibold text-[13px] transition-all"
@@ -471,6 +475,10 @@ export default function OnboardingPage() {
   const signup=useSignupAttribution();
   const selectedPlan=getPlan(signup.plan);
 
+  // Meta Pixel — scoped to this page only (the actual signup funnel), never loaded app-wide.
+  // See lib/analytics/meta-pixel.ts for why.
+  React.useEffect(() => { loadMetaPixel(); trackPixelEvent("PageView"); }, []);
+
   const showBT=needsBusinessType(selectedModules);
   const totalSteps=showBT?4:3;
   const allResolved=resolveModules(selectedModules);
@@ -526,6 +534,7 @@ export default function OnboardingPage() {
     setSubmitting(true); setApiError(null);
     try{
       const s2=f2.getValues();
+      const startTrialEventId=newEventId();
       const payload: TrialRegistrationRequest = {
         fullName:    s1Data.fullName,
         email:       s1Data.workEmail,
@@ -546,9 +555,15 @@ export default function OnboardingPage() {
         billing:     signup.billing,
         intent:      signup.intent||undefined,
         utmSource:   signup.utmSource||undefined,
+        eventId:     startTrialEventId,
+        ...getMetaIdentifiers(),
       };
       const result=await registerTrial(payload);
       clearSignupAttribution();
+
+      // Ad conversion: a real trial start (not a "Buy Now" signup, which is not a trial). Same
+      // event id as the server's Conversions API call so Meta counts the pair once.
+      if(!result.checkoutRequested) trackPixelEvent("StartTrial", { currency:"USD", value:0 }, startTrialEventId);
 
       // ── "Buy Now" → take them straight to the payment form ──────────────────
       // These accounts get NO trial (the backend puts them in PendingPayment), so parking them on
@@ -610,7 +625,7 @@ export default function OnboardingPage() {
             return<span key={id} className={cn("inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border",m.color,m.iconColor)}><Icon className="h-3 w-3"/>{moduleLabel(m)}</span>; })}
         </div>
         {/* "Buy Now" signups: say plainly that checkout comes after sign-in, so the jump to a
-            payment page isn't a surprise. Your 30-day trial runs either way. */}
+            payment page isn't a surprise. Your free trial runs either way. */}
         {checkoutPending && selectedPlan && (
           <p className="text-xs mb-5 px-4 py-2.5 rounded-lg border inline-block"
             style={{ color:D.muted,borderColor:D.accent+"40",background:D.accent+"12" }}>
@@ -618,7 +633,7 @@ export default function OnboardingPage() {
             <span className="font-semibold" style={{ color:D.white }}>{selectedPlan.label}</span> plan
             {amountFor(selectedPlan,signup.billing)!==null &&
               <> — {formatUsd(amountFor(selectedPlan,signup.billing))}/{signup.billing==="annual"?"year":"month"}</>}
-            . Your 30-day trial has already started.
+            . Your {TRIAL_DAYS}-day trial has already started.
           </p>
         )}
         <button onClick={()=>navigate("/auth/login")} className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white"
@@ -692,7 +707,7 @@ export default function OnboardingPage() {
                   style={{ color:D.white,borderColor:D.accent+"55",background:D.accent+"18" }}
                   title={signup.intent==="buy"
                     ? `You'll be taken to checkout for the ${selectedPlan.label} plan after signup`
-                    : `30-day free trial on the ${selectedPlan.label} plan`}>
+                    : `${TRIAL_DAYS}-day free trial on the ${selectedPlan.label} plan`}>
                   <span style={{ color:D.accent }}>{selectedPlan.label}</span>
                   {amountFor(selectedPlan,signup.billing)!==null && (
                     <span style={{ color:D.muted }}>
@@ -702,7 +717,7 @@ export default function OnboardingPage() {
                 </span>
               )}
               {/* Step counter badge */}
-              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border"
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border"
                 style={{ color:D.muted,borderColor:D.border,background:D.faint }}>
                 <span style={{ color:D.accent }}>{step+1}</span>
                 <span style={{ color:D.muted+"60" }}>/</span>
@@ -734,11 +749,11 @@ export default function OnboardingPage() {
                   <div className="flex-1 overflow-y-auto px-8 pt-10 pb-4">
                     <div className="max-w-[620px] mx-auto">
                       <h2 className="text-[1.6rem] font-bold tracking-tight mb-1" style={{ color:D.white }}>{t("step1.title")}</h2>
-                      <p className="text-[13px] mb-7" style={{ color:D.muted }}>30 days free · No credit card · Cancel anytime</p>
+                      <p className="text-[13px] mb-7" style={{ color:D.muted }}>{TRIAL_DAYS} days free · No credit card · Cancel anytime</p>
 
                       <form id="f1" onSubmit={onS1}>
                         <div className="rounded-xl border p-6 space-y-5" style={{ background:D.card,borderColor:D.border }}>
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                               <Lbl D={D} req err={f1.formState.errors.fullName?.message}>{t("step1.fullName")}</Lbl>
                               <input {...f1.register("fullName")} {...fo("fn")} placeholder={t("step1.fullNamePlaceholder")} autoFocus autoComplete="name" className={INPUT_CLS} style={iStyle(D,foc==="fn",!!f1.formState.errors.fullName)}/>
@@ -754,7 +769,7 @@ export default function OnboardingPage() {
                             <input {...f1.register("workEmail")} {...fo("em")} id="field-email" type="email" placeholder="john@acme.com" autoComplete="email" className={INPUT_CLS} style={iStyle(D,foc==="em",!!f1.formState.errors.workEmail)}/>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                               <Lbl D={D} req err={f1.formState.errors.password?.message}>{t("step1.password")}</Lbl>
                               <div className="relative">
@@ -803,7 +818,7 @@ export default function OnboardingPage() {
 
                       {/* Stats strip */}
                       <div className="grid grid-cols-4 gap-px mt-5 rounded-xl overflow-hidden border" style={{ borderColor:D.border,background:D.border }}>
-                        {[{v:"30",l:t("step1.statTrial")},{v:"12+",l:t("step1.statModules")},{v:"∞",l:t("step1.statUsers")},{v:"99.9%",l:t("step1.statUptime")}].map(s=>(
+                        {[{v:String(TRIAL_DAYS),l:t("step1.statTrial")},{v:"12+",l:t("step1.statModules")},{v:"∞",l:t("step1.statUsers")},{v:"99.9%",l:t("step1.statUptime")}].map(s=>(
                           <div key={s.l} className="px-3 py-3 text-center" style={{ background:D.card }}>
                             <p className="text-[18px] font-extrabold leading-none" style={{ color:D.white }}>{s.v}</p>
                             <p className="text-[10px] font-medium uppercase tracking-wider mt-1" style={{ color:D.muted }}>{s.l}</p>
@@ -851,7 +866,7 @@ export default function OnboardingPage() {
                             <Building2 className="h-3 w-3"/>{t("step2.orgDetails")}
                           </p>
                           <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div className="space-y-1.5">
                                 <Lbl D={D} req err={f2.formState.errors.orgName?.message}>{t("step2.orgName")}</Lbl>
                                 <input {...f2.register("orgName")} {...fo("on")} placeholder={t("step2.orgNamePlaceholder")} autoFocus className={INPUT_CLS} style={iStyle(D,foc==="on",!!f2.formState.errors.orgName)}/>
@@ -867,7 +882,7 @@ export default function OnboardingPage() {
                                 </p>}
                               </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div className="space-y-1.5">
                                 <Lbl D={D} req err={f2.formState.errors.country?.message}>{t("step2.country")}</Lbl>
                                 <Controller control={f2.control} name="country" render={({ field })=>(
@@ -890,7 +905,7 @@ export default function OnboardingPage() {
                             <Globe className="h-3 w-3"/>{t("step2.regional")}
                           </p>
                           <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div className="space-y-1.5">
                                 <Lbl D={D} req err={f2.formState.errors.currency?.message}>{t("step2.currency")}{meta&&<span className="normal-case font-normal ml-1" style={{ color:D.accent }}>{t("step2.auto")}</span>}</Lbl>
                                 <Controller control={f2.control} name="currency" render={({ field })=>(
@@ -913,7 +928,7 @@ export default function OnboardingPage() {
                                 </span>
                               </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div className="space-y-1.5">
                                 <Lbl D={D} req err={f2.formState.errors.startDate?.message}>{t("step2.startDate")}</Lbl>
                                 <input {...f2.register("startDate")} {...fo("sd")} type="date" className={INPUT_CLS} style={iStyle(D,foc==="sd",!!f2.formState.errors.startDate)}/>
@@ -1021,7 +1036,7 @@ export default function OnboardingPage() {
                         return(
                           <div key={cat.id} className="rounded-xl border p-5" style={{ background:D.card,borderColor:D.border }}>
                             <p className="text-[10px] font-bold uppercase tracking-[0.14em] mb-3" style={{ color:D.muted }}>{moduleCategoryLabel(cat)}</p>
-                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                               {mods.map(mod=>(
                                 <ModCard key={mod.id} D={D} mod={mod}
                                   selected={selectedModules.has(mod.id)||autoModules.has(mod.id)}
@@ -1073,7 +1088,7 @@ export default function OnboardingPage() {
                     </div>
 
                     <div className="rounded-xl border p-5" style={{ background:D.card,borderColor:D.border }}>
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                         {BUSINESS_TYPES.map(bt=>(
                           <BizCard key={bt.id} D={D} bt={bt} selected={businessType===bt.id} onToggle={()=>{ setBusinessType(bt.id); setBizError(""); }}/>
                         ))}
@@ -1108,7 +1123,7 @@ export default function OnboardingPage() {
                 <AnimatePresence>
                   {apiError&&<ApiErrorBanner D={D} err={apiError} email={s1Data?.workEmail} onChangeEmail={()=>{ setApiError(null); setStep(0); setTimeout(()=>{ document.getElementById("field-email")?.focus(); },200); }}/>}
                 </AnimatePresence>
-                <div className="shrink-0 px-8 py-4 border-t flex items-center justify-between" style={{ background:D.panel,borderColor:D.border }}>
+                <div className="shrink-0 px-4 sm:px-8 py-4 border-t flex items-center justify-between gap-3" style={{ background:D.panel,borderColor:D.border }}>
                   <button type="button" onClick={()=>{ setApiError(null); setStep(2); }}
                     className="inline-flex items-center gap-2 h-10 px-5 rounded-xl border font-semibold text-[13px] transition-all"
                     style={{ borderColor:D.border,color:D.muted }}

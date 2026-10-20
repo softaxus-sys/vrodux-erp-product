@@ -183,7 +183,7 @@ export function AiAssistantPanel() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 40 }}
           transition={{ duration: 0.2 }}
-          className="fixed right-4 bottom-4 top-20 z-50 w-[380px] flex flex-col rounded-2xl border border-border bg-card shadow-enterprise-lg overflow-hidden"
+          className="fixed inset-x-2 bottom-2 top-16 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:top-20 z-50 sm:w-[380px] flex flex-col rounded-2xl border border-border bg-card shadow-enterprise-lg overflow-hidden"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-primary/[0.07] via-card to-card">

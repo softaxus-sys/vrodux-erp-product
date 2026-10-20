@@ -1,4 +1,4 @@
-using Softaxis.BuildingBlocks.Infrastructure.Email;
+﻿using Softaxis.BuildingBlocks.Infrastructure.Email;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.EntityFrameworkCore;
@@ -109,7 +109,9 @@ internal sealed class QuotationBrandingProvider(
                 Website:     Get("website"),
                 TaxNumber:   Get("taxNumber", "trn", "registrationNo"),
                 LogoUrl:     Get("logoUrl", "logo"),
-                AccentColor: Get("accentColor", "primaryColor"));
+                AccentColor: Get("accentColor", "primaryColor"),
+                SignatureUrl: Get("signatureUrl"),
+                StampUrl:     Get("stampUrl"));
         }
         catch (Exception ex)
         {
@@ -124,20 +126,30 @@ internal sealed class QuotationBrandingProvider(
         new(name, null, null, null, null, null, null, null, null);
 }
 
+
 /// <summary>
 /// Emails the quotation link. Reads the same shared "Email" configuration section the gateway
 /// already provides for Identity's password-reset mail — one SMTP account per deployment, not
 /// one per service.
+///
+/// The message carries the company's letterhead: logo, name, address, phone, tax number. The logo
+/// is attached inline (cid:) rather than linked or embedded as a data: URI, because Gmail,
+/// Outlook and most webmail strip data: images and block remote ones until the reader opts in —
+/// so a data URI would reach the customer as an empty box.
 /// </summary>
 internal sealed class SmtpQuotationEmailSender(
     IConfiguration configuration,
     ILogger<SmtpQuotationEmailSender> logger) : IQuotationEmailSender
 {
+    private const string LogoContentId = "company-logo@vrodux";
+
     public async Task<bool> SendAsync(
         string toEmail, string? toName, string quotationNumber, string? title,
-        string companyName, string publicUrl, string? message, string? validUntil,
-        string formattedTotal, CancellationToken ct = default)
+        QuotationBrandingDto brand, bool showLogo, string? accentColor,
+        string publicUrl, string? message, string? validUntil,
+        string formattedTotal, string? footerNote, CancellationToken ct = default)
     {
+        var companyName = brand.CompanyName;
         var section  = configuration.GetSection("Email");
         var host     = section["SmtpHost"];
         var port     = int.TryParse(section["SmtpPort"], out var p) ? p : 587;
@@ -161,12 +173,25 @@ internal sealed class SmtpQuotationEmailSender(
             ? $"Quotation {quotationNumber} from {companyName}"
             : $"{title} — quotation {quotationNumber}";
 
+        var logo   = showLogo ? ResolveLogo(brand.LogoUrl) : null;
+        var accent = SafeColor(accentColor) ?? SafeColor(brand.AccentColor) ?? "#0f172a";
+
+        var body = new BodyBuilder
+        {
+            HtmlBody = BuildHtml(toName, quotationNumber, title, brand, logo, accent,
+                                 publicUrl, message, validUntil, formattedTotal, footerNote),
+        };
+        if (logo is { Bytes: not null })
+        {
+            var res = body.LinkedResources.Add("logo", logo.Bytes, ContentType.Parse(logo.MimeType));
+            res.ContentId = LogoContentId;
+        }
+
         var msg = new MimeMessage();
         msg.From.Add(new MailboxAddress(fromName, fromAddr));
         msg.To.Add(new MailboxAddress(toName ?? toEmail, toEmail));
         msg.Subject = subject;
-        msg.Body = new TextPart("html") { Text = BuildHtml(
-            toName, quotationNumber, title, companyName, publicUrl, message, validUntil, formattedTotal) };
+        msg.Body = body.ToMessageBody();
 
         try
         {
@@ -186,14 +211,52 @@ internal sealed class SmtpQuotationEmailSender(
         }
     }
 
+    // ── Logo ──────────────────────────────────────────────────────────────────
+    private sealed record LogoSource(byte[]? Bytes, string MimeType, string? RemoteUrl);
+
+    /// <summary>
+    /// The company logo is stored as a data: URI (there is no blob store). Raster formats are
+    /// attached inline; a plain https URL is linked as-is; SVG is skipped — mail clients do not
+    /// render it, and the company name in the header reads fine without it.
+    /// </summary>
+    private static LogoSource? ResolveLogo(string? logoUrl)
+    {
+        if (string.IsNullOrWhiteSpace(logoUrl)) return null;
+        var v = logoUrl.Trim();
+
+        if (v.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+        {
+            var comma = v.IndexOf(',');
+            if (comma < 0) return null;
+            var header = v[5..comma];                     // image/png;base64
+            var mime   = header.Split(';')[0].ToLowerInvariant();
+            if (!header.Contains("base64", StringComparison.OrdinalIgnoreCase)) return null;
+            if (mime is not ("image/png" or "image/jpeg" or "image/jpg" or "image/gif" or "image/webp")) return null;
+            try   { return new LogoSource(Convert.FromBase64String(v[(comma + 1)..]), mime == "image/jpg" ? "image/jpeg" : mime, null); }
+            catch { return null; }
+        }
+
+        return v.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            ? new LogoSource(null, string.Empty, v)
+            : null;
+    }
+
+    /// <summary>Only a plain hex colour is allowed through — it is written into inline CSS.</summary>
+    private static string? SafeColor(string? c) =>
+        !string.IsNullOrWhiteSpace(c)
+        && System.Text.RegularExpressions.Regex.IsMatch(c.Trim(), "^#[0-9a-fA-F]{3,8}$")
+            ? c.Trim() : null;
+
     private static string BuildHtml(
-        string? toName, string number, string? title, string company,
-        string url, string? message, string? validUntil, string total)
+        string? toName, string number, string? title, QuotationBrandingDto brand,
+        LogoSource? logo, string accent, string url, string? message,
+        string? validUntil, string total, string? footerNote)
     {
         static string Esc(string? s) => string.IsNullOrEmpty(s)
             ? string.Empty
             : s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
 
+        var company  = brand.CompanyName;
         var greeting = string.IsNullOrWhiteSpace(toName) ? "Hello," : $"Hello {Esc(toName)},";
         var heading  = string.IsNullOrWhiteSpace(title) ? $"Quotation {Esc(number)}" : Esc(title);
         var intro    = string.IsNullOrWhiteSpace(message)
@@ -203,11 +266,34 @@ internal sealed class SmtpQuotationEmailSender(
             ? string.Empty
             : $"<p style=\"margin:0 0 8px;color:#64748b;font-size:13px\">Valid until <strong>{Esc(validUntil)}</strong></p>";
 
+        var logoSrc = logo is null ? null
+            : logo.Bytes is not null ? $"cid:{LogoContentId}" : logo.RemoteUrl;
+        var logoHtml = logoSrc is null ? string.Empty
+            : $"<img src=\"{Esc(logoSrc)}\" alt=\"{Esc(company)}\" style=\"display:block;max-height:52px;max-width:200px;margin:0 0 12px;background:#ffffff;border-radius:6px;padding:6px\"/>";
+
+        // Letterhead lines under the card — what the customer needs to reach or identify the sender.
+        var contact = new List<string>();
+        if (!string.IsNullOrWhiteSpace(brand.LegalName) && brand.LegalName != company) contact.Add(Esc(brand.LegalName));
+        if (!string.IsNullOrWhiteSpace(brand.Address)) contact.Add(Esc(brand.Address).Replace("\n", ", "));
+        var reach = new List<string>();
+        if (!string.IsNullOrWhiteSpace(brand.Phone))   reach.Add(Esc(brand.Phone));
+        if (!string.IsNullOrWhiteSpace(brand.Email))   reach.Add(Esc(brand.Email));
+        if (!string.IsNullOrWhiteSpace(brand.Website)) reach.Add(Esc(brand.Website));
+        if (reach.Count > 0)   contact.Add(string.Join(" · ", reach));
+        if (!string.IsNullOrWhiteSpace(brand.TaxNumber)) contact.Add($"TRN: {Esc(brand.TaxNumber)}");
+
+        var letterhead = contact.Count == 0 ? string.Empty
+            : $"<div style=\"padding:16px 28px;border-top:1px solid #e2e8f0;background:#f8fafc;font-size:11.5px;line-height:1.6;color:#64748b\"><strong style=\"color:#334155\">{Esc(company)}</strong><br/>{string.Join("<br/>", contact)}</div>";
+
+        var footer = string.IsNullOrWhiteSpace(footerNote) ? string.Empty
+            : $"<p style=\"margin:18px 0 0;font-size:13px;color:#475569\">{Esc(footerNote).Replace("\n", "<br/>")}</p>";
+
         return $"""
             <div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#f8fafc;padding:32px">
               <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0">
-                <div style="background:#0f172a;color:#ffffff;padding:24px 28px">
-                  <p style="margin:0;font-size:13px;opacity:.75">{Esc(company)}</p>
+                <div style="background:{accent};color:#ffffff;padding:24px 28px">
+                  {logoHtml}
+                  <p style="margin:0;font-size:13px;opacity:.85">{Esc(company)}</p>
                   <h1 style="margin:6px 0 0;font-size:20px;font-weight:600">{heading}</h1>
                 </div>
                 <div style="padding:28px">
@@ -218,13 +304,15 @@ internal sealed class SmtpQuotationEmailSender(
                     <p style="margin:0 0 8px;font-size:24px;font-weight:700;color:#0f172a">{Esc(total)}</p>
                     {validity}
                   </div>
-                  <a href="{Esc(url)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px">View &amp; respond</a>
+                  <a href="{Esc(url)}" style="display:inline-block;background:{accent};color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px">View &amp; respond</a>
                   <p style="margin:22px 0 0;font-size:12px;color:#94a3b8;line-height:1.6">
-                    You can review the full quotation, accept or decline it online. If the button does not work,
+                    You can review the full quotation, download it, and accept or decline it online. If the button does not work,
                     paste this link into your browser:<br/>
                     <span style="color:#64748b;word-break:break-all">{Esc(url)}</span>
                   </p>
+                  {footer}
                 </div>
+                {letterhead}
               </div>
             </div>
             """;

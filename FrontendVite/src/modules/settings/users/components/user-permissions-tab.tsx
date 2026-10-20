@@ -212,6 +212,8 @@ export function UserPermissionsTab({ user }: { user: UserDto }) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-x-auto flex flex-col">
+      <div className="flex-1 min-h-0 min-w-[720px] flex flex-col">
       {/* Toolbar */}
       <div className="px-4 py-2.5 border-b border-border bg-muted/20 flex items-center gap-3 shrink-0">
         <div className="relative w-44 shrink-0">
@@ -273,6 +275,8 @@ export function UserPermissionsTab({ user }: { user: UserDto }) {
         )}
       </div>
 
+      </div>
+      </div>
       {/* Footer legend + actions */}
       <div className="px-4 py-3 border-t border-border bg-muted/10 shrink-0 space-y-3">
         <div className="flex items-center gap-4 text-[10px] text-muted-foreground flex-wrap">

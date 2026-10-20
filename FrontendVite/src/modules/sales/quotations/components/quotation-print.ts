@@ -44,7 +44,11 @@ export function buildHtml(q: Printable, branding?: QuotationBrandingDto | null):
   const cur    = q.currencyCode || getTenantCurrency();
   const money  = (n: number) => esc(formatCurrency(n, cur));
   const brand  = branding ?? ("branding" in q ? q.branding : undefined);
-  const accent = brand?.accentColor?.trim() || "#0f172a";
+  // The quotation's own accent (copied from its template) wins over the company's. Only a plain
+  // hex colour is allowed through — it is written straight into the stylesheet.
+  const hex    = (c?: string | null) => (c && /^#[0-9a-fA-F]{3,8}$/.test(c.trim()) ? c.trim() : null);
+  const accent = hex(q.accentColor) ?? hex(brand?.accentColor) ?? "#0f172a";
+  const showLogo = q.showLogo !== false;
 
   const billable = q.items.filter(i => !i.isOptional);
   const optional = q.items.filter(i => i.isOptional);
@@ -126,6 +130,11 @@ export function buildHtml(q: Printable, branding?: QuotationBrandingDto | null):
   .terms { margin-top: 26px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
   .terms h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #64748b; margin: 0 0 6px; }
   .terms p { margin: 0 0 12px; line-height: 1.65; color: #334155; font-size: 11.5px; white-space: pre-line; }
+  .sign { display: flex; gap: 48px; align-items: flex-end; margin-top: 30px; page-break-inside: avoid; }
+  .sig { max-height: 56px; max-width: 180px; object-fit: contain; display: block; }
+  .stamp { max-height: 84px; max-width: 120px; object-fit: contain; display: block; }
+  .sig-label { margin-top: 4px; padding-top: 4px; border-top: 1px solid #cbd5e1; font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; }
+  .footnote { margin-top: 22px; text-align: center; color: #475569; font-size: 12px; line-height: 1.6; }
   .foot { margin-top: 28px; padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; color: #94a3b8; font-size: 10.5px; }
   @media print {
     body { padding: 18px; }
@@ -136,7 +145,7 @@ export function buildHtml(q: Printable, branding?: QuotationBrandingDto | null):
 
   <div class="head">
     <div>
-      ${brand?.logoUrl ? `<img class="logo" src="${esc(brand.logoUrl)}" alt=""/>` : ""}
+      ${showLogo && brand?.logoUrl ? `<img class="logo" src="${esc(brand.logoUrl)}" alt=""/>` : ""}
       <div class="company">${esc(brand?.companyName ?? "")}</div>
       <div class="muted">
         ${brand?.legalName ? `${esc(brand.legalName)}<br/>` : ""}
@@ -215,6 +224,14 @@ export function buildHtml(q: Printable, branding?: QuotationBrandingDto | null):
       ${q.paymentTerms ? `<h3>Payment terms</h3><p>${multiline(q.paymentTerms)}</p>` : ""}
       ${q.termsAndConditions ? `<h3>Terms &amp; conditions</h3><p>${multiline(q.termsAndConditions)}</p>` : ""}
     </div>` : ""}
+
+  ${(brand?.signatureUrl || brand?.stampUrl) ? `
+    <div class="sign">
+      ${brand?.signatureUrl ? `<div><img class="sig" src="${esc(brand.signatureUrl)}" alt=""/><div class="sig-label">Authorised signature</div></div>` : ""}
+      ${brand?.stampUrl ? `<div><img class="stamp" src="${esc(brand.stampUrl)}" alt=""/><div class="sig-label">Company stamp</div></div>` : ""}
+    </div>` : ""}
+
+  ${q.footerNote ? `<div class="footnote">${multiline(q.footerNote)}</div>` : ""}
 
   <div class="foot">
     <span>${esc(q.quotationNumber)}${q.title ? ` · ${esc(q.title)}` : ""}</span>

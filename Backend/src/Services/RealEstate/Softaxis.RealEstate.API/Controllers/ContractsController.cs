@@ -24,6 +24,18 @@ public sealed class ContractsController(ISender sender) : RealEstateControllerBa
         string StartDate, string EndDate, decimal AnnualRent, decimal SecurityDeposit,
         string PaymentFrequency, string? EjariNumber, string? Notes, bool RegenerateSchedule = false);
 
+    public sealed record RenewContractRequest(
+        string StartDate, string EndDate, decimal AnnualRent, decimal SecurityDeposit,
+        string PaymentFrequency, string? EjariNumber, string? Notes,
+        decimal AdvanceRentAmount = 0, string? AdvancePaidDate = null,
+        string? AdvanceMethod = null, string? AdvanceReference = null);
+
+    public sealed record TerminateContractRequest(
+        string TerminationDate, string? NoticeDate, string Reason, string? ReasonNotes,
+        decimal PenaltyAmount = 0, decimal DeductionsAmount = 0, string? DeductionNotes = null);
+
+    public sealed record SettleTerminationRequest(string SettledOn, string? Method, string? Reference, string? Notes);
+
     public sealed record StatusRequest(string Status);
     public sealed record GenerateScheduleRequest(bool ReplaceExisting = false);
     public sealed record RecordPaymentRequest(decimal Amount, string PaidDate, string? Method, string? Reference, string? Notes);
@@ -85,6 +97,47 @@ public sealed class ContractsController(ISender sender) : RealEstateControllerBa
     [RequirePermission("real-estate.contracts.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new DeleteContractCommand(id), ct));
+
+    // ── Renewal ──────────────────────────────────────────────────────────────
+
+    // A renewal creates a lease, so it needs the same permission as creating one.
+    [HttpPost("{id:guid}/renew")]
+    [RequirePermission("real-estate.contracts.create")]
+    public async Task<IActionResult> Renew(Guid id, [FromBody] RenewContractRequest req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new RenewContractCommand(
+            id, req.StartDate, req.EndDate, req.AnnualRent, req.SecurityDeposit, req.PaymentFrequency,
+            req.EjariNumber, req.Notes,
+            req.AdvanceRentAmount, req.AdvancePaidDate, req.AdvanceMethod, req.AdvanceReference), ct));
+
+    // ── Termination ──────────────────────────────────────────────────────────
+
+    /// <summary>What ending the lease on this date would come to. Changes nothing.</summary>
+    [HttpGet("{id:guid}/termination-preview")]
+    [RequirePermission("real-estate.contracts.view")]
+    public async Task<IActionResult> TerminationPreview(
+        Guid id, [FromQuery] string date, [FromQuery] decimal penalty = 0, [FromQuery] decimal deductions = 0,
+        CancellationToken ct = default) =>
+        OkOrError(await sender.Send(new GetTerminationPreviewQuery(id, date, penalty, deductions), ct));
+
+    [HttpPost("{id:guid}/terminate")]
+    [RequirePermission("real-estate.contracts.edit")]
+    public async Task<IActionResult> Terminate(Guid id, [FromBody] TerminateContractRequest req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new TerminateContractCommand(
+            id, req.TerminationDate, req.NoticeDate, req.Reason, req.ReasonNotes,
+            req.PenaltyAmount, req.DeductionsAmount, req.DeductionNotes), ct));
+
+    /// <summary>Withdraws a notice that has not taken effect yet.</summary>
+    [HttpDelete("{id:guid}/termination")]
+    [RequirePermission("real-estate.contracts.edit")]
+    public async Task<IActionResult> WithdrawTermination(Guid id, CancellationToken ct) =>
+        NoContentOrError(await sender.Send(new WithdrawTerminationCommand(id), ct));
+
+    // Money changing hands, so it sits with the rent permission rather than lease editing.
+    [HttpPost("{id:guid}/termination/settle")]
+    [RequirePermission("real-estate.rent.record")]
+    public async Task<IActionResult> SettleTermination(Guid id, [FromBody] SettleTerminationRequest req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new SettleTerminationCommand(
+            id, req.SettledOn, req.Method, req.Reference, req.Notes), ct));
 
     // ── Rent schedule ────────────────────────────────────────────────────────
 

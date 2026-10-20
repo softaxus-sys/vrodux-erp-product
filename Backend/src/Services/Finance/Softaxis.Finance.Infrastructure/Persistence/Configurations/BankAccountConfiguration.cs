@@ -46,5 +46,11 @@ internal sealed class BankTransactionConfiguration : IEntityTypeConfiguration<Ba
         builder.Property(x => x.Type).IsRequired().HasMaxLength(10);
         builder.Property(x => x.Category).IsRequired().HasMaxLength(50);
         builder.Property(x => x.Reconciled).HasDefaultValue(false);
+        builder.Property(x => x.MatchedEntryNumber).HasMaxLength(50);
+        builder.Property(x => x.MatchedByName).HasMaxLength(200);
+
+        // A ledger line can back at most one statement line; a journal line id is globally unique,
+        // so no tenant column is needed in the index.
+        builder.HasIndex(x => x.MatchedJournalLineId).IsUnique().HasFilter("[MatchedJournalLineId] IS NOT NULL");
     }
 }

@@ -16,6 +16,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
     public DbSet<PropertyImage> PropertyImages => Set<PropertyImage>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<LeaseContract> LeaseContracts => Set<LeaseContract>();
+    public DbSet<LeaseTermination> LeaseTerminations => Set<LeaseTermination>();
     public DbSet<Broker> Brokers => Set<Broker>();
     public DbSet<SiteVisit> SiteVisits => Set<SiteVisit>();
     public DbSet<Reservation> Reservations => Set<Reservation>();

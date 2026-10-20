@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Softaxis.RealEstate.Application.Abstractions;
 using Softaxis.RealEstate.Application.Properties.Dtos;
 using Softaxis.RealEstate.Domain.Entities;
 using Softaxis.RealEstate.Infrastructure.Persistence;
+using Softaxis.RealEstate.Infrastructure.Services;
 
 namespace Softaxis.RealEstate.Infrastructure.Handlers.Properties;
 
@@ -14,7 +16,7 @@ internal static class PropertyMappings
     /// image BYTES — several megabytes per photo, for every property on the page. The bytes are
     /// served one at a time from their own endpoint instead, so nothing here ever touches them.
     /// </summary>
-    public static PropertyDto ToDto(Property p, IReadOnlyList<PropertyImageDto>? images = null)
+    public static PropertyDto ToDto(Property p, ICurrentUser user, IReadOnlyList<PropertyImageDto>? images = null)
     {
         var gallery = images ?? [];
         return new PropertyDto(
@@ -22,7 +24,7 @@ internal static class PropertyMappings
             new PropertyLocationDto(p.Address, p.City, p.Emirate),
             p.TotalArea, p.TotalUnits, p.OccupiedUnits, p.MarketValue, p.Developer, p.Description,
             p.TotalUnits > 0 ? Math.Round((double)p.OccupiedUnits / p.TotalUnits * 100, 1) : 0,
-            p.Units.Where(u => !u.IsDeleted).Select(ToDto).ToList(),
+            p.Units.Where(u => !u.IsDeleted).Select(u => ToDto(u, user)).ToList(),
             p.ListOnWebsite,
             p.PublishedAt,
             gallery,
@@ -35,10 +37,22 @@ internal static class PropertyMappings
     public static PropertyImageDto ToDto(PropertyImage i) => new(
         i.Id, i.ContentType, i.FileName, i.Caption, i.SortOrder, i.IsPrimary);
 
-    public static PropertyUnitDto ToDto(PropertyUnit u) => new(
-        u.Id, u.UnitNumber, u.UnitType, u.Area, u.Floor, u.RentPerYear, u.SalePrice, u.Status,
-        u.CurrentTenantId, u.CurrentTenantName,
-        u.Purpose, u.BedsLabel, u.PriceLabel, u.OwnerName, u.AgentName);
+    /// <summary>
+    /// Owner name is masked exactly like <c>UnitMappings</c> masks the same column on the same
+    /// entity via <c>/api/real-estate/units</c> -- this embedded-in-a-property read was found doing
+    /// the same unconditional leak (every building's unit owner name, to anyone holding plain
+    /// <c>real-estate.properties.view</c>, regardless of <see cref="PropertyUnit.RestrictConfidentialDetails"/>
+    /// or the assigned agent). <see cref="ListingConfidentiality.CanView"/> stays the one place this
+    /// is decided.
+    /// </summary>
+    public static PropertyUnitDto ToDto(PropertyUnit u, ICurrentUser user)
+    {
+        var canView = ListingConfidentiality.CanView(user, u.AgentUserId, u.RestrictConfidentialDetails);
+        return new(
+            u.Id, u.UnitNumber, u.UnitType, u.Area, u.Floor, u.RentPerYear, u.SalePrice, u.Status,
+            u.CurrentTenantId, u.CurrentTenantName,
+            u.Purpose, u.BedsLabel, u.PriceLabel, canView ? u.OwnerName : null, u.AgentName);
+    }
 
     /// <summary>
     /// Loads gallery metadata for many properties in ONE query, keyed by property.

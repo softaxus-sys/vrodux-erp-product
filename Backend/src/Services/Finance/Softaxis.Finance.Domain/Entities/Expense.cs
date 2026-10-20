@@ -50,6 +50,9 @@ public sealed class Expense
     public bool      IsDeleted     { get; private set; }
     public Guid?     JournalEntryId { get; private set; }
 
+    /// <summary>The recurring template that generated this expense; null for one entered by hand.</summary>
+    public Guid?     RecurringExpenseId { get; private set; }
+
     // Receipt attachment (stored in-DB; null when no receipt uploaded).
     public byte[]?   ReceiptData        { get; private set; }
     public string?   ReceiptFileName    { get; private set; }
@@ -76,6 +79,29 @@ public sealed class Expense
         ApprovedById = approverId;
         ApprovedAt   = DateTime.UtcNow;
         UpdatedAt    = DateTime.UtcNow;
+    }
+
+    /// <summary>Approval by an auto-post recurring template rather than a person, so there is no
+    /// approver to record. <see cref="RecurringExpenseId"/> says which template stood in for one.</summary>
+    public void ApproveAutomatically()
+    {
+        Status     = "approved";
+        ApprovedAt = DateTime.UtcNow;
+        UpdatedAt  = DateTime.UtcNow;
+    }
+
+    public void SetRecurringExpenseId(Guid? recurringExpenseId) => RecurringExpenseId = recurringExpenseId;
+
+    /// <summary>Explicit ledger accounts for this expense: the one debited (the cost) and the one
+    /// credited (where the money came from). Null means "work it out" — from the category and the
+    /// payment method respectively.</summary>
+    public Guid? ExpenseAccountId { get; private set; }
+    public Guid? PaymentAccountId { get; private set; }
+
+    public void SetPostingAccounts(Guid? expenseAccountId, Guid? paymentAccountId)
+    {
+        ExpenseAccountId = expenseAccountId;
+        PaymentAccountId = paymentAccountId;
     }
 
     public void Reject(Guid approverId)

@@ -120,14 +120,47 @@ internal static class GlPoster
     }
 
     /// <summary>
-    /// Returns the AED-per-unit rate for <paramref name="currencyCode"/> as of <paramref name="date"/>
-    /// (the most recent rate on or before that date, falling back to the most recent rate overall).
-    /// Returns 1 for AED or when no rate has been recorded for the currency.
+    /// Returns how many units of the WORKSPACE'S OWN currency one unit of
+    /// <paramref name="currencyCode"/> is worth as of <paramref name="date"/> — the multiplier that
+    /// turns a document amount into a ledger amount.
+    ///
+    /// <para>The ledger is kept in the workspace's operating currency, because that is the currency
+    /// every report labels its figures with. This used to return the stored exchange rate as-is,
+    /// which is quoted against the platform's base currency (USD) — so a PKR workspace booking a
+    /// 1,000 PKR expense posted 3.61 to the ledger and then saw it reported as "PKR 4".</para>
+    ///
+    /// <para>Returns 1 when the document is already in the workspace currency, or when either rate
+    /// is missing (posting the amount unconverted beats refusing to post).</para>
     /// </summary>
     public static async Task<decimal> GetRateAsync(FinanceDbContext db, string currencyCode, string date, CancellationToken ct)
     {
-        var code = currencyCode.Trim().ToUpperInvariant();
-        if (code == "AED")
+        var code       = currencyCode.Trim().ToUpperInvariant();
+        var functional = TenantCurrency.Resolve().Trim().ToUpperInvariant();
+        if (code == functional)
+            return 1m;
+
+        var baseCode = (await db.Currencies.AsNoTracking()
+            .Where(c => c.IsBaseCurrency)
+            .Select(c => c.Code)
+            .FirstOrDefaultAsync(ct))?.Trim().ToUpperInvariant() ?? "USD";
+
+        var documentRate   = await BasePerUnitAsync(db, code, baseCode, date, ct);
+        var functionalRate = await BasePerUnitAsync(db, functional, baseCode, date, ct);
+
+        if (documentRate is null || functionalRate is null || functionalRate.Value == 0m)
+            return 1m;
+
+        return documentRate.Value / functionalRate.Value;
+    }
+
+    /// <summary>
+    /// Base-currency units per one unit of <paramref name="code"/> — the most recent stored rate on
+    /// or before <paramref name="date"/>, else the most recent overall. Null when none is recorded.
+    /// </summary>
+    private static async Task<decimal?> BasePerUnitAsync(
+        FinanceDbContext db, string code, string baseCode, string date, CancellationToken ct)
+    {
+        if (code == baseCode)
             return 1m;
 
         var rates = await db.ExchangeRates.AsNoTracking()
@@ -135,7 +168,7 @@ internal static class GlPoster
             .ToListAsync(ct);
 
         if (rates.Count == 0)
-            return 1m;
+            return null;
 
         var onOrBefore = rates.Where(r => string.CompareOrdinal(r.RateDate, date) <= 0)
             .OrderByDescending(r => r.RateDate).FirstOrDefault();

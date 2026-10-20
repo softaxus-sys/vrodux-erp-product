@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.Identity.Application.TenantSettings.Commands;
+using Softaxis.Identity.Application.TenantSettings.Queries;
 
 namespace Softaxis.Identity.API.Controllers;
 
@@ -19,6 +20,12 @@ public sealed class TenantSettingsController(ISender sender) : BaseApiController
     [HttpPut("currency")]
     public async Task<IActionResult> UpdateCurrency([FromBody] UpdateCurrencyRequest req, CancellationToken ct)
         => HandleResult(await Sender.Send(new UpdateTenantCurrencyCommand(req.Currency), ct));
+
+    /// <summary>This tenant's own object-storage usage against their plan's budget — drives the
+    /// "approaching your storage limit" banner.</summary>
+    [HttpGet("storage")]
+    public async Task<IActionResult> GetStorageUsage(CancellationToken ct)
+        => HandleResult(await Sender.Send(new GetTenantStorageUsageQuery(), ct));
 
     public sealed record UpdateCurrencyRequest(string Currency);
 }

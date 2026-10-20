@@ -179,3 +179,69 @@
 @media print {
   .no-print { display: none !important; }
 }
+
+/* ── Mobile / tablet foundations ──────────────────────────────────────────────
+   Phones and tablets (< lg, same breakpoint as the drawer shell in
+   layouts/mobile-layout.tsx). Most list views wrap their <table> in an
+   `overflow-hidden` card, which CLIPS extra columns instead of scrolling them;
+   making the table itself the scroll container fixes every one of them at once. */
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { overflow-x: hidden; overscroll-behavior-y: none; }
+  img, video, svg { max-width: 100%; }
+}
+
+@media (max-width: 1023px) {
+  main table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  main table th, main table td { white-space: nowrap; }
+  /* Long free text should still wrap rather than force a very wide column. */
+  main table td.wrap, main table td[data-wrap] { white-space: normal; min-width: 14rem; }
+}
+
+@media (max-width: 767px) {
+  /* iOS zooms the page when a focused field's font is under 16px. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select, textarea { font-size: 16px !important; }
+  /* Comfortable touch targets for the app's small icon / ghost buttons. */
+  button, [role="button"], select { touch-action: manipulation; }
+}
+
+/* Notched phones: keep fixed bars clear of the home indicator / cutouts. */
+.safe-bottom { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+.safe-top    { padding-top: env(safe-area-inset-top); }
+
+@media (max-width: 639px) {
+  /* Stat / summary grids written for desktop (3–6 unprefixed columns) would give 80px tiles. */
+  main:not([data-pos]) .grid[class~="grid-cols-3"],
+  main:not([data-pos]) .grid[class~="grid-cols-4"],
+  main:not([data-pos]) .grid[class~="grid-cols-5"],
+  main:not([data-pos]) .grid[class~="grid-cols-6"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* Page headers and toolbars: let button groups drop to the next line instead of overflowing. */
+  main:not([data-pos]) .flex.items-center.justify-between:not(.flex-nowrap),
+  main:not([data-pos]) .sm\:flex-row > .flex.items-center:not(.flex-nowrap) {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+  /* Fixed-width search boxes etc. inside a wrapping toolbar should be able to fill the line. */
+  main:not([data-pos]) .flex-wrap > .relative[class*="w-5"],
+  main:not([data-pos]) .flex-wrap > .relative[class*="w-6"],
+  main:not([data-pos]) .flex-wrap > .relative[class*="w-7"] { width: 100%; }
+}
+
+@media (max-width: 767px) {
+  /* Centered modals: a panel taller than the screen would be cut off top and bottom with no way
+     to reach the buttons. Cap it to the visible height and let it scroll inside. */
+  .fixed.inset-0.flex.items-center > [class*="max-w-"],
+  .fixed.inset-0.flex.items-center > .relative[class*="w-full"] {
+    max-height: calc(100dvh - 1.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}

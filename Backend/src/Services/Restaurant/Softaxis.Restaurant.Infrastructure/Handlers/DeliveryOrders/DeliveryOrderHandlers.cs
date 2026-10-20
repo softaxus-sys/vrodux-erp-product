@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.Restaurant.Application.Abstractions;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Restaurant.Application.Delivery.Abstractions;
 using Softaxis.Restaurant.Application.DeliveryOrders.Commands;
@@ -49,11 +50,15 @@ internal sealed class CreateDeliveryOrderHandler(RestaurantDbContext db, IDelive
     }
 }
 
-internal sealed class AssignDriverToDeliveryHandler(RestaurantDbContext db)
+internal sealed class AssignDriverToDeliveryHandler(RestaurantDbContext db, ICurrentUser currentUser)
     : ICommandHandler<AssignDriverToDeliveryCommand, DeliveryOrderDto>
 {
     public async Task<Result<DeliveryOrderDto>> Handle(AssignDriverToDeliveryCommand cmd, CancellationToken ct)
     {
+        // A rider holds delivery.edit to move their own run along — not to hand runs around.
+        if (!DeliveryScope.IsDispatcher(currentUser))
+            return Result.Failure<DeliveryOrderDto>(Error.Custom("Delivery.Conflict", "Only a dispatcher can assign a driver."));
+
         var delivery = await db.DeliveryOrders.FirstOrDefaultAsync(x => x.Id == cmd.DeliveryOrderId && !x.IsDeleted, ct);
         if (delivery is null) return Result.Failure<DeliveryOrderDto>(Error.NotFoundById("DeliveryOrder", cmd.DeliveryOrderId));
 
@@ -67,13 +72,15 @@ internal sealed class AssignDriverToDeliveryHandler(RestaurantDbContext db)
     }
 }
 
-internal sealed class ChangeDeliveryStatusHandler(RestaurantDbContext db)
+internal sealed class ChangeDeliveryStatusHandler(RestaurantDbContext db, ICurrentUser currentUser)
     : ICommandHandler<ChangeDeliveryStatusCommand, DeliveryOrderDto>
 {
     public async Task<Result<DeliveryOrderDto>> Handle(ChangeDeliveryStatusCommand cmd, CancellationToken ct)
     {
         var delivery = await db.DeliveryOrders.FirstOrDefaultAsync(x => x.Id == cmd.DeliveryOrderId && !x.IsDeleted, ct);
         if (delivery is null) return Result.Failure<DeliveryOrderDto>(Error.NotFoundById("DeliveryOrder", cmd.DeliveryOrderId));
+        if (!await DeliveryScope.CanSeeAsync(db, currentUser, delivery, ct))
+            return Result.Failure<DeliveryOrderDto>(Error.NotFoundById("DeliveryOrder", cmd.DeliveryOrderId));
 
         if (!delivery.ChangeStatus(cmd.Status))
             return Result.Failure<DeliveryOrderDto>(Error.Custom("Delivery.InvalidTransition",
@@ -84,7 +91,7 @@ internal sealed class ChangeDeliveryStatusHandler(RestaurantDbContext db)
     }
 }
 
-internal sealed class GetDeliveryOrdersHandler(RestaurantDbContext db)
+internal sealed class GetDeliveryOrdersHandler(RestaurantDbContext db, ICurrentUser currentUser)
     : IQueryHandler<GetDeliveryOrdersQuery, IReadOnlyList<DeliveryOrderDto>>
 {
     public async Task<Result<IReadOnlyList<DeliveryOrderDto>>> Handle(GetDeliveryOrdersQuery query, CancellationToken ct)
@@ -92,28 +99,35 @@ internal sealed class GetDeliveryOrdersHandler(RestaurantDbContext db)
         var q = db.DeliveryOrders.AsNoTracking().Where(x => !x.IsDeleted);
         if (!string.IsNullOrEmpty(query.Status)) q = q.Where(x => x.Status == query.Status);
 
+        var mine = await DeliveryScope.RiderDriverIdsAsync(db, currentUser, ct);
+        if (mine is not null) q = q.Where(x => x.DriverId != null && mine.Contains(x.DriverId.Value));
+
         var deliveries = await q.OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
         var dtos = await DeliveryOrderMappings.ToDtosAsync(db, deliveries, ct);
         return Result.Success<IReadOnlyList<DeliveryOrderDto>>(dtos);
     }
 }
 
-internal sealed class GetDeliveryOrderByIdHandler(RestaurantDbContext db)
+internal sealed class GetDeliveryOrderByIdHandler(RestaurantDbContext db, ICurrentUser currentUser)
     : IQueryHandler<GetDeliveryOrderByIdQuery, DeliveryOrderDto>
 {
     public async Task<Result<DeliveryOrderDto>> Handle(GetDeliveryOrderByIdQuery query, CancellationToken ct)
     {
         var delivery = await db.DeliveryOrders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == query.Id && !x.IsDeleted, ct);
-        if (delivery is null) return Result.Failure<DeliveryOrderDto>(Error.NotFoundById("DeliveryOrder", query.Id));
+        if (delivery is null || !await DeliveryScope.CanSeeAsync(db, currentUser, delivery, ct))
+            return Result.Failure<DeliveryOrderDto>(Error.NotFoundById("DeliveryOrder", query.Id));
         return await DeliveryOrderMappings.ToDtoWithLookupsAsync(db, delivery, ct);
     }
 }
 
-internal sealed class GetDeliverySummaryHandler(RestaurantDbContext db) : IQueryHandler<GetDeliverySummaryQuery, DeliverySummaryDto>
+internal sealed class GetDeliverySummaryHandler(RestaurantDbContext db, ICurrentUser currentUser) : IQueryHandler<GetDeliverySummaryQuery, DeliverySummaryDto>
 {
     public async Task<Result<DeliverySummaryDto>> Handle(GetDeliverySummaryQuery query, CancellationToken ct)
     {
-        var all = await db.DeliveryOrders.AsNoTracking().Where(x => !x.IsDeleted).Select(x => x.Status).ToListAsync(ct);
+        var q = db.DeliveryOrders.AsNoTracking().Where(x => !x.IsDeleted);
+        var mine = await DeliveryScope.RiderDriverIdsAsync(db, currentUser, ct);
+        if (mine is not null) q = q.Where(x => x.DriverId != null && mine.Contains(x.DriverId.Value));
+        var all = await q.Select(x => x.Status).ToListAsync(ct);
         return Result.Success(new DeliverySummaryDto(
             all.Count,
             all.Count(s => s == "assigned"),
@@ -154,16 +168,49 @@ internal sealed class GetDeliveryTrackingHandler(RestaurantDbContext db)
     }
 }
 
+/// <summary>
+/// Who sees which deliveries. A dispatcher (anyone who can create a delivery) sees them all; a
+/// rider — delivery view/edit only — sees the runs assigned to the driver record linked to their
+/// own login, and nothing else. A rider whose login is not linked to a driver sees none.
+/// </summary>
+internal static class DeliveryScope
+{
+    public static bool IsDispatcher(ICurrentUser user) =>
+        user.IsSuperAdmin || user.HasPermission("restaurant.delivery.create");
+
+    /// <summary>Null = unrestricted. Otherwise the driver ids this user rides as (possibly empty).</summary>
+    public static async Task<List<Guid>?> RiderDriverIdsAsync(RestaurantDbContext db, ICurrentUser user, CancellationToken ct)
+    {
+        if (IsDispatcher(user)) return null;
+        if (user.Id is not { } userId) return [];
+        return await db.Drivers.AsNoTracking()
+            .Where(d => d.LinkedUserId == userId && !d.IsDeleted)
+            .Select(d => d.Id).ToListAsync(ct);
+    }
+
+    public static async Task<bool> CanSeeAsync(RestaurantDbContext db, ICurrentUser user, DeliveryOrder delivery, CancellationToken ct)
+    {
+        var mine = await RiderDriverIdsAsync(db, user, ct);
+        return mine is null || (delivery.DriverId is { } driverId && mine.Contains(driverId));
+    }
+}
+
 internal static class DeliveryOrderMappings
 {
     public static DeliveryOrderDto ToDto(DeliveryOrder d, Order order, string? zoneName, string? driverName) => new(
         d.Id, d.OrderId, order.OrderNumber, order.Total, d.DeliveryZoneId, zoneName, d.DriverId, driverName,
         d.Status, d.Address, d.Phone, d.EstimatedDeliveryAt, d.DeliveredAt, d.DeliveryFee,
-        d.ThirdPartyProvider, d.ThirdPartyOrderRef, d.TrackingToken, d.CreatedAt);
+        d.ThirdPartyProvider, d.ThirdPartyOrderRef, d.TrackingToken, d.CreatedAt,
+        // A delivery order has no table or waiter, so the till records the guest in that field.
+        CustomerName: order.OrderType == "delivery" ? order.Waiter : null,
+        OrderNotes: order.Notes,
+        AmountToCollect: order.Outstanding,
+        Items: order.Items.Where(i => !i.IsDeleted)
+            .Select(i => new DeliveryItemDto(i.ItemName, i.Quantity, i.Modifiers)).ToList());
 
     public static async Task<Result<DeliveryOrderDto>> ToDtoWithLookupsAsync(RestaurantDbContext db, DeliveryOrder d, CancellationToken ct)
     {
-        var order = await db.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == d.OrderId, ct);
+        var order = await db.Orders.AsNoTracking().Include(o => o.Items).FirstOrDefaultAsync(x => x.Id == d.OrderId, ct);
         if (order is null) return Result.Failure<DeliveryOrderDto>(Error.NotFoundById("Order", d.OrderId));
 
         var zoneName = d.DeliveryZoneId.HasValue
@@ -179,7 +226,7 @@ internal static class DeliveryOrderMappings
     public static async Task<List<DeliveryOrderDto>> ToDtosAsync(RestaurantDbContext db, List<DeliveryOrder> deliveries, CancellationToken ct)
     {
         var orderIds = deliveries.Select(d => d.OrderId).ToList();
-        var orders = await db.Orders.AsNoTracking().Where(o => orderIds.Contains(o.Id)).ToDictionaryAsync(o => o.Id, ct);
+        var orders = await db.Orders.AsNoTracking().Include(o => o.Items).Where(o => orderIds.Contains(o.Id)).ToDictionaryAsync(o => o.Id, ct);
 
         var zoneIds = deliveries.Where(d => d.DeliveryZoneId.HasValue).Select(d => d.DeliveryZoneId!.Value).Distinct().ToList();
         var zones = await db.DeliveryZones.AsNoTracking().Where(z => zoneIds.Contains(z.Id)).ToDictionaryAsync(z => z.Id, z => z.Name, ct);

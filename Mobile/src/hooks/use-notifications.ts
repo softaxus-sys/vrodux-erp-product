@@ -9,7 +9,7 @@ const QK = "notifications" as const;
 export function useMyNotifications(refetchInterval: number | false = 60_000) {
   return useQuery({
     queryKey: [QK, "mine"],
-    queryFn: () => notificationsApi.getMine(50),
+    queryFn: () => notificationsApi.getMine({ take: 50 }),
     refetchInterval,
   });
 }
@@ -26,6 +26,14 @@ export function useMarkAllNotificationsRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => notificationsApi.markAllRead(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [QK, "mine"] }),
+  });
+}
+
+export function useDismissNotification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => notificationsApi.dismiss(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: [QK, "mine"] }),
   });
 }

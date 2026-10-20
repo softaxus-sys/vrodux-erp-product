@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Notifications;
 using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Sales.Application.Abstractions;
@@ -89,7 +90,8 @@ internal sealed class SendQuotationHandler(
         try
         {
             sent = await email.SendAsync(to!, q.CustomerName, q.QuotationNumber, q.Title,
-                                         brand.CompanyName, url, cmd.Message, q.ValidUntil, total, ct);
+                                         brand, q.ShowLogo, q.AccentColor,
+                                         url, cmd.Message, q.ValidUntil, total, q.FooterNote, ct);
         }
         catch
         {
@@ -134,7 +136,8 @@ internal sealed class ViewPublicQuotationHandler(SalesDbContext db, IQuotationBr
 }
 
 // ── Public: accept / decline ──────────────────────────────────────────────────
-internal sealed class RespondToPublicQuotationHandler(SalesDbContext db, IQuotationBrandingProvider branding)
+internal sealed class RespondToPublicQuotationHandler(
+    SalesDbContext db, IQuotationBrandingProvider branding, INotificationDispatcher notifications)
     : ICommandHandler<RespondToPublicQuotationCommand, PublicQuotationDto>
 {
     public async Task<Result<PublicQuotationDto>> Handle(
@@ -155,8 +158,42 @@ internal sealed class RespondToPublicQuotationHandler(SalesDbContext db, IQuotat
         await db.SaveChangesAsync(ct);
 
         var tenantId = PublicQuotationLookup.TenantIdOf(db, q);
+
+        // Tell whoever raised it. The customer is anonymous, so there is no request user — the
+        // people to notify were captured on the quotation when it was created. The dispatcher
+        // never throws: a failed alert must not turn the customer's answer into an error.
+        await NotifyAsync(q, tenantId, ct);
+
         var brand    = await branding.GetAsync(tenantId, ct);
         return Result.Success(QuotationMappings.ToPublicDto(q, brand));
+    }
+
+    private async Task NotifyAsync(SalesQuotation q, Guid? tenantId, CancellationToken ct)
+    {
+        var recipients = new[] { q.CreatedByUserId, q.LeadOwnerUserId }
+            .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+        if (recipients.Count == 0) return;
+
+        var accepted = q.Status == SalesQuotation.StatusApproved;
+        var who      = string.IsNullOrWhiteSpace(q.RespondedByName) ? (q.CustomerName ?? "The customer") : q.RespondedByName;
+
+        // A quotation raised from a CRM lead opens that lead; otherwise the Sales list.
+        var fromLead = q.LeadId.HasValue;
+
+        foreach (var userId in recipients)
+            await notifications.PublishAsync(new NotificationRequest(
+                RecipientUserId: userId,
+                Module:          fromLead ? NotificationModules.Crm : NotificationModules.Sales,
+                Event:           accepted ? NotificationEvents.QuotationAccepted : NotificationEvents.QuotationDeclined,
+                Title:           accepted ? $"Quotation {q.QuotationNumber} accepted" : $"Quotation {q.QuotationNumber} declined",
+                Message:         accepted
+                                     ? $"{who} accepted the quotation for {MoneyFormat.Format(q.Total, q.CurrencyCode)}."
+                                     : $"{who} declined the quotation.",
+                Link:            fromLead ? $"/crm/leads?lead={q.LeadId}" : "/sales/quotations",
+                Type:            accepted ? "success" : "info",
+                RelatedToType:   "quotation",
+                RelatedToId:     q.Id,
+                TenantId:        tenantId), ct);
     }
 }
 

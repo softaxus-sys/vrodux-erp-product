@@ -68,7 +68,8 @@
     "issue": {
       "linkCustomer": "Link a customer first",
       "walletOnly": "Only {{amount}} in wallet",
-      "creditOnly": "Only {{amount}} available"
+      "creditOnly": "Only {{amount}} available",
+      "creditHold": "Credit stopped"
     },
     "customer": {
       "none": "No customer linked",
@@ -145,7 +146,33 @@
       "vehicle": "Vehicle (optional)",
       "vehiclePlaceholder": "Motorbike — ABC 123",
       "active": "Active",
-      "save": "Save Driver"
+      "save": "Save Driver",
+      "login": "Login account (optional)",
+      "noLogin": "Not linked to a login",
+      "loginHint": "Link the rider's own login so they see the deliveries assigned to this driver. Lists users with the Delivery Rider role."
+    },
+    "rider": {
+      "title": "My Deliveries",
+      "subtitle": "The orders assigned to you.",
+      "toDeliver": "To deliver",
+      "finished": "Finished",
+      "none": "No deliveries assigned to you right now.",
+      "noneHint": "If you were expecting one, ask your manager to assign it to you and to link your login to your driver profile.",
+      "noneFinished": "Nothing finished yet.",
+      "dueBy": "Due by {{time}}",
+      "navigate": "Navigate",
+      "collect": "Collect from customer",
+      "paid": "Already paid",
+      "fail": "Could not deliver",
+      "failConfirm": "Mark this delivery as failed? This cannot be undone.",
+      "keep": "Keep it",
+      "failYes": "Yes, it failed",
+      "action": {
+        "picked_up": "Picked up",
+        "enroute": "On my way",
+        "delivered": "Delivered"
+      },
+      "call": "Call"
     }
   },
   "reports": {
@@ -204,10 +231,10 @@
     },
     "kitchenPrepHint": "No kitchen timing data yet — items only appear once served through a flow that stamps a ready time.",
     "session": {
-      "sessionId": "Session ID",
+      "sessionId": "Shift",
       "sessionIdPlaceholder": "POS session id",
-      "xReport": "X-Report (open)",
-      "zReport": "Z-Report (close)",
+      "xReport": "X-Report (shift still open)",
+      "zReport": "Z-Report (shift closed)",
       "enterId": "Enter a POS session id to view its reconciliation report.",
       "enterIdPrefilled": "Enter a POS session id to view its reconciliation report (your current shift's id is pre-filled).",
       "status": "Status",
@@ -221,7 +248,12 @@
       "voids": "Voids",
       "voidsValue": "{{count}} ({{amount}})",
       "paymentBreakdown": "Payment Method Breakdown",
-      "noPayments": "No payments recorded."
+      "noPayments": "No payments recorded.",
+      "open": "Open",
+      "closed": "Closed",
+      "orderCount_one": "{{count}} order",
+      "orderCount_other": "{{count}} orders",
+      "noShifts": "No till shifts yet. A shift appears here once a cashier opens the till."
     }
   },
   "dashboards": {
@@ -405,7 +437,13 @@
     "button": {
       "markReady": "Mark Ready",
       "markServed": "Mark Served"
-    }
+    },
+    "cooking": "Cooking",
+    "late": "Late",
+    "readyShort": "Ready",
+    "allClear": "All caught up",
+    "allClearHint": "New orders appear here the moment they are sent.",
+    "nothingReady": "Nothing waiting at the pass."
   },
   "reservations": {
     "title": "Reservations",
@@ -696,7 +734,69 @@
       "rowNamePlaceholder": "Small",
       "rowPricePlaceholder": "+0.00",
       "addRow": "Add Modifier",
-      "save": "Save Modifier Group"
+      "save": "Save Modifier Group",
+      "mustChoose": "Customer must choose",
+      "mustChooseHint": "Turn on for things like Size, where an answer is needed.",
+      "atLeast": "At least",
+      "atMost": "Can pick up to"
+    },
+    "search": "Search dishes…",
+    "allItems": "All dishes",
+    "addItem": "Add dish",
+    "noMatch": "No dishes match your search.",
+    "soldOut": "Sold out",
+    "onSale": "On sale — tap to mark sold out",
+    "photos": {
+      "label": "Photos",
+      "cover": "Cover",
+      "makeCover": "Use as cover",
+      "remove": "Remove photo",
+      "addFirst": "Add photos — tap to choose, or drop them here",
+      "addMore": "Add more",
+      "uploading": "Uploading…",
+      "notImage": "{{name}} is not an image.",
+      "tooLarge": "{{name}} is larger than {{mb}}MB.",
+      "tooMany": "A dish can have up to {{max}} photos.",
+      "readFailed": "Those files could not be read. Please try again."
+    },
+    "import": {
+      "title": "Import menu",
+      "subtitle": "Categories and dishes from Excel or CSV",
+      "button": "Import",
+      "dropHere": "Drop your menu file here",
+      "supports": "Excel (.xlsx) or CSV. A category is created the first time a row names it.",
+      "chooseFile": "Choose file",
+      "reading": "Reading file…",
+      "needHeaderRow": "The file needs a header row and at least one dish.",
+      "couldNotRead": "Could not read the file: {{error}}",
+      "missingColumns": "The file needs Category, Dish Name and Price columns.",
+      "sampleTitle": "Sample menu",
+      "sampleText": "{{items}} photographed dishes in {{categories}} categories — Pakistani favourites and international classics.",
+      "downloadSample": "Download sample file",
+      "useSample": "Import sample menu",
+      "samplePrices": "Sample prices are plain numbers, read in your own currency. Edit the file to suit.",
+      "previewTitle": "{{items}} dishes in {{categories}} categories",
+      "withPhotos": "{{count}} with a photo link",
+      "rowsSkipped": "{{count}} rows without a category, name or valid price will be left out.",
+      "colCategory": "Category",
+      "colDish": "Dish",
+      "colPrice": "Price",
+      "colPhoto": "Photo",
+      "back": "Back",
+      "cancel": "Cancel",
+      "done": "Done",
+      "importN": "Import {{count}} dishes",
+      "saving": "Saving dishes…",
+      "photosProgress": "Adding photos {{done}} / {{total}}",
+      "complete": "Menu imported",
+      "categoriesCreated": "Categories added",
+      "itemsCreated": "Dishes added",
+      "skipped": "Already on the menu",
+      "photosAdded": "Photos added",
+      "failed": "Failed",
+      "photosFailed": "{{count}} photos could not be fetched. Open the dish and add a photo by hand.",
+      "rowError": "Row {{row}}: {{message}}",
+      "columnsHint": "Columns: Category, Category Description, Dish Name, Description, Price, Prep Time (min), Allergens, Image URL"
     }
   },
   "posView": {
@@ -854,9 +954,96 @@
       "phone": "Phone",
       "address": "Delivery Address",
       "zone": "Delivery Zone",
-      "noZone": "No zone (custom fee)",
+      "noZone": "No zone",
       "items": "Items",
-      "submit": "Create Delivery Order"
-    }
+      "submit": "Create Delivery Order",
+      "riderFree": "Free",
+      "riderBusy_one": "{{count}} delivery in hand",
+      "riderBusy_other": "{{count}} deliveries in hand",
+      "needDetails": "Add the customer's name, phone and address to place this delivery."
+    },
+    "screen": {
+      "back": "Tables",
+      "soldOutMode": "Sold out",
+      "soldOutHint": "Tap a dish to mark it sold out, or available again. Tap “Sold out” when you are done.",
+      "soldOut": "Sold out",
+      "options": "Options",
+      "required": "Required",
+      "guests": "Guests",
+      "tableIs": "This table is marked {{status}}.",
+      "markAvailable": "Mark available",
+      "newItems": "New items",
+      "onOrder": "Already ordered",
+      "emptyTitle": "No items yet",
+      "emptyHint": "Tap a dish to add it.",
+      "addNote": "Add a note for the kitchen",
+      "notePlaceholder": "e.g. no onions, extra spicy…",
+      "pay": "Pay {{amount}}",
+      "split": "Split bill",
+      "move": "Move table",
+      "moveTitle": "Move to which table?",
+      "noFreeTables": "No free tables right now.",
+      "nextCourse": "Next course",
+      "hold": "Hold",
+      "cancel": "Cancel order",
+      "save": "Save",
+      "sendCount": "Send to kitchen ({{count}})",
+      "served": "Served",
+      "rider": "Rider",
+      "assignLater": "Assign later",
+      "assignRider": "Assign rider",
+      "riderTitle": "Who is delivering?",
+      "noRiders": "No riders yet. Give someone the Delivery Rider role in Settings → Users.",
+      "waiterTitle": "Who is serving?",
+      "noStaff": "No waiters yet. Give someone the Waiter role in Settings → Users.",
+      "searchPeople": "Search by name…",
+      "guestCount": "{{count}} guests"
+    },
+    "floor": {
+      "tables": "Tables",
+      "mins": "{{n}} min",
+      "hours": "{{h}}h {{m}}m",
+      "counterOrders": "Takeaway & delivery — open",
+      "noTables": "No tables yet",
+      "noTablesHint": "Add your first table to start taking orders.",
+      "itemCount": "{{count}} items"
+    },
+    "receiptView": {
+      "heading": "Receipt",
+      "paid": "Payment received",
+      "view": "View receipt",
+      "receipt": "RECEIPT",
+      "taxInvoice": "TAX INVOICE",
+      "taxNo": "Tax No.",
+      "orderNo": "Order",
+      "date": "Date",
+      "table": "Table",
+      "servedBy": "Served by",
+      "guests": "Guests",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "tax": "Tax",
+      "tip": "Tip",
+      "total": "TOTAL",
+      "change": "Change",
+      "refunded": "Refunded",
+      "balanceDue": "Balance due",
+      "thanks": "Thank you — please visit again",
+      "print": "Print",
+      "done": "Done"
+    },
+    "loyalty": {
+      "balance_one": "{{count}} loyalty point",
+      "balance_other": "{{count}} loyalty points",
+      "use": "Use points",
+      "used_one": "{{count}} point used",
+      "used_other": "{{count}} points used",
+      "apply": "Take off {{amount}}",
+      "max_one": "Up to {{count}} point on this bill.",
+      "max_other": "Up to {{count}} points on this bill.",
+      "willEarn_one": "Earns {{count}} point when paid.",
+      "willEarn_other": "Earns {{count}} points when paid."
+    },
+    "noOpenTill": "No till is open. Ask the cashier to open a shift before taking orders."
   }
 }

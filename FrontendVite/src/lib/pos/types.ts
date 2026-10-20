@@ -188,6 +188,9 @@ export interface CustomerDto {
   creditLimit: number;
   creditBalance: number;
   availableCredit: number;
+  creditTermsDays?: number;
+  creditHold?: boolean;
+  creditHoldReason?: string | null;
 }
 
 export interface CustomerSummaryDto {
@@ -199,9 +202,10 @@ export interface CustomerSummaryDto {
   isActive: boolean;
   walletBalance: number;
   availableCredit: number;
+  creditHold?: boolean;
 }
 
-export type WalletTransactionType = "topup" | "redeem" | "house_charge" | "house_payment";
+export type WalletTransactionType = "topup" | "redeem" | "house_charge" | "house_payment" | "house_refund" | "wallet_refund";
 
 export interface CustomerWalletTransactionDto {
   id: string;

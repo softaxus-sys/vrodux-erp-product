@@ -1,6 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Storage;
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.BuildingBlocks.Infrastructure.Storage;
 using Softaxis.CRM.Application.Abstractions;
 using Softaxis.CRM.Application.Documents.Commands;
 using Softaxis.CRM.Application.Documents.Dtos;
@@ -10,6 +14,27 @@ using Softaxis.CRM.Infrastructure.Persistence;
 using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Documents;
+
+/// <summary>Object-storage plumbing for CrmDocument — same shape as RealEstate's
+/// PropertyImageStorage/HR's EmployeeDocumentStorage, duplicated rather than shared because each
+/// service is a separate Infrastructure project with no reference between them.</summary>
+internal static class CrmDocumentStorage
+{
+    public static string BuildKey(Guid tenantId, string relatedToType, Guid relatedToId, Guid documentId) =>
+        $"crm/{tenantId:N}/{relatedToType}/{relatedToId:N}/{documentId:N}";
+
+    public static async Task<CrmDocumentContentDto> LoadAsync(
+        byte[] data, string fileName, string contentType, string? objectKey,
+        IObjectStorage storage, CancellationToken ct)
+    {
+        if (objectKey is not null)
+        {
+            var file = await storage.GetAsync(objectKey, ct);
+            if (file is not null) return new CrmDocumentContentDto(file.Data, fileName, file.ContentType);
+        }
+        return new CrmDocumentContentDto(data, fileName, contentType);
+    }
+}
 
 /// <summary>
 /// Access rule for every handler here: a document inherits the permissions of the record it is
@@ -186,7 +211,7 @@ internal sealed class SearchCrmDocumentsHandler(CrmDbContext db, ILeadAccessGuar
     }
 }
 
-internal sealed class GetCrmDocumentContentHandler(CrmDbContext db, ILeadAccessGuard access)
+internal sealed class GetCrmDocumentContentHandler(CrmDbContext db, ILeadAccessGuard access, IObjectStorage storage)
     : IQueryHandler<GetCrmDocumentContentQuery, CrmDocumentContentDto>
 {
     public async Task<Result<CrmDocumentContentDto>> Handle(GetCrmDocumentContentQuery q, CancellationToken ct)
@@ -199,11 +224,14 @@ internal sealed class GetCrmDocumentContentHandler(CrmDbContext db, ILeadAccessG
         if (!await access.CanManageActivityAsync(doc.RelatedToType, doc.RelatedToId, ct))
             return Result.Failure<CrmDocumentContentDto>(Error.NotFoundById("CrmDocument", q.Id));
 
-        return Result.Success(new CrmDocumentContentDto(doc.Data, doc.FileName, doc.ContentType));
+        return Result.Success(await CrmDocumentStorage.LoadAsync(
+            doc.Data, doc.FileName, doc.ContentType, doc.ObjectKey, storage, ct));
     }
 }
 
-internal sealed class UploadCrmDocumentHandler(CrmDbContext db, ILeadAccessGuard access, ICurrentUser user)
+internal sealed class UploadCrmDocumentHandler(
+    CrmDbContext db, ILeadAccessGuard access, ICurrentUser user,
+    IObjectStorage storage, IImageProcessor imageProcessor, ILogger<UploadCrmDocumentHandler> logger)
     : ICommandHandler<UploadCrmDocumentCommand, CrmDocumentDto>
 {
     public async Task<Result<CrmDocumentDto>> Handle(UploadCrmDocumentCommand cmd, CancellationToken ct)
@@ -217,11 +245,45 @@ internal sealed class UploadCrmDocumentHandler(CrmDbContext db, ILeadAccessGuard
         if (relatedName is null)
             return Result.Failure<CrmDocumentDto>(Error.NotFoundById("Record", cmd.RelatedToId));
 
+        // ID copies/screenshots routinely arrive at several MB; a contract PDF does not benefit
+        // (usually already compressed) and is left untouched — see IImageProcessor's own remarks.
+        var (data, contentType) = imageProcessor.IsCompressibleImage(cmd.ContentType)
+            ? imageProcessor.Compress(cmd.Data, cmd.ContentType)
+            : (cmd.Data, cmd.ContentType);
+
+        // Checked against the post-compression size — the actual bytes about to land in the
+        // bucket. Only when storage is actually in use.
+        if (storage.IsConfigured && TenantAmbient.TenantId is { } quotaTenantId)
+        {
+            var quota = await TenantStorageQuota.CheckAsync(db.Database, quotaTenantId, data.LongLength, ct);
+            if (!quota.Allowed)
+                return Result.Failure<CrmDocumentDto>(Error.Custom("CrmDocument.QuotaExceeded",
+                    TenantStorageQuota.QuotaErrorMessage(quota, cmd.FileName)));
+        }
+
         var doc = new CrmDocument(
             cmd.RelatedToType, cmd.RelatedToId, relatedName,
-            cmd.FileName, cmd.ContentType, cmd.Data,
+            cmd.FileName, contentType, data,
             cmd.DocumentType, cmd.Description,
             user.Id, user.Username ?? user.Email);
+
+        if (storage.IsConfigured && TenantAmbient.TenantId is { } tenantId)
+        {
+            var key = CrmDocumentStorage.BuildKey(tenantId, cmd.RelatedToType, cmd.RelatedToId, doc.Id);
+            try
+            {
+                await storage.PutAsync(key, data, contentType, ct);
+                doc.SetObjectKey(key); // clears Data — see CrmDocument.SetObjectKey
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex,
+                    "CRM document upload to object storage failed (key {Key}, related {RelatedToType}/{RelatedToId})",
+                    key, cmd.RelatedToType, cmd.RelatedToId);
+                return Result.Failure<CrmDocumentDto>(Error.Custom("CrmDocument.UploadFailed",
+                    $"'{cmd.FileName}' could not be uploaded. Please try again."));
+            }
+        }
 
         db.Documents.Add(doc);
         await db.SaveChangesAsync(ct);
@@ -250,7 +312,7 @@ internal sealed class UpdateCrmDocumentHandler(CrmDbContext db, ILeadAccessGuard
     }
 }
 
-internal sealed class DeleteCrmDocumentHandler(CrmDbContext db, ILeadAccessGuard access)
+internal sealed class DeleteCrmDocumentHandler(CrmDbContext db, ILeadAccessGuard access, IObjectStorage storage)
     : ICommandHandler<DeleteCrmDocumentCommand>
 {
     public async Task<Result> Handle(DeleteCrmDocumentCommand cmd, CancellationToken ct)
@@ -263,8 +325,13 @@ internal sealed class DeleteCrmDocumentHandler(CrmDbContext db, ILeadAccessGuard
         if (!await access.CanManageActivityAsync(doc.RelatedToType, doc.RelatedToId, ct))
             return Result.Failure(Error.NotFoundById("CrmDocument", cmd.Id));
 
+        var objectKey = doc.ObjectKey;
         doc.Delete();
         await db.SaveChangesAsync(ct);
+
+        // After, not before — the tenant's own delete must never be blocked by the bucket being
+        // slow or unreachable.
+        if (objectKey is not null) await storage.DeleteAsync(objectKey, ct);
 
         return Result.Success();
     }

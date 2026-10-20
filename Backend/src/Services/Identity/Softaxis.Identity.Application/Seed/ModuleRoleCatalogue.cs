@@ -49,6 +49,9 @@ public static class ModuleRoleCatalogue
             ["healthcare"]         = "Healthcare",
             ["insurance"]          = "Insurance",
             ["visa"]               = "Visa",
+            ["manufacturing"]      = "Manufacturing",
+            ["library"]            = "Library",
+            ["trade"]              = "Trade",
             ["seo"]                = "SEO",
             ["restaurant"]         = "Restaurant",
             ["real-estate"]        = "Real Estate",
@@ -113,6 +116,75 @@ public static class ModuleRoleCatalogue
                         "pos.customers"    => a == "view",
                         "pos.transactions" => a is "view" or "create" or "print",
                         _                  => false,
+                    }),
+            ];
+
+        // ── Restaurant: one role per job on the floor ───────────────────────
+        // The order screen sits behind the till's shift gate, so anyone who takes orders also
+        // needs to open a shift — hence the pos.sessions keys on Waiter and Restaurant Cashier.
+        if (string.Equals(module, "restaurant", StringComparison.OrdinalIgnoreCase))
+            return
+            [
+                // pos.sessions too: a manager opens, closes and approves the shifts the order screen
+                // runs on. No restaurant role holds pos.products / pos.reports —
+                // those are what surface the retail till.
+                new($"{label} Manager", $"Full access to the {label} module.",
+                    (m, a) => InModule(m, "restaurant") || m == "pos.sessions" || (m == "pos.customers" && a != "delete")),
+
+                new($"{label} Staff",
+                    $"Day-to-day {label} work — can view and record, but not void, discount or refund.",
+                    (m, a) => (InModule(m, "restaurant") && !PrivilegedActions.Contains(a))
+                              || (m is "pos.sessions" or "pos.customers" && a is "view" or "create")),
+
+                // Named apart from the POS "Cashier", which a tenant with retail tills also gets.
+                new($"{label} Cashier",
+                    "Takes orders and payments at the counter. Opens and closes their own shift; no void, discount or refund.",
+                    (m, a) => m switch
+                    {
+                        "restaurant.orders"       => a is "view" or "create" or "edit",
+                        "restaurant.tables"       => a is "view" or "edit",
+                        "restaurant.menu"         => a == "view",
+                        "restaurant.reservations" => a == "view",
+                        "restaurant.delivery"     => a is "view" or "create",
+                        "pos.sessions"            => a is "view" or "create",
+                        "pos.transactions"        => a is "view" or "create" or "print",
+                        // The customer book: who is eating, and their loyalty points.
+                        "pos.customers"           => a is "view" or "create" or "edit",
+                        _                         => false,
+                    }),
+
+                new("Waiter",
+                    "Seats guests and takes table orders — tables, orders and reservations. No payments authority beyond the bill.",
+                    (m, a) => m switch
+                    {
+                        "restaurant.orders"       => a is "view" or "create" or "edit",
+                        "restaurant.tables"       => a is "view" or "edit",
+                        "restaurant.menu"         => a == "view",
+                        "restaurant.kitchen"      => a == "view",
+                        "restaurant.reservations" => a is "view" or "create" or "edit",
+                        // No pos.sessions: a waiter works under the cashier's open shift, not their own.
+                        "pos.customers"           => a is "view" or "create",
+                        _                         => false,
+                    }),
+
+                // menu.edit is what marks a dish sold out — the kitchen is who knows first.
+                new("Kitchen Staff",
+                    "Works the kitchen display — sees incoming orders, marks them ready, and marks dishes sold out.",
+                    (m, a) => m switch
+                    {
+                        "restaurant.kitchen" => a is "view" or "edit",
+                        "restaurant.orders"  => a == "view",
+                        "restaurant.menu"    => a is "view" or "edit",
+                        _                    => false,
+                    }),
+
+                new("Delivery Rider",
+                    "Sees delivery orders and updates their status. Nothing else.",
+                    (m, a) => m switch
+                    {
+                        "restaurant.delivery" => a is "view" or "edit",
+                        "restaurant.orders"   => a == "view",
+                        _                     => false,
                     }),
             ];
 

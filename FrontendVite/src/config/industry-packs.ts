@@ -145,6 +145,49 @@ export const INDUSTRY_PACKS: IndustryPack[] = [
       { key: "renewals", label: "Renewals & Alerts" },
     ],
   },
+  {
+    industry: "manufacturing",
+    moduleKey: "manufacturing",
+    label: "Manufacturing",
+    description: "Bills of materials, production orders, material issue and finished-goods receipt.",
+    icon: "Factory",
+    crmFlow: "Bill of Materials → Production Order → Issue Materials → Finished Goods",
+    entities: ["Bills of Materials", "Production Orders", "Work Centres", "Material Requirements"],
+    features: [
+      { key: "boms", label: "Bills of Materials" },
+      { key: "orders", label: "Production Orders" },
+    ],
+  },
+  {
+    industry: "library",
+    moduleKey: "library",
+    label: "Library",
+    description: "Catalogue, members, lending, reservations and fines across several branches.",
+    icon: "Library",
+    crmFlow: "Catalogue → Member → Issue → Return / Renew → Fines",
+    entities: ["Titles", "Copies", "Members", "Loans", "Reservations", "Fines", "Branches"],
+    features: [
+      { key: "circulation", label: "Issue & Return" },
+      { key: "reservations", label: "Reservations" },
+      { key: "fines", label: "Fines" },
+      { key: "branches", label: "Multiple Branches" },
+    ],
+  },
+  {
+    industry: "import_export",
+    moduleKey: "trade",
+    label: "Import & Export",
+    description: "Shipments, containers, trade documents, landed cost and payments for importers and exporters.",
+    icon: "Ship",
+    crmFlow: "Order → Shipment → Customs → Delivery → Landed cost → Payment",
+    entities: ["Shipments", "Containers", "Documents", "Costs", "Payments", "Suppliers & Buyers", "Forwarders"],
+    features: [
+      { key: "shipments", label: "Shipment Tracking" },
+      { key: "documents", label: "Trade Documents" },
+      { key: "landed-cost", label: "Landed Cost" },
+      { key: "payments", label: "LC & Payments" },
+    ],
+  },
 ];
 
 /** Industries offered in the Create-Tenant picker (value + label). */

@@ -16,12 +16,16 @@ internal sealed class SetOrderCustomerHandler(RestaurantDbContext db)
 
     private async Task<Result<OrderDto>> HandleOnce(SetOrderCustomerCommand cmd, CancellationToken ct)
     {
-        var order = await db.Orders.Include(x => x.Items).Include(x => x.Payments)
+        var order = await db.Orders.Include(x => x.Items).Include(x => x.Payments).Include(x => x.Discounts)
             .FirstOrDefaultAsync(x => x.Id == cmd.OrderId && !x.IsDeleted, ct);
         if (order is null)
             return Result.Failure<OrderDto>(Error.NotFoundById("Order", cmd.OrderId));
         if (order.Status is "paid" or "cancelled" or "split" or "held")
             return Result.Failure<OrderDto>(Error.Custom("Order.Closed", "Cannot change the customer on this order right now."));
+
+        if (order.CustomerId != cmd.CustomerId && LoyaltySupport.ActivePoints(order) > 0)
+            return Result.Failure<OrderDto>(Error.Custom("Order.Conflict",
+                "Take the loyalty points off this bill before changing the customer."));
 
         order.SetCustomer(cmd.CustomerId);
         await db.SaveChangesAsync(ct);

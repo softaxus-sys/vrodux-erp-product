@@ -36,6 +36,7 @@ internal sealed class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.Category);
         builder.HasIndex(x => x.ExpenseDate);
+        builder.HasIndex(x => x.RecurringExpenseId);
 
         builder.HasOne<Supplier>()
                .WithMany()

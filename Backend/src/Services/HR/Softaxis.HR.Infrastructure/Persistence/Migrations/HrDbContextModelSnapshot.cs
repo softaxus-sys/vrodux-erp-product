@@ -18,7 +18,7 @@ namespace Softaxis.HR.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("hr")
-                .HasAnnotation("ProductVersion", "9.0.19")
+                .HasAnnotation("ProductVersion", "9.0.20")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -442,6 +442,10 @@ namespace Softaxis.HR.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
+
+                    b.Property<string>("ObjectKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint");

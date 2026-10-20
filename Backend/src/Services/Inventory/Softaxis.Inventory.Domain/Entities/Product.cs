@@ -84,6 +84,19 @@ public sealed class Product
         UpdatedAt       = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Moving-average cost: blends the cost of goods coming in with what is already on the shelf.
+    /// Call BEFORE the quantity is adjusted. With nothing on hand the incoming cost simply becomes
+    /// the cost.
+    /// </summary>
+    public void ApplyReceiptCost(decimal quantity, decimal unitCost)
+    {
+        if (quantity <= 0 || unitCost <= 0) return;
+        var onHand = Math.Max(0, StockQuantity);
+        CostPrice  = Math.Round((onHand * CostPrice + quantity * unitCost) / (onHand + quantity), 2);
+        UpdatedAt  = DateTime.UtcNow;
+    }
+
     public void AdjustStock(decimal delta)
     {
         StockQuantity = Math.Max(0, StockQuantity + delta);

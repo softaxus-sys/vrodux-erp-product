@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { cn, formatCurrency, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
-import { useShift } from "@/modules/pos/retail/components/shift-gate";
+import { useOptionalShift } from "@/modules/pos/retail/components/shift-gate";
 import {
   useOwnerDashboard, useBranchDashboard, useKitchenDashboard, useCashierDashboard, useInventoryDashboard,
 } from "@/hooks/restaurant/use-restaurant-reports";
@@ -166,7 +166,7 @@ function KitchenTab() {
 function CashierTab() {
   const { t } = useTranslation("restaurant");
   const currency = useCurrency();
-  const { sessionId } = useShift();
+  const sessionId = useOptionalShift()?.sessionId ?? "";
   const { data } = useCashierDashboard(sessionId);
   if (!data) return null;
 

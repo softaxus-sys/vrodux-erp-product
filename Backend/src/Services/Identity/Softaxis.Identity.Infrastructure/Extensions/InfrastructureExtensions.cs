@@ -55,6 +55,8 @@ public static class InfrastructureExtensions
         services.AddSingleton<ITrialChallengeService,  TrialChallengeService>();
         services.AddScoped<ILicenseService,            LicenseService>();
         services.AddScoped<IEmailService,              SmtpEmailService>();
+        services.AddHttpClient(MetaConversionTracker.HttpClientName);
+        services.AddScoped<IConversionTracker,         MetaConversionTracker>();
         services.AddScoped<ITenantRoleProvisioner,     TenantRoleProvisioner>();
 
         // ── Billing ───────────────────────────────────────────────────────────
@@ -80,7 +82,7 @@ public static class InfrastructureExtensions
         // so a tenant that just paid stops being blocked immediately.
         services.AddSingleton<ISubscriptionAccessCache, MemoryCacheSubscriptionAccessCache>();
 
-        // Daily trial reminders (15/7/3/1 days) + expiry. Self-throttling and fully guarded —
+        // Daily trial reminders (7/3/1 days) + expiry. Self-throttling and fully guarded —
         // a failure logs and retries next cycle rather than taking the host down.
         services.AddHostedService<TrialLifecycleService>();
 
@@ -165,6 +167,9 @@ public static class InfrastructureExtensions
         // role created moments ago in this same pass is included.
         await scope.ServiceProvider.GetRequiredService<ITenantRoleProvisioner>()
                    .SyncNewTemplatePermissionsAsync();
+        // Restaurant roles need a till shift to take orders; older ones were created without it.
+        await scope.ServiceProvider.GetRequiredService<ITenantRoleProvisioner>()
+                   .EnsureRestaurantShiftAccessAsync();
         await RemoveRedundantGlobalRolesAsync(db);         // drop legacy global duplicates (all envs)
         await SeedDemoTenantAsync(scope.ServiceProvider, db);      // opt-in demo tenant (Seeding:DemoTenant)
     }

@@ -4,7 +4,12 @@ public sealed record DeliveryOrderDto(
     Guid Id, Guid OrderId, string OrderNumber, decimal OrderTotal,
     Guid? DeliveryZoneId, string? DeliveryZoneName, Guid? DriverId, string? DriverName,
     string Status, string Address, string Phone, DateTime? EstimatedDeliveryAt, DateTime? DeliveredAt,
-    decimal DeliveryFee, string? ThirdPartyProvider, string? ThirdPartyOrderRef, string TrackingToken, DateTime CreatedAt);
+    decimal DeliveryFee, string? ThirdPartyProvider, string? ThirdPartyOrderRef, string TrackingToken, DateTime CreatedAt,
+    // What the person at the door needs: who it is for, what is in the bag, and what is still owed.
+    string? CustomerName = null, string? OrderNotes = null, decimal AmountToCollect = 0,
+    IReadOnlyList<DeliveryItemDto>? Items = null);
+
+public sealed record DeliveryItemDto(string Name, int Quantity, string? Notes);
 
 public sealed record DeliverySummaryDto(int Total, int Assigned, int PickedUp, int Enroute, int Delivered, int Failed);
 

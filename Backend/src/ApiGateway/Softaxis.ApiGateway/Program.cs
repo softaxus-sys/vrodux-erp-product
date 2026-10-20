@@ -28,9 +28,13 @@ using Softaxis.Restaurant.Infrastructure.Extensions;
 using Softaxis.Recipe.Infrastructure.Extensions;
 using Softaxis.ProjectManagement.Infrastructure.Extensions;
 using Softaxis.AiAssistant.Infrastructure.Extensions;
+using Softaxis.Manufacturing.Infrastructure.Extensions;
+using Softaxis.Library.Infrastructure.Extensions;
+using Softaxis.Trade.Infrastructure.Extensions;
 using Softaxis.VisaServices.Infrastructure.Extensions;
 using Softaxis.Support.Infrastructure.Extensions;
 using Softaxis.Seo.Infrastructure.Extensions;
+using Softaxis.Calendar.Infrastructure.Extensions;
 using Softaxis.BuildingBlocks.Application.Serialization;
 using Softaxis.BuildingBlocks.Infrastructure.Notifications;
 using Softaxis.BuildingBlocks.Infrastructure.Storage;
@@ -148,8 +152,15 @@ try
     // AI Assistant: DbContext, provider abstraction (Claude/Groq), orchestrator, tools
     builder.Services.AddAiAssistantInfrastructure(builder.Configuration);
     builder.Services.AddVisaServicesInfrastructure(builder.Configuration);
+    // Manufacturing: BOMs + production orders. Moves stock through Inventory's own commands.
+    builder.Services.AddManufacturingInfrastructure(builder.Configuration);
+    // Library: catalogue, members, lending across branches. Stands alone — no other module needed.
+    builder.Services.AddLibraryInfrastructure(builder.Configuration);
+    // Trade: import / export shipments, trade documents, landed cost. Stands alone.
+    builder.Services.AddTradeInfrastructure(builder.Configuration);
     builder.Services.AddSupportInfrastructure(builder.Configuration);
     builder.Services.AddSeoInfrastructure(builder.Configuration);
+    builder.Services.AddCalendarInfrastructure(builder.Configuration);
 
     // ── In-memory cache (used by SubscriptionEnforcementMiddleware) ──────────
     builder.Services.AddMemoryCache();
@@ -209,6 +220,16 @@ try
         Softaxis.HR.Application.Abstractions.ICurrentUser,
         Softaxis.HR.API.Middleware.CurrentUserService>();
 
+    // Library.Application.Abstractions.ICurrentUser  →  Library CurrentUserService (branch-restricted staff)
+    builder.Services.AddScoped<
+        Softaxis.Library.Application.Abstractions.ICurrentUser,
+        Softaxis.Library.API.Middleware.CurrentUserService>();
+
+    // Trade.Application.Abstractions.ICurrentUser  →  Trade CurrentUserService (cost / payment visibility)
+    builder.Services.AddScoped<
+        Softaxis.Trade.Application.Abstractions.ICurrentUser,
+        Softaxis.Trade.API.Middleware.CurrentUserService>();
+
     // Restaurant.Application.Abstractions.ICurrentUser  →  Restaurant CurrentUserService (cashier stamping)
     builder.Services.AddScoped<
         Softaxis.Restaurant.Application.Abstractions.ICurrentUser,
@@ -264,6 +285,11 @@ try
         Softaxis.Seo.Application.Abstractions.ICurrentUser,
         Softaxis.Seo.API.Middleware.CurrentUserService>();
 
+    // Calendar.Application.Abstractions.ICurrentUser  →  Calendar CurrentUserService
+    builder.Services.AddScoped<
+        Softaxis.Calendar.Application.Abstractions.ICurrentUser,
+        Softaxis.Calendar.API.Middleware.CurrentUserService>();
+
     // ── Controllers — pull controllers from all 5 API assemblies ─────────────
     builder.Services.AddControllers()
         .AddApplicationPart(typeof(Softaxis.Identity.API.Controllers.AuthController).Assembly)
@@ -282,8 +308,12 @@ try
         .AddApplicationPart(typeof(Softaxis.ProjectManagement.API.Controllers.ProjectsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.AiAssistant.API.Controllers.AiChatController).Assembly)
         .AddApplicationPart(typeof(Softaxis.VisaServices.API.Controllers.VisaCasesController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.Manufacturing.API.Controllers.BomsController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.Library.API.Controllers.CatalogueController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.Trade.API.Controllers.ShipmentsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Support.API.Controllers.SupportTicketsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Seo.API.Controllers.SeoSitesController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.Calendar.API.Controllers.CalendarController).Assembly)
         .AddJsonOptions(o =>
         {
             // Emit every DateTime as an explicit UTC instant ("…Z").
@@ -437,12 +467,16 @@ try
         await ForModule("recipe",             app.Services.MigrateAndSeedRecipeAsync);
         await ForModule("project-management", app.Services.MigrateAndSeedProjectManagementAsync);
         await ForModule("visa",               app.Services.MigrateAndSeedVisaServicesAsync);
+        await ForModule("manufacturing",      app.Services.MigrateAndSeedManufacturingAsync);
+        await ForModule("library",            app.Services.MigrateAndSeedLibraryAsync);
+        await ForModule("trade",              app.Services.MigrateAndSeedTradeAsync);
 
         // Cross-cutting, licensed to nobody in particular. The notifications backfill checks for
         // the CRM tables before reading them, so it is safe on a box with no CRM schema.
         await app.Services.MigrateAndSeedAiAssistantAsync();        // AI Assistant
         await app.Services.MigrateAndSeedSupportAsync();            // Support
         await app.Services.MigrateAndSeedSeoAsync();                // SEO AI Agent
+        await app.Services.MigrateAndSeedCalendarAsync();           // Calendar (core)
         await app.Services.MigrateNotificationsAsync();             // Notifications (+ copies CRM history in)
 
         // Runs last, and only on an installation that mirrors to the cloud: enables SQL Server
@@ -501,7 +535,7 @@ try
         Status  = "Healthy",
         Service = "Softaxis.ERP.Gateway",
         Time    = DateTime.UtcNow,
-        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Support", "Seo" }
+        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Trade", "Support", "Seo", "Calendar" }
     })).AllowAnonymous();
 
     Log.Information("Softaxis ERP Gateway started on {Env}", app.Environment.EnvironmentName);
@@ -516,3 +550,4 @@ finally
 {
     await Log.CloseAndFlushAsync();
 }
+

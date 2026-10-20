@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } f
 import { useUnitsPaged, useUnitsSummary } from "@/hooks/use-real-estate";
 import { formatCompactValue } from "@/lib/crm-helpers";
 import { useAuthStore } from "@/store/auth.store";
-import { UNIT_STATUS_LABELS, UNIT_STATUS_TONE } from "@/types/real-estate";
+import { PURPOSE_LABELS, PURPOSE_TONE, UNIT_STATUS_LABELS, UNIT_STATUS_TONE } from "@/types/real-estate";
 import type { UnitDto } from "@/types/real-estate";
 import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
@@ -94,20 +94,40 @@ function SummaryTile({ label, value }: { label: string; value: number | string }
 function UnitRow({ unit, currency }: { unit: UnitDto; currency: string }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // A sale unit's meaningful figure is salePrice, not rentPerYear -- showing "/yr" on an asking
+  // price would be the Module 62 bug this screen must not repeat. Falls back to the sheet's own
+  // price text when the parsed number is 0 (a raw import row without a clean figure to parse).
+  const isSale = unit.purpose === "sale";
+  const parsedAmount = isSale ? unit.salePrice : unit.rentPerYear;
+  const priceText = parsedAmount > 0
+    ? `${formatCompactValue(parsedAmount, currency)}${isSale ? "" : "/yr"}`
+    : unit.priceLabel ?? "—";
+
+  const bedsText = unit.bedsLabel ?? (unit.bedrooms ? `${unit.bedrooms}BR` : null);
+
   return (
     <ListItemCard>
       <View style={styles.rowTop}>
         <Text style={styles.name}>
           Unit {unit.unitNumber} <Text style={styles.subtle}>· {unit.unitType}</Text>
         </Text>
-        <Badge label={UNIT_STATUS_LABELS[unit.status] ?? unit.status} tone={UNIT_STATUS_TONE[unit.status] ?? "neutral"} />
+        <View style={styles.badgeGroup}>
+          {unit.purpose ? (
+            <Badge label={PURPOSE_LABELS[unit.purpose] ?? unit.purpose} tone={PURPOSE_TONE[unit.purpose] ?? "neutral"} />
+          ) : null}
+          <Badge label={UNIT_STATUS_LABELS[unit.status] ?? unit.status} tone={UNIT_STATUS_TONE[unit.status] ?? "neutral"} />
+        </View>
       </View>
       <Text style={styles.meta}>
         Floor {unit.floor} · {unit.area.toLocaleString()} sqft
-        {unit.bedrooms ? ` · ${unit.bedrooms}BR` : ""}
+        {bedsText ? ` · ${bedsText}` : ""}
         {unit.currentTenantName ? ` · ${unit.currentTenantName}` : ""}
       </Text>
-      <Text style={styles.stat}>{formatCompactValue(unit.rentPerYear, currency)}/yr</Text>
+      <View style={styles.rowBottom}>
+        <Text style={styles.stat}>{priceText}</Text>
+        {unit.agentName ? <Text style={styles.agent}>Agent: {unit.agentName}</Text> : null}
+      </View>
     </ListItemCard>
   );
 }
@@ -128,6 +148,9 @@ function createStyles(colors: AppColors) {
     name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground },
     subtle: { fontWeight: fontWeight.regular, color: colors.mutedForeground },
     meta: { fontSize: fontSize.base, color: colors.foregroundSecondary },
+    badgeGroup: { flexDirection: "row", gap: spacing.xs },
+    rowBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2 },
     stat: { fontSize: fontSize.sm, color: colors.mutedForeground },
+    agent: { fontSize: fontSize.xs, color: colors.subtleForeground },
   });
 }

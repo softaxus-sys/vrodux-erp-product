@@ -19,6 +19,9 @@ public sealed class CustomerWalletTransactionConfiguration : IEntityTypeConfigur
         builder.Property(x => x.Amount)
             .HasPrecision(18, 2);
 
+        builder.Property(x => x.PaymentMethod)
+            .HasMaxLength(20);
+
         builder.Property(x => x.Notes)
             .HasMaxLength(500);
 

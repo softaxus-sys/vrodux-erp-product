@@ -579,56 +579,68 @@ replacing them.
   POS Customers (a distinct resource from CRM customers — loyalty points, wallet balance,
   house-account credit) is a plausible small follow-up flagged, not built.
 
-**Restaurant POS — "front-of-house + kitchen coordination," not an order-taking terminal.** Same
-scoping question as retail POS above, applied to a genuinely bigger backend surface: the web app's
-`Softaxis.Restaurant` service has grown well past what CLAUDE.md's Module 19 series documents (20
-controllers now, including combos, courses, receipts, printer profiles, delivery, drivers, happy
-hour, device registration, and 5 role-scoped web dashboards from an undocumented "Epic 8" pass) —
-confirmed by reading the controllers directly rather than trusting the doc's Module 19f as current.
-Order-taking itself (structured modifiers, combos, courses, split-bill, tips, discounts, payment)
-is real desktop-appropriate complexity — the same call already made for retail POS's checkout flow
-— so **Restaurant orders on mobile are read-only**, same posture as POS transactions. Two areas get
-real write actions anyway, because they don't touch cash or a physical drawer at all: marking a
-kitchen ticket item's prep status (the KDS re-exposed for a phone/tablet on the pass — mirrors
-`KitchenController`'s own code comment that the KDS marks orders ready "without going through the
-order-drawer UI"), and seating/cancelling a reservation or walk-in.
-- Home screen: today's owner-dashboard tiles (sales, orders, active) + a live floor-status strip
-  (available/occupied/reserved/cleaning, from `GET /dashboard/branch`, refetched every 60s) + menu
-  cards into the five sections below — each only rendered if the session holds that section's key.
-- Tables: status summary tiles (occupancy %, covers, table count) + filterable list (by status),
-  each row showing capacity and the current waiter if occupied. Read-only — the floor-plan
-  designer (create/edit/reposition/merge tables) is desktop-appropriate, same call as Inventory's
-  product create being out of scope.
-- Live Orders: status filter chips + summary tiles (today's orders/revenue/tips) → order detail
-  (items with modifiers and per-item prep status, payments, active discounts, refunds, split
-  children) — **no action buttons anywhere on this screen**, matching POS Transactions' own
-  read-only stance exactly.
-- Kitchen: the one screen with real write actions. Active-ticket cards (table, waiter, wait
-  minutes, one row per item) with a one-tap "Mark {next status}" button per item
-  (pending→preparing→ready→served, via `PATCH /kitchen/items/{id}/status`) and a "Mark whole order
-  ready" button per ticket (`PATCH /kitchen/orders/{id}/ready` — the same command
-  `OrdersController.MarkReady` uses). Gated on `restaurant.kitchen.edit`; view-only without it.
-- Reservations: Today/All toggle (`GET /reservations?date=`) + summary tiles → Seat/Cancel on a
-  `confirmed` reservation, phone number shown for a quick call. No create-reservation form (a
-  10+ field form with slot-duration/deposit rules — desktop-appropriate, same call as HR
-  employee-create).
-- Waitlist: status filter chips (defaults to Waiting) + summary (waiting count, average quoted
-  wait) → Seat (opens a bottom-sheet table picker filtered to `available` tables, since
-  `SeatWaitlistEntryCommand` requires a table id — unlike reservation-seat, which doesn't) /
-  No-show / Cancel on a `waiting` entry.
-- Gated on any of `restaurant.reports.view` (dashboards) / `.tables.view` / `.orders.view` /
-  `.kitchen.view` / `.reservations.view` at the tab level — each screen re-checks its own specific
-  key, same "any-of at the tab, specific inside" pattern as POS and Approvals. Waitlist has no
-  dedicated permission group on the backend (`WaitlistController`'s own code comment) and rides on
-  the `restaurant.tables.*` keys, same nearest-seeded-key convention used elsewhere in this codebase.
-- **Deliberately not built, on purpose**: order creation/editing (menu browsing, modifiers,
-  combos, courses), payment/split-bill/tips/refunds, table floor-plan design (create/edit/
-  reposition/merge/QR codes), reservation rules configuration, the 5 role-scoped web dashboards
-  beyond Owner/Branch (Kitchen dashboard folded into the Kitchen screen's own summary tiles
-  instead of a separate fetch; Cashier and Inventory dashboards are POS/stock concerns already
-  covered by their own tabs), delivery orders/zones/drivers, happy hour, combos, printer profiles,
-  device registration, notification config — all genuinely separate sub-features of this service,
-  none of them a mobile-appropriate subset on their own.
+**Restaurant POS — full order-taking + front-of-house + kitchen coordination + delivery.** This
+used to be scoped the same way retail POS still is ("not an order-taking terminal," orders
+read-only) — reversed on an explicit decision, because the thing that made that call correct for
+retail (a phone isn't a card machine) was never actually true here: **waiters take orders under
+the cashier's open shift** (`GET /orders/open-shift` → `OpenShiftDto`) rather than opening their
+own till, so ordering on a phone never touches cash or a physical drawer the way checking out at a
+register does. The `Softaxis.Restaurant` service has grown well past what CLAUDE.md's Module 19
+series documents (20+ controllers, including combos, printer profiles, device registration, and a
+role-scoped dashboard set) — confirmed by reading the controllers directly. What's built:
+- Home screen: today's owner-dashboard tiles + live floor-status strip + menu cards into the
+  seven sections below (**New Order**, Tables, Live Orders, Kitchen, Reservations, Waitlist,
+  Deliveries) — each only rendered if the session holds that section's key.
+- **New Order** (`NewOrderScreen`, reached from the home screen's own card, from a vacant table row
+  on Tables, or from an order's own "Add Items" button — one screen handles both "create" and "add
+  to existing" so there's one cart implementation, not two that could drift): blocks up front with
+  a clear message if no till is open anywhere (`useOpenShift`); otherwise category chips + search
+  over `GET /menu`, tap a dish to add it straight to the cart or — if it carries modifier groups —
+  into `ModifierPickerModal` (radio for `maxSelect=1`, checkboxes capped at `maxSelect` otherwise,
+  required groups validated client-side before Add enables, mirrors the web app's own picker). A
+  sticky cart bar opens `CartReviewModal` (qty +/-, remove, notes, running total) before
+  Create/Add-to-order actually fires.
+- Order Detail: full action bar, each button gated the same way the backend's own handlers are so
+  a tap that would 403/409 server-side is never offered — Send to Kitchen, Fire Next Course, Add
+  Items, Hold/Recall, Discount (`DiscountModal` — a percentage pick is resolved to a real currency
+  amount client-side before sending; `ApplyOrderDiscountCommand`'s own doc comment is explicit that
+  `Amount` is "the computed discount amount, not a raw percentage") / Remove Discount, Tip (quick
+  10/15/20% + custom), Link/Unlink Customer (`CustomerPickerModal`, searches `GET /api/customers` —
+  the same endpoint retail POS's Cashier tier already opens via `pos.transactions.create`) →
+  Redeem Loyalty once linked (1 point = 1 currency unit; the modal previews both caps — the
+  customer's balance and what the bill is worth — so the backend's own refusal is rare, not a
+  guess for the server to catch), reassign Waiter, Void an item / Cancel the whole order (both via
+  the shared `ReasonModal`, reason required), Take Payment (`PaymentModal` — cash/card/online/
+  other, auto-detects full-pay vs. split-tender by comparing the typed amount to what's
+  outstanding), Refund (capped at what was actually paid), Split Bill (`SplitBillModal` —
+  item-level, whole-row only, a live per-guest total so nobody is assigned more than their share),
+  and Start Delivery for a `delivery`-type order (`DeliverySetupModal` collects address + phone —
+  `CreateDeliveryOrderCommand` rejects either blank — then hands off to the Delivery detail
+  screen). Split children and refunds/discounts/payments already on the order render as their own
+  sections, same as before this pass.
+- Tables: tapping an occupied table opens its order; tapping a vacant one (with
+  `restaurant.orders.create`) starts a new one there via New Order. The floor-plan designer
+  (create/edit/reposition/merge/QR codes) stays desktop-only.
+- Live Orders: unchanged list + filter chips, now routing into the fully-interactive Order Detail
+  above instead of a read-only view.
+- Kitchen: unchanged from before this pass (mark item status / mark order ready).
+- Reservations / Waitlist: unchanged from before this pass.
+- **Deliveries** (new): summary tiles + status filter chips → Delivery Detail (drop-off address/
+  phone/zone/amount-to-collect, items, Assign/Reassign Rider from `GET /drivers?activeOnly=true`,
+  and one-tap status progression `assigned→picked_up→enroute→delivered`, or Mark Failed at any
+  point — mirrors `ChangeDeliveryStatusValidator`'s own allowed list).
+- Gated section-by-section the same "any-of at the tab, specific inside" pattern as POS and
+  Approvals — `restaurant.orders.create` for New Order, `.void`/`.discount`/`.refund` for their
+  respective buttons, `.delivery.view/.edit` for the Deliveries tab. Waitlist still rides on
+  `restaurant.tables.*` (no dedicated permission group on the backend).
+- **Deliberately still not built, same desktop-appropriate judgment call as RealEstate's "real
+  multi-field forms stay desktop" and HR's employee-create**: table floor-plan design (create/
+  edit/reposition/merge/QR codes), menu item CRUD/photo management/bulk import, modifier-group
+  CRUD, driver CRUD (the picker is read-only), delivery zones, happy hour campaigns, ordering a
+  **combo** (needs its own component-selection picker — flagged as a follow-up, same as the web
+  app's own "Modifier Groups admin page" gap), printer profiles, device registration, notification
+  config, and the deeper Reports analytics screen (the dashboards already on the home screen cover
+  the at-a-glance numbers).
 
 **Visa Services** — case management for a UAE visa consultancy, gated on the single
 `visa.cases.*` permission group that exists on the backend:
@@ -689,7 +701,7 @@ does away from a desk.
   brokers; rent-alert settings/logs (an admin config screen, same priority tier as Settings);
   the CRM-linked sales pipeline (site visits → reservations → bookings + payment plans, its own
   `real-estate.sales.*` permission group) — a separate sub-feature big enough to need its own
-  scoping pass, same as Restaurant's delivery/happy-hour features were left out.
+  scoping pass, same as Restaurant's happy-hour campaigns were left out.
 
 **Reports** — the generic tabular report engine (POS + Inventory), not the CRM analytical reports.
 `FrontendVite/src/modules/reports/config/report-registry.ts` defines 44 reports across three
@@ -1069,8 +1081,8 @@ Statements deliberately deferred, see the complexity note above), Project Manage
 project/issue/label create, delete, and epic linking deliberately deferred, see above), POS
 (retail shift status + transaction visibility, plus open-shift/camera-scan checkout/close-shift —
 split-tender, discounts, void/refund and printed receipts deliberately deferred, see above — and
-Restaurant tables/orders/kitchen/reservations/waitlist, deliberately still not an order-taking
-terminal, see above), Visa
+Restaurant full order-taking/payment/split-bill/delivery + tables/kitchen/reservations/waitlist,
+see above), Visa
 Services (case management — status transitions/document checklist/renewals, case and visa-type
 *creation* deliberately deferred, see above), Real Estate (properties/units/tenants/contracts/
 brokers browsing + rent collection — all *creation* forms and the CRM-linked sales pipeline

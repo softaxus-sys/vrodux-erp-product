@@ -8,6 +8,7 @@ import {
 } from "@/hooks/crm/use-crm";
 import { Button } from "@/components/ui/button";
 import { isActivityLog } from "@/lib/crm/crm.api";
+import { formatActivityLogged, formatActivitySchedule } from "@/lib/crm/activity-format";
 
 const ICON: Record<string, typeof Phone> = { task: CheckSquare, call: Phone, meeting: Calendar, email: Mail, note: StickyNote };
 const ORIGIN_KEYS = new Set(["customer", "deal", "lead"]);
@@ -100,12 +101,13 @@ export function ActivitiesView() {
                 <Icon className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium leading-tight truncate">{a.subject}</p>
+                <p className="text-sm font-medium leading-tight line-clamp-2 break-words" title={a.subject}>{a.subject}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   <span>{t(`activityType.${a.type}`)}</span>
                   {a.relatedToName && <> · {a.relatedToName} <span className="opacity-70">({t(`activity.origin.${ORIGIN_KEYS.has(a.relatedToType) ? a.relatedToType : "customer"}`)})</span></>}
-                  {a.dueDate && <span className={cn(overdue && "text-destructive font-semibold")}> · {t("activity.view.due", { date: a.dueDate })}{overdue && ` ${t("activity.view.overdueParen")}`}</span>}
+                  {a.dueDate && <span className={cn(overdue && "text-destructive font-semibold")}> · {t("activity.view.due", { date: formatActivitySchedule(a.dueDate, a.dueTime) })}{overdue && ` ${t("activity.view.overdueParen")}`}</span>}
                   {a.assignedTo && <> · {a.assignedTo}</>}
+                  {formatActivityLogged(a.createdAt) && <> · {t("activity.loggedOn", { date: formatActivityLogged(a.createdAt), defaultValue: "Logged {{date}}" })}</>}
                 </p>
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

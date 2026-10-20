@@ -47,7 +47,9 @@ public sealed record QuotationSummaryDto(
     DateTime? ViewedAt,
     DateTime? RespondedAt,
     DateTime  CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    Guid?     LeadId = null,
+    Guid?     CrmCustomerId = null);
 
 /// <summary>The full document, as the builder and the PDF need it.</summary>
 public sealed record QuotationDto(
@@ -91,7 +93,14 @@ public sealed record QuotationDto(
     Guid?     InvoiceId,
     string?   InvoiceNumber,
     DateTime  CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    string?   AccentColor = null,
+    bool      ShowLogo = true,
+    string?   FooterNote = null,
+    Guid?     SourceTemplateId = null,
+    Guid?     LeadId = null,
+    Guid?     CrmCustomerId = null,
+    Guid?     DealId = null);
 
 /// <summary>
 /// What the anonymous public link returns. A strict subset of <see cref="QuotationDto"/>:
@@ -124,7 +133,10 @@ public sealed record PublicQuotationDto(
     IReadOnlyList<QuotationItemDto>    Items,
     DateTime? RespondedAt,
     string?   ResponseComment,
-    QuotationBrandingDto Branding);
+    QuotationBrandingDto Branding,
+    string?   AccentColor = null,
+    bool      ShowLogo = true,
+    string?   FooterNote = null);
 
 /// <summary>
 /// The issuing company as it should appear on the document, read from the tenant's own
@@ -140,7 +152,11 @@ public sealed record QuotationBrandingDto(
     string? Website,
     string? TaxNumber,
     string? LogoUrl,
-    string? AccentColor);
+    string? AccentColor,
+    // The authorised signature and company stamp from Settings → General → Company. Optional:
+    // a business that has not uploaded them simply gets a document without a signature block.
+    string? SignatureUrl = null,
+    string? StampUrl = null);
 
 public sealed record QuotationShareLinkDto(string Token, string Url);
 

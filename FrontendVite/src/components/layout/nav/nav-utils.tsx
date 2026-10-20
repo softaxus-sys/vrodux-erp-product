@@ -6,18 +6,18 @@ import {
   Users, UserCheck, Clock, Banknote, CalendarOff, UserPlus, TrendingUp,
   Handshake, UserSearch, Workflow, Building2,
   ShoppingBag, FileSearch, ClipboardList, RotateCcw,
-  ShoppingCart, Truck, ClipboardCheck, CheckCircle2,
+  ShoppingCart, Truck, ClipboardCheck, CheckCircle2, HandCoins,
   Package, PackageCheck, Warehouse, Boxes, ArrowLeftRight,
   Building, Home, DoorOpen, FileSignature,
   HardHat, FolderKanban, ListChecks, Hammer, MapPin,
-  Hotel, CalendarCheck, BedDouble, SprayCan,
+  Hotel, CalendarCheck, BedDouble, SprayCan, ConciergeBell, Tags, Contact,
   Monitor, UtensilsCrossed, ChefHat,
   Settings2, SlidersHorizontal, ShieldCheck, GitBranch, Plug, ScrollText,
   Zap, Bell, FolderTree, Tag, Ruler, Ticket, Repeat, Activity, Briefcase,
   PanelLeft, PanelRight, PanelTop, LayoutGrid, Coins, CloudUpload,
-  Stamp, CalendarClock, Printer, Globe,
+  Stamp, CalendarClock, Printer, Globe, CalendarDays,
   LifeBuoy, MessageSquare, Headset,
-  Rocket, Search, Wand2,
+  Rocket, Search, Wand2, Factory, Library, Ship, Container, PackageSearch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,14 +32,14 @@ export const iconMap: Record<string, React.ComponentType<{ className?: string }>
   Package, PackageCheck, Warehouse, Boxes, ArrowLeftRight,
   Building, Home, DoorOpen, FileSignature,
   HardHat, FolderKanban, ListChecks, Hammer, MapPin,
-  Hotel, CalendarCheck, BedDouble, SprayCan,
+  Hotel, CalendarCheck, BedDouble, SprayCan, ConciergeBell, Tags, Contact,
   Monitor, UtensilsCrossed, ChefHat,
   Settings2, SlidersHorizontal, ShieldCheck, GitBranch, Plug, ScrollText,
   Zap, Bell, FolderTree, Tag, Ruler, Ticket, Repeat, Activity, Briefcase,
   PanelLeft, PanelRight, PanelTop, LayoutGrid, Coins, CloudUpload,
-  Stamp, CalendarClock, Printer, Globe,
+  Stamp, CalendarClock, Printer, Globe, CalendarDays,
   LifeBuoy, MessageSquare, Headset,
-  Rocket, Search, Wand2,
+  Rocket, Search, Wand2, Factory, Library, Ship, Container, PackageSearch,
 };
 
 export function NavIcon({ name, className }: { name?: string; className?: string }) {

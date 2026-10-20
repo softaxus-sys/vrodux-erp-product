@@ -13,7 +13,14 @@ public sealed record MenuItemDto(
     bool IsAvailable,
     IReadOnlyList<ModifierGroupDto> ModifierGroups,
     Guid? KitchenStationId,
-    bool IsOnlineOrderable);
+    bool IsOnlineOrderable,
+    /// <summary>Photo metadata only, cover first — the bytes come from the image endpoint.</summary>
+    IReadOnlyList<MenuItemImageDto>? Images = null);
+
+public sealed record MenuItemImageDto(Guid Id, bool IsPrimary, int SortOrder, string? FileName);
+
+/// <summary>The bytes themselves. Only ever produced by the single-image endpoint.</summary>
+public sealed record MenuItemImageFileDto(byte[] Data, string ContentType);
 
 public sealed record MenuCategoryDto(
     Guid Id,

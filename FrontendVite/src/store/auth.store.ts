@@ -167,14 +167,15 @@ const KNOWN_MODULES: Record<ModuleKey, true> = {
   "settings": true, "users": true, "ai-assistant": true, "notifications": true,
   "file-manager": true, "super-admin": true, "restaurant": true, "education": true,
   "insurance": true, "b2b": true, "project-management": true, "visa": true,
-  "support": true, "seo": true,
+  "manufacturing": true, "library": true, "trade": true,
+  "support": true, "seo": true, "calendar": true,
 };
 
 /** Legacy stored code → canonical ModuleKey. Mirrors `Tenant.LegacyModuleAliases` (backend). */
 const LEGACY_MODULE_ALIASES: Record<string, ModuleKey> = { purchasing: "purchase" };
 
 /** Codes that are no longer modules. Mirrors `Tenant.RetiredModuleCodes` (backend). */
-const RETIRED_MODULE_CODES = new Set(["api", "custom-reports", "manufacturing"]);
+const RETIRED_MODULE_CODES = new Set(["api", "custom-reports"]);
 
 /**
  * Normalise one backend module code to a canonical ModuleKey, or null to drop it.
@@ -214,7 +215,7 @@ function canonicalModuleCode(code: string): ModuleKey | null {
 function backendModulesToFrontend(backendModules: string[]): ModuleKey[] {
   // Pure UI surfaces, never part of plan entitlement. These match hasModuleAccess step 2, which
   // short-circuits before the enabledModules check — listed here only for consistency.
-  const keys = new Set<ModuleKey>(["dashboard", "notifications", "support"]);
+  const keys = new Set<ModuleKey>(["dashboard", "notifications", "support", "calendar"]);
 
   for (const m of backendModules) {
     const key = canonicalModuleCode(m);
@@ -588,7 +589,7 @@ export const useAuthStore = create<AuthState>()(
         // see the backend's ISupportAccessGuard for why holding the permission key alone still
         // does not open the cross-tenant queue for anyone else.
         if (module === "dashboard" || module === "notifications" ||
-            module === "ai-assistant" || module === "support") return true;
+            module === "ai-assistant" || module === "support" || module === "calendar") return true;
 
         // ── 3. Tenant must have the module enabled — applies to EVERYONE,
         //       including tenant_admin. A tenant admin can only ever see the

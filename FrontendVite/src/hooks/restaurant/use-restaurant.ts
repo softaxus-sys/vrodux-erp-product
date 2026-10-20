@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   restaurantApi, type DiscountType, type OrderLineInput, type SplitGroupInput, type TableStatus,
   type TableShape, type DiningAreaType, type ReservationRule, type ComboItemInput, type ComboSelectionInput,
-  type HappyHourRule, type DeliveryStatus,
+  type HappyHourRule, type DeliveryStatus, type ImportMenuRow,
 } from "@/lib/restaurant/restaurant.api";
 import { toast } from "sonner";
 
@@ -244,10 +244,76 @@ export function useSetOrderTip() {
   });
 }
 
+/** For floor staff only — polled, so the banner clears soon after the cashier opens the till. */
+export function useOpenShift(enabled = true) {
+  return useQuery({ queryKey: [...rKeys.all, "open-shift"], queryFn: () => restaurantApi.getOpenShift(), enabled, refetchInterval: 30_000 });
+}
+
+export function useRedeemOrderLoyalty() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: ({ id, points }: { id: string; points: number }) => restaurantApi.redeemLoyalty(id, points),
+    onSuccess: () => invalidate(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useSetOrderCustomer() {
   const invalidate = useInvalidateAll();
   return useMutation({
     mutationFn: ({ id, customerId }: { id: string; customerId: string | null }) => restaurantApi.setCustomer(id, customerId),
+    onSuccess: () => invalidate(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+/** Refreshes every restaurant query — for flows that write through the API client directly. */
+export function useInvalidateRestaurant() {
+  return useInvalidateAll();
+}
+
+/** No success toast: the import dialog shows its own summary. */
+export function useImportMenu() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: (rows: ImportMenuRow[]) => restaurantApi.importMenu(rows),
+    onSuccess: () => invalidate(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useAddItemImages() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: ({ itemId, images }: { itemId: string; images: { data: string; fileName?: string }[] }) =>
+      restaurantApi.addItemImages(itemId, images),
+    onSuccess: () => invalidate(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteItemImage() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: ({ itemId, imageId }: { itemId: string; imageId: string }) => restaurantApi.deleteItemImage(itemId, imageId),
+    onSuccess: () => invalidate(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useSetPrimaryItemImage() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: ({ itemId, imageId }: { itemId: string; imageId: string }) => restaurantApi.setPrimaryItemImage(itemId, imageId),
+    onSuccess: () => invalidate(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useSetOrderWaiter() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: ({ id, waiter }: { id: string; waiter: string }) => restaurantApi.setWaiter(id, waiter),
     onSuccess: () => invalidate(),
     onError: (e: Error) => toast.error(e.message),
   });
@@ -862,7 +928,7 @@ export function useCreateDriver() {
 export function useUpdateDriver() {
   const invalidate = useInvalidateAll();
   return useMutation({
-    mutationFn: ({ id, ...p }: { id: string; name: string; phone: string; vehicleInfo?: string | null; isActive: boolean }) =>
+    mutationFn: ({ id, ...p }: { id: string; name: string; phone: string; vehicleInfo?: string | null; isActive: boolean; linkedUserId?: string | null }) =>
       restaurantApi.updateDriver(id, p),
     onSuccess: () => { invalidate(); toast.success("Driver updated."); },
     onError: (e: Error) => toast.error(e.message),
@@ -888,8 +954,8 @@ export function useDeliverySummary() {
   return useQuery({ queryKey: rKeys.deliverySummary(), queryFn: restaurantApi.getDeliverySummary, refetchInterval: 15_000 });
 }
 
-export function useDeliveryOrders(status?: string) {
-  return useQuery({ queryKey: rKeys.deliveryOrders(status), queryFn: () => restaurantApi.getDeliveryOrders(status), refetchInterval: 15_000 });
+export function useDeliveryOrders(status?: string, enabled = true) {
+  return useQuery({ queryKey: rKeys.deliveryOrders(status), queryFn: () => restaurantApi.getDeliveryOrders(status), refetchInterval: 15_000, enabled });
 }
 
 export function useDeliveryOrder(id: string, enabled = true) {

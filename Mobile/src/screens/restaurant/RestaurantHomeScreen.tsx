@@ -3,7 +3,9 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useBranchDashboard, useOwnerDashboard } from "@/hooks/use-restaurant";
 import {
+  RESTAURANT_DELIVERY_VIEW,
   RESTAURANT_KITCHEN_VIEW,
+  RESTAURANT_ORDERS_CREATE,
   RESTAURANT_ORDERS_VIEW,
   RESTAURANT_RESERVATIONS_VIEW,
   RESTAURANT_TABLES_VIEW,
@@ -17,9 +19,8 @@ import type { RestaurantStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<RestaurantStackParamList, "RestaurantHome">;
 
-/** "Front-of-house + kitchen coordination," not an order-taking terminal -- see
- *  lib/restaurant.api.ts's top-of-file note for why order-taking/payment/split-bill deliberately
- *  have no mobile screen at all. */
+/** Full order-taking + front-of-house + kitchen coordination -- see types/restaurant.ts's
+ *  top-of-file note for the scope reversal and what's still deliberately desktop-only. */
 export default function RestaurantHomeScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -27,9 +28,11 @@ export default function RestaurantHomeScreen({ navigation }: Props) {
 
   const canTables = hasPermission(RESTAURANT_TABLES_VIEW);
   const canOrders = hasPermission(RESTAURANT_ORDERS_VIEW);
+  const canCreateOrder = hasPermission(RESTAURANT_ORDERS_CREATE);
   const canKitchen = hasPermission(RESTAURANT_KITCHEN_VIEW);
   const canReservations = hasPermission(RESTAURANT_RESERVATIONS_VIEW);
   const canWaitlist = hasPermission(RESTAURANT_WAITLIST_VIEW);
+  const canDelivery = hasPermission(RESTAURANT_DELIVERY_VIEW);
 
   const owner = useOwnerDashboard();
   const branch = useBranchDashboard();
@@ -68,11 +71,20 @@ export default function RestaurantHomeScreen({ navigation }: Props) {
       ) : null}
 
       <View style={styles.menu}>
+        {canCreateOrder ? (
+          <MenuCard
+            icon="plus-circle"
+            title="New Order"
+            subtitle="Takeaway or walk-in -- no table needed"
+            tint={colors.primary}
+            onPress={() => navigation.navigate("NewOrder", {})}
+          />
+        ) : null}
         {canTables ? (
           <MenuCard
             icon="grid"
             title="Tables"
-            subtitle="Floor status at a glance"
+            subtitle="Floor status, tap a table to order"
             tint={colors.primary}
             onPress={() => navigation.navigate("TablesList")}
           />
@@ -111,6 +123,15 @@ export default function RestaurantHomeScreen({ navigation }: Props) {
             subtitle="Walk-ins waiting for a table"
             tint={colors.mutedForeground}
             onPress={() => navigation.navigate("WaitlistList")}
+          />
+        ) : null}
+        {canDelivery ? (
+          <MenuCard
+            icon="truck"
+            title="Deliveries"
+            subtitle="Assign riders, track drop-offs"
+            tint={colors.info}
+            onPress={() => navigation.navigate("DeliveryOrdersList")}
           />
         ) : null}
       </View>

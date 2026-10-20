@@ -124,6 +124,15 @@ public sealed class Tenant : AuditableEntity<Guid>
         ["insurance"]   = "insurance",
         ["b2b_services"]= "b2b",
         ["visa_services"]= "visa",
+        // A tenant that signs up (or is created) as a manufacturer gets the Manufacturing module.
+        ["manufacturing"]= "manufacturing",
+        // Public, school, university and corporate libraries.
+        ["library"]      = "library",
+        // Importers, exporters and trading companies. "Import & Export" signs up as import_export.
+        ["import_export"]= "trade",
+        // Hotels, tour operators and travel agencies. "Hospitality & Tourism" signs up as hospitality_tourism.
+        ["hospitality_tourism"] = "hospitality",
+        ["travel_tourism"]      = "hospitality",
     };
 
     /// <summary>The Industry-Pack module code for a given industry, or null.</summary>
@@ -133,11 +142,10 @@ public sealed class Tenant : AuditableEntity<Guid>
     /// <summary>
     /// Legacy module codes that are NOT real modules and map to nothing. <c>api</c> and
     /// <c>custom-reports</c> are now expressed as <see cref="PlanLimits.ApiAccess"/> /
-    /// <see cref="PlanLimits.CustomReports"/> feature flags, and <c>manufacturing</c> was never
-    /// built. Dropped rather than mapped.
+    /// <see cref="PlanLimits.CustomReports"/> feature flags. Dropped rather than mapped.
     /// </summary>
     private static readonly HashSet<string> RetiredModuleCodes =
-        new(StringComparer.OrdinalIgnoreCase) { "api", "custom-reports", "manufacturing" };
+        new(StringComparer.OrdinalIgnoreCase) { "api", "custom-reports" };
 
     /// <summary>Legacy code → canonical <c>ModuleKey</c>.</summary>
     private static readonly Dictionary<string, string> LegacyModuleAliases =
@@ -172,15 +180,12 @@ public sealed class Tenant : AuditableEntity<Guid>
     /// <summary>
     /// Resolved module list — what this tenant may actually access.
     /// <para>
-    /// <see cref="EnabledModules"/> (the modules picked during onboarding) narrows the set, but the
-    /// <b>plan is the ceiling</b>: the selection is intersected with <see cref="PlanLimits.Modules"/>,
-    /// so a Micro tenant cannot hold POS just because it was ticked at signup. Changing tier is the
-    /// only way to widen entitlement — <b>except</b> when <see cref="ModulesManuallyGranted"/> is
-    /// true, in which case the super admin's explicit list is authoritative and the ceiling is
-    /// skipped entirely. That's the one lever that lets a super admin sell a bespoke module set (e.g.
-    /// POS on a Micro-priced deal) without the tenant buying into a whole higher tier for it. Only a
-    /// super admin can set that flag (<see cref="GrantModulesManually"/>) — self-serve onboarding
-    /// always goes through <see cref="SetEnabledModules"/>, which stays plan-bound.
+    /// <see cref="EnabledModules"/> (the modules picked during onboarding, or later by a super admin)
+    /// is the tenant's selection. <b>Every tier offers every module</b> — the plan only prices seats —
+    /// so the selection is intersected with <see cref="PlanLimits.Modules"/> purely as a guard
+    /// against codes that no longer exist, not as a pricing ceiling. A tenant that never made a
+    /// selection gets the whole catalogue. <see cref="ModulesManuallyGranted"/> remains for a super
+    /// admin who wants an explicit list that skips that guard (and the industry fold-in below).
     /// </para>
     /// <para>
     /// The active Industry-Pack module (and <c>crm</c>, which packs build on) are folded in afterwards
@@ -213,10 +218,19 @@ public sealed class Tenant : AuditableEntity<Guid>
                 var pack = PackModuleFor(Industry);
                 if (pack is not null)
                 {
-                    if (!list.Contains("crm"))  list.Add("crm");
+                    // The CRM verticals build on CRM. Manufacturing does not — it builds on
+                    // Inventory, which is added below. Library and Trade build on nothing.
+                    if (pack is not ("manufacturing" or "library" or "trade") && !list.Contains("crm")) list.Add("crm");
                     if (!list.Contains(pack))   list.Add(pack);
                 }
             }
+
+            // Manufacturing keeps no stock of its own — components and finished goods are
+            // Inventory products. A tenant sold Manufacturing alone would have nowhere to create
+            // them, so Inventory comes with it, manual grant included.
+            if (list.Contains("manufacturing", StringComparer.OrdinalIgnoreCase)
+                && !list.Contains("inventory", StringComparer.OrdinalIgnoreCase))
+                list.Add("inventory");
 
             // Settings and Users are how a tenant administers itself — invite colleagues, set roles,
             // manage billing. Locking them behind a plan, an onboarding checkbox, or even a manual
@@ -409,10 +423,11 @@ public sealed class Tenant : AuditableEntity<Guid>
         UpdatedAt       = DateTime.UtcNow;
     }
 
-    public void StartTrial(int trialDays = 30)
+    /// <summary>Starts the free trial. Always <see cref="TrialPolicy.DurationDays"/> days — there is no override.</summary>
+    public void StartTrial()
     {
         Status      = TenantStatus.Trial;
-        TrialEndsAt = DateTime.UtcNow.AddDays(trialDays);
+        TrialEndsAt = DateTime.UtcNow.AddDays(TrialPolicy.DurationDays);
         UpdatedAt   = DateTime.UtcNow;
     }
 

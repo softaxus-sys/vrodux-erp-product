@@ -33,8 +33,9 @@ public sealed class UsersController(ISender sender) : BaseApiController(sender)
         [FromQuery] string? search = null,
         [FromQuery] string? sortBy = null,
         [FromQuery] bool sortDesc = false,
+        [FromQuery] string? role = null,
         CancellationToken ct = default)
-        => HandleResult(await Sender.Send(new GetUsersQuery(page, pageSize, search, sortBy, sortDesc), ct));
+        => HandleResult(await Sender.Send(new GetUsersQuery(page, pageSize, search, sortBy, sortDesc, role), ct));
 
     /// <summary>Get a user by ID with full role and permission detail.</summary>
     [HttpGet("{id:guid}")]

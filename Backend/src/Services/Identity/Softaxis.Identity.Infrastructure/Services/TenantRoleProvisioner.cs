@@ -132,4 +132,36 @@ public sealed class TenantRoleProvisioner(IdentityDbContext db) : ITenantRolePro
         if (granted > 0) await db.SaveChangesAsync(ct);
         return granted;
     }
+
+    /// <inheritdoc />
+    public async Task<int> EnsureRestaurantShiftAccessAsync(CancellationToken ct = default)
+    {
+        var perms = await db.Permissions.AsNoTracking()
+            .Where(p => (p.ModuleId == "restaurant.orders" && p.Action == "create")
+                     // The shift to take orders on, and the customer book to attach a guest and their points.
+                     || ((p.ModuleId == "pos.sessions" || p.ModuleId == "pos.customers") && (p.Action == "view" || p.Action == "create")))
+            .ToListAsync(ct);
+        var takesOrders = perms.FirstOrDefault(p => p.ModuleId == "restaurant.orders")?.Id;
+        var shiftKeys = perms.Where(p => p.ModuleId != "restaurant.orders").Select(p => p.Id).ToList();
+        // A waiter takes orders under the cashier's shift and must not be handed one of their own.
+        var customerKeys = perms.Where(p => p.ModuleId == "pos.customers").Select(p => p.Id).ToList();
+        if (takesOrders is null || shiftKeys.Count == 0) return 0;
+
+        var roles = await db.Roles
+            .Include(r => r.RolePermissions)
+            .Where(r => r.TenantId != null && !r.IsSystem && !r.IsDeleted
+                     && r.RolePermissions.Any(rp => rp.PermissionId == takesOrders))
+            .ToListAsync(ct);
+
+        var granted = 0;
+        foreach (var role in roles)
+        foreach (var key in (role.Name == "Waiter" ? customerKeys : shiftKeys).Where(k => role.RolePermissions.All(rp => rp.PermissionId != k)))
+        {
+            role.AddPermission(key);
+            granted++;
+        }
+
+        if (granted > 0) await db.SaveChangesAsync(ct);
+        return granted;
+    }
 }

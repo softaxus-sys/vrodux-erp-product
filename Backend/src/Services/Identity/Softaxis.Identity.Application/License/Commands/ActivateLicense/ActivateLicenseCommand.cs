@@ -8,7 +8,7 @@ namespace Softaxis.Identity.Application.License.Commands.ActivateLicense;
 ///
 /// <para>
 /// Before this existed, the only way a key reached a box was <c>OnPremises:LicenseKey</c> in
-/// appsettings.json, read once at startup. So renewing a 30-day trial meant someone editing JSON
+/// appsettings.json, read once at startup. So renewing a 14-day trial meant someone editing JSON
 /// on the customer's production server and restarting the service — an engineer visit or a remote
 /// session, on the day the customer is paying us, with downtime.
 /// </para>

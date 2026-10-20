@@ -18,12 +18,18 @@ public sealed class RecordHouseAccountPaymentCommandHandler(
         if (customer is null)
             return Result.Failure<CustomerDto>(Error.NotFoundById("Customer", cmd.CustomerId));
 
+        // A payment larger than what is owed used to be accepted and the excess silently dropped, which
+        // loses the customer's money. Refuse it so the cashier takes the right amount.
+        if (cmd.Amount > customer.CreditBalance + 0.005m)
+            return Result.Failure<CustomerDto>(Error.Custom("Customer.InvalidAmount",
+                $"The customer only owes {customer.CreditBalance:N2}. Take that amount, or no more."));
+
         var result = customer.RecordHouseAccountPayment(cmd.Amount);
         if (result.IsFailure)
             return Result.Failure<CustomerDto>(result.Error);
 
         customerRepo.Update(customer);
-        walletRepo.Add(new CustomerWalletTransaction(customer.Id, "house_payment", cmd.Amount, null, cmd.Notes));
+        walletRepo.Add(new CustomerWalletTransaction(customer.Id, "house_payment", cmd.Amount, null, cmd.Notes, cmd.PaymentMethod));
         await uow.SaveChangesAsync(ct);
 
         return Result.Success(CustomerMappings.ToDto(customer));

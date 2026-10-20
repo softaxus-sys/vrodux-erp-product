@@ -24,6 +24,13 @@ public sealed class Customer : AuditableEntity<Guid>
     public decimal CreditBalance  { get; private set; }
     /// <summary>What's left to charge before hitting CreditLimit.</summary>
     public decimal AvailableCredit => Math.Max(0, CreditLimit - CreditBalance);
+    /// <summary>Days a credit sale is given to be paid. Each charge is due this many days after the sale.</summary>
+    public int     CreditTermsDays { get; private set; } = 30;
+    /// <summary>A manager's stop on further credit — set when the customer has stopped paying. Existing balance is unaffected.</summary>
+    public bool    CreditHold      { get; private set; }
+    public string? CreditHoldReason { get; private set; }
+
+    public const int MaxCreditTermsDays = 365;
 
     // Navigation
     public ICollection<POSTransaction> Transactions { get; private set; } = [];
@@ -130,9 +137,30 @@ public sealed class Customer : AuditableEntity<Guid>
         return Result.Success();
     }
 
-    /// <summary>Charges an order to the house account — fails if it would exceed the credit limit.</summary>
+    public Result SetCreditTerms(int days)
+    {
+        if (days < 0 || days > MaxCreditTermsDays)
+            return Result.Failure(Error.Custom("Customer.InvalidAmount", $"Payment terms must be between 0 and {MaxCreditTermsDays} days."));
+        CreditTermsDays = days;
+        return Result.Success();
+    }
+
+    public Result PlaceCreditHold(string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+            return Result.Failure(Error.Custom("Customer.InvalidAmount", "Say why credit is being stopped."));
+        CreditHold = true; CreditHoldReason = reason.Trim();
+        return Result.Success();
+    }
+
+    public void ReleaseCreditHold() { CreditHold = false; CreditHoldReason = null; }
+
+    /// <summary>Charges an order to the house account — fails if the account is on hold or it would exceed the credit limit.</summary>
     public Result ChargeHouseAccount(decimal amount)
     {
+        if (CreditHold)
+            return Result.Failure(Error.Custom("Customer.CreditOnHold",
+                $"Credit is stopped for this customer{(string.IsNullOrWhiteSpace(CreditHoldReason) ? "" : $": {CreditHoldReason}")}."));
         if (amount <= 0)
             return Result.Failure(Error.Custom("Customer.InvalidAmount", "Charge amount must be greater than zero."));
         if (CreditBalance + amount > CreditLimit)

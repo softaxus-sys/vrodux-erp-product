@@ -21,8 +21,9 @@ import { useCustomerVisaCases } from "@/hooks/visa/use-visa";
 import { CASE_STATUS_META } from "@/lib/visa/visa.api";
 
 import { DocumentsPanel } from "@/modules/crm/shared/components/documents-panel";
+import { CrmQuotationsPanel, useCanViewQuotations } from "@/modules/crm/quotations/components/crm-quotations-panel";
 
-type Tab = "overview" | "contacts" | "deals" | "activity" | "documents";
+type Tab = "overview" | "contacts" | "deals" | "activity" | "documents" | "quotations";
 
 const TIER_CONFIG = {
   platinum: { color: "text-violet-600", bg: "bg-violet-100 dark:bg-violet-900/30", icon: "💎" },
@@ -77,6 +78,8 @@ export function CustomerDrawer({ customer, open, onClose, onEdit }: Props) {
   const currency = useCurrency();
   const { data: linkedDeals = [], isLoading: dealsLoading } = useDeals(customer?.id, !!customer && open);
   const canViewVisa = useCan("visa.cases.view");
+  // Quotations come from Sales — the tab exists only where the workspace has Sales and the user may view them.
+  const canViewQuotes = useCanViewQuotations();
   const { data: visaCases = [] } = useCustomerVisaCases(customer?.id ?? null, canViewVisa && open);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   React.useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
@@ -138,7 +141,7 @@ export function CustomerDrawer({ customer, open, onClose, onEdit }: Props) {
 
             {/* Tabs */}
             <div className="flex border-b border-border px-6">
-              {(["overview","contacts","deals","activity","documents"] as Tab[]).map(tk => (
+              {(["overview","contacts","deals","activity","documents", ...(canViewQuotes ? ["quotations"] : [])] as Tab[]).map(tk => (
                 <button key={tk} onClick={() => setTab(tk)}
                   className={cn("px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px",
                     tab === tk ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
@@ -286,6 +289,23 @@ export function CustomerDrawer({ customer, open, onClose, onEdit }: Props) {
               {tab === "documents" && (
                 <div className="p-6">
                   <DocumentsPanel relatedToType="customer" relatedToId={customer.id} />
+                </div>
+              )}
+
+              {/* QUOTATIONS — includes the ones raised from this account's converted leads */}
+              {tab === "quotations" && canViewQuotes && (
+                <div className="p-6">
+                  <CrmQuotationsPanel
+                    party={{
+                      customerName: customer.name,
+                      email:        customer.email || undefined,
+                      phone:        customer.phone || undefined,
+                      address:      [customer.address, customer.city, customer.country].filter(Boolean).join(", ") || undefined,
+                      crmCustomerId: customer.id,
+                      ownerUserId:  customer.accountManagerUserId,
+                      timeline:     { type: "customer", id: customer.id, name: customer.name },
+                    }}
+                  />
                 </div>
               )}
             </div>

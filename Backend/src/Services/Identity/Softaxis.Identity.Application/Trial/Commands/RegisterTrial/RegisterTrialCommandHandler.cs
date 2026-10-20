@@ -17,6 +17,7 @@ public sealed class RegisterTrialCommandHandler(
     IAuditLogRepository    auditRepo,
     IPasswordHasher        passwordHasher,
     IUnitOfWork            uow,
+    IConversionTracker     conversions,
     ILogger<RegisterTrialCommandHandler> logger)
     : ICommandHandler<RegisterTrialCommand, TrialRegistrationResultDto>
 {
@@ -67,11 +68,11 @@ public sealed class RegisterTrialCommandHandler(
 
         // "Buy Now" signups do NOT get a trial — they came to purchase, so the account is gated to
         // the billing page until payment lands. They can still claim the trial from there if they
-        // change their mind. Everything else (including a bare /trial visit) gets the 30 days.
+        // change their mind. Everything else (including a bare /trial visit) gets the free trial (TrialPolicy.DurationDays).
         var wantsToBuy = string.Equals(cmd.Intent, "buy", StringComparison.OrdinalIgnoreCase);
 
         if (wantsToBuy) tenant.AwaitPayment();
-        else            tenant.StartTrial(30);
+        else            tenant.StartTrial();
 
         tenant.SetCurrency(cmd.Currency);   // browser-detected 3-letter code (USD default when null)
         tenant.SetSignupAttribution(cmd.Intent, billingPeriod, cmd.UtmSource);
@@ -121,6 +122,13 @@ public sealed class RegisterTrialCommandHandler(
             "Trial tenant created. TenantId={TenantId} Slug={Slug} Email={Email} Modules=[{Modules}]",
             tenant.Id, tenant.Slug, cmd.Email,
             cmd.Modules is not null ? string.Join(',', cmd.Modules) : "default");
+
+        // Ad-platform conversion (server side). Only for real trials: a "Buy Now" signup is not a
+        // trial start. Best-effort — the tracker swallows its own failures.
+        if (!wantsToBuy)
+            await conversions.TrackTrialStartedAsync(new TrialConversion(
+                cmd.Email, cmd.FullName, cmd.Country, cmd.EventId, cmd.Fbp, cmd.Fbc,
+                cmd.RemoteIp, cmd.UserAgent, cmd.SourceUrl, tenant.Plan.ToString()), ct);
 
         return Result.Success(new TrialRegistrationResultDto(
             TenantId:          tenant.Id,

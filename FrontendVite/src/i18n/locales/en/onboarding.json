@@ -171,7 +171,10 @@
     "Wholesale & Distribution": "Wholesale & Distribution",
     "Professional Services": "Professional Services",
     "Agriculture": "Agriculture",
-    "Other": "Other"
+    "Other": "Other",
+    "Library": "Library",
+    "Import & Export": "Import & Export",
+    "Visa Services": "Visa Services"
   },
   "language": {
     "English": "English",
@@ -226,7 +229,7 @@
       "desc": "Leads, pipeline, customers & activities"
     },
     "hospitality": {
-      "label": "Hospitality",
+      "label": "Hospitality & Tourism",
       "desc": "Rooms, bookings & housekeeping"
     },
     "real-estate": {
@@ -248,6 +251,18 @@
     "visa": {
       "label": "Visa Services",
       "desc": "Visa cases, documents & renewals"
+    },
+    "manufacturing": {
+      "label": "Manufacturing",
+      "desc": "Bills of materials, production orders & costing"
+    },
+    "library": {
+      "label": "Library",
+      "desc": "Catalogue, members, lending & fines across branches"
+    },
+    "trade": {
+      "label": "Import / Export",
+      "desc": "Shipments, trade documents, landed cost & payments"
     }
   },
   "businessType": {
@@ -281,5 +296,5 @@
     "operations": "HR & Operations",
     "industry": "Industry Packs"
   },
-  "trialBadge": "30-day free trial · No credit card"
+  "trialBadge": "{{days}}-day free trial · No credit card"
 }

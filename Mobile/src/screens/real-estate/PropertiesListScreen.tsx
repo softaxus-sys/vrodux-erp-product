@@ -4,7 +4,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { usePropertiesPaged, usePropertiesSummary } from "@/hooks/use-real-estate";
 import { formatCompactValue } from "@/lib/crm-helpers";
 import { useAuthStore } from "@/store/auth.store";
-import { PROPERTY_STATUS_LABELS, PROPERTY_STATUS_TONE } from "@/types/real-estate";
+import { PROPERTY_CATEGORY_LABELS, PROPERTY_STATUS_LABELS, PROPERTY_STATUS_TONE } from "@/types/real-estate";
 import type { PropertyDto } from "@/types/real-estate";
 import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
@@ -106,6 +106,7 @@ function PropertyRow({ property, onPress }: { property: PropertyDto; onPress: ()
       </View>
       <Text style={styles.meta}>
         {property.propertyNumber} · {property.propertyType} · {property.location.city}
+        {property.category ? ` · ${PROPERTY_CATEGORY_LABELS[property.category] ?? property.category}` : ""}
       </Text>
       <Text style={styles.stat}>
         {property.occupiedUnits}/{property.totalUnits} units occupied ({Math.round(property.occupancyRate)}%)

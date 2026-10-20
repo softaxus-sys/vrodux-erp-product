@@ -41,6 +41,16 @@ internal sealed class SalesQuotationConfiguration : IEntityTypeConfiguration<Sal
         builder.Property(x => x.ResponseComment).HasMaxLength(2000);
         builder.Property(x => x.InvoiceNumber).HasMaxLength(50);
 
+        builder.Property(x => x.AccentColor).HasMaxLength(20);
+        builder.Property(x => x.FooterNote).HasMaxLength(1000);
+        // Existing rows predate the flag and were always rendered with the logo.
+        builder.Property(x => x.ShowLogo).IsRequired().HasDefaultValue(true);
+
+        // CRM scalar references — no FK, the targets live in another service's schema.
+        builder.HasIndex(x => x.LeadId);
+        builder.HasIndex(x => x.CrmCustomerId);
+        builder.HasIndex(x => x.DealId);
+
         // Free-form document fields as JSON. The ValueComparer is mandatory: without it EF
         // compares dictionaries by reference, never sees an in-place edit, and a save silently
         // does nothing (the same trap documented for BillingSettings in Module 22).

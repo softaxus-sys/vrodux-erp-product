@@ -4,6 +4,7 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Application.Storage;
 using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.BuildingBlocks.Infrastructure.Storage;
 using Softaxis.RealEstate.Application.Properties.Commands;
 using Softaxis.RealEstate.Application.Properties.Queries;
 using Softaxis.RealEstate.Application.Properties.Dtos;
@@ -73,7 +74,8 @@ internal static class DataUri
 }
 
 internal sealed class AddPropertyImagesHandler(
-    RealEstateDbContext db, IObjectStorage storage, ILogger<AddPropertyImagesHandler> logger)
+    RealEstateDbContext db, IObjectStorage storage, IImageProcessor imageProcessor,
+    ILogger<AddPropertyImagesHandler> logger)
     : ICommandHandler<AddPropertyImagesCommand, IReadOnlyList<PropertyImageDto>>
 {
     public async Task<Result<IReadOnlyList<PropertyImageDto>>> Handle(
@@ -95,6 +97,10 @@ internal sealed class AddPropertyImagesHandler(
         var existing = property.Images.Where(i => !i.IsDeleted).ToList();
         var nextOrder = existing.Count == 0 ? 0 : existing.Max(i => i.SortOrder) + 1;
         var added = new List<PropertyImage>();
+        // Bytes already accepted earlier in THIS batch — several photos can be uploaded in one
+        // call, so the Nth photo is checked against what the first N-1 already committed, not
+        // just usage as of before this call started.
+        long committedInBatch = 0;
 
         foreach (var input in cmd.Images)
         {
@@ -104,14 +110,22 @@ internal sealed class AddPropertyImagesHandler(
                         $"'{input.FileName ?? "An image"}' could not be read. Please re-select the file."));
 
             // Checked against the decoded length, not the base64 string, which is a third larger
-            // and would reject files comfortably inside the stated limit.
+            // and would reject files comfortably inside the stated limit. Checked on the ORIGINAL
+            // upload, not the post-compression size — the limit is about what the user is sending,
+            // not what ends up stored.
             if (bytes.Length > AddPropertyImagesValidator.MaxBytesPerImage)
                 return Result.Failure<IReadOnlyList<PropertyImageDto>>(
                     Error.Custom("Property.ImageTooLarge",
                         $"'{input.FileName ?? "An image"}' is {bytes.Length / 1024 / 1024}MB. " +
                         $"The limit is {AddPropertyImagesValidator.MaxBytesPerImage / 1024 / 1024}MB per photo."));
 
-            var image = new PropertyImage(property.Id, bytes, contentType, input.FileName, nextOrder++);
+            // Property photos routinely arrive at several MB from a phone camera — exactly what
+            // IImageProcessor's longest-dimension cap + WebP re-encode exists for.
+            var (storedBytes, storedContentType) = imageProcessor.IsCompressibleImage(contentType)
+                ? imageProcessor.Compress(bytes, contentType)
+                : (bytes, contentType);
+
+            var image = new PropertyImage(property.Id, storedBytes, storedContentType, input.FileName, nextOrder++);
             image.SetCaption(input.Caption);
 
             // The first photo uploaded becomes the cover, so a property is never left with a
@@ -120,11 +134,19 @@ internal sealed class AddPropertyImagesHandler(
 
             if (useStorage)
             {
+                var quota = await TenantStorageQuota.CheckAsync(
+                    db.Database, tenantId!.Value, committedInBatch + storedBytes.LongLength, ct);
+                if (!quota.Allowed)
+                    return Result.Failure<IReadOnlyList<PropertyImageDto>>(
+                        Error.Custom("Property.QuotaExceeded",
+                            TenantStorageQuota.QuotaErrorMessage(quota, input.FileName)));
+
                 var key = PropertyImageStorage.BuildKey(tenantId!.Value, property.Id, image.Id);
                 try
                 {
-                    await storage.PutAsync(key, bytes, contentType, ct);
-                    image.SetObjectKey(key); // clears Data — see PropertyImage.SetObjectKey
+                    await storage.PutAsync(key, storedBytes, storedContentType, ct);
+                    image.SetObjectKey(key, storedContentType, storedBytes.LongLength); // clears Data
+                    committedInBatch += storedBytes.LongLength;
                 }
                 catch (Exception ex)
                 {
@@ -269,10 +291,12 @@ internal sealed class SetPropertyQasroListingHandler(RealEstateDbContext db, IQa
         if (property is null)
             return Result.Failure(Error.Custom("Property.NotFound", "That property no longer exists."));
 
-        // Same reasoning as the website listing above — Qasro is a public portal too.
-        if (cmd.ListOnQasro && property.Images.Count(i => !i.IsDeleted) == 0)
-            return Result.Failure(Error.Custom("Property.NoImages",
-                "Add at least one photo before listing this property on Qasro."));
+        // TEMPORARILY DISABLED (2026-10-02, at the user's request) — properties with no photos were
+        // being silently skipped from the Qasro feed entirely. Uncomment to require at least one
+        // photo again before listing on Qasro:
+        // if (cmd.ListOnQasro && property.Images.Count(i => !i.IsDeleted) == 0)
+        //     return Result.Failure(Error.Custom("Property.NoImages",
+        //         "Add at least one photo before listing this property on Qasro."));
 
         property.SetQasroListing(cmd.ListOnQasro);
         await db.SaveChangesAsync(ct);
@@ -303,10 +327,9 @@ internal sealed class BulkSetPropertyQasroListingHandler(RealEstateDbContext db,
 
         foreach (var property in properties)
         {
-            // Listing without a photo is refused per-property, not for the whole batch — a mixed
-            // selection should list what it can rather than failing everything over one property
-            // with no photos yet.
-            if (cmd.ListOnQasro && property.Images.Count(i => !i.IsDeleted) == 0) { skipped++; continue; }
+            // TEMPORARILY DISABLED (2026-10-02, at the user's request) — see the single-property
+            // handler above for why. Uncomment to skip photo-less properties again:
+            // if (cmd.ListOnQasro && property.Images.Count(i => !i.IsDeleted) == 0) { skipped++; continue; }
 
             property.SetQasroListing(cmd.ListOnQasro);
             changed.Add(property.Id);
