@@ -33,6 +33,9 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
     public DbSet<ReceiptVoucher>       ReceiptVouchers       => Set<ReceiptVoucher>();
     public DbSet<ReceiptAllocation>    ReceiptAllocations    => Set<ReceiptAllocation>();
     public DbSet<FiscalPeriod>         FiscalPeriods         => Set<FiscalPeriod>();
+    public DbSet<UaeVatProfile>        UaeVatProfiles        => Set<UaeVatProfile>();
+    public DbSet<VatReturn>            VatReturns            => Set<VatReturn>();
+    public DbSet<VatReturnAttempt>     VatReturnAttempts     => Set<VatReturnAttempt>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

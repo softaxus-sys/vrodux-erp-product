@@ -116,4 +116,7 @@
     <Project Path="src/Services/AiAssistant/Softaxis.AiAssistant.Domain/Softaxis.AiAssistant.Domain.csproj" />
     <Project Path="src/Services/AiAssistant/Softaxis.AiAssistant.Infrastructure/Softaxis.AiAssistant.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Softaxis.Finance.UaeVat.Tests/Softaxis.Finance.UaeVat.Tests.csproj" />
+  </Folder>
 </Solution>

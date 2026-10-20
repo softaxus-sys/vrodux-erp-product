@@ -7351,3 +7351,25 @@ removed (soft-deleted) from the stock list. Notification only.
   no lease) and from "Run now" (not on a dry run). Event key `unit.vacating`.
 - **Build:** RealEstate.API 0 errors, `tsc` 0 errors; parser checked against sample cells. **Not runtime-tested**
   — needs republish + restart (migration auto-applies).
+
+---
+
+## Module 67 — Finance: UAE VAT 201 return preparation + FTA submission seam
+
+Full details: `docs/uae-vat-integration.md`. **FTA publishes no direct VAT-return API or sandbox** (their
+Tax Accounting Software spec lists "Option 2" ITAS upload as future); so Vrodux prepares, validates,
+reconciles and generates files, and **never claims a submission** — `UnavailableUaeVatSubmissionGateway`
+records `not_available`. Manual EmaraTax filing is recorded as `filed_via_portal` with its reference.
+
+- Domain `UaeVatReturn.cs`: `UaeVatProfile` (TRN, names, emirate, agent), `VatReturn` (workflow
+  draft→validated→reconciled→approved→ready_to_submit→submitted/acknowledged/rejected | filed_via_portal),
+  `VatReturnAttempt` (append-only; filtered unique index = one `in_progress` per return).
+- `Application/UaeVat/UaeVatReturnBuilder` (pure): VAT 201 boxes, validation, GL reconciliation (account 2200,
+  AED 1 tolerance), FAF CSV (Appendix 5), XML (`certified="false"` — no FTA schema/encryption creds).
+- Source data = `VatLedger.BuildSourceLinesAsync` (same statuses/VAT math as the Tax screens; AED via
+  `GlPoster.GetRateAsync`). No second VAT engine.
+- API `api/finance/tax/uae/*` (`finance.tax.*` keys); UI = "FTA Return" tab in the Tax drawer.
+- Migration `AddUaeVatReturns` (3 additive tables). Tests: `Backend/tests/Softaxis.Finance.UaeVat.Tests`
+  (35, all offline). **Gotcha fixed:** a child with a client-set Guid added via a tracked collection is
+  UPDATEd by EF — add it to its DbSet explicitly.
+- Build: ApiGateway 0 errors · `tsc` 0 · `vite build` ✅. **Pending:** restart (migration auto-applies).

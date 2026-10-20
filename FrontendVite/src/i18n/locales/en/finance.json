@@ -573,7 +573,8 @@
       "txAmount": "Amount",
       "txVat": "VAT",
       "fileReturn": "File Return",
-      "markPaid": "Mark Paid"
+      "markPaid": "Mark Paid",
+      "ftaReturn": "FTA Return"
     },
     "form": {
       "title": "New VAT Return",

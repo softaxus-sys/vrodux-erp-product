@@ -12,6 +12,7 @@ import { useCurrency } from "@/hooks/use-currency";
 import type { TaxPeriodDto as TaxPeriod } from "@/lib/finance/finance.api";
 import { useTaxPeriods, useTaxTransactions, useTaxSummary, useFileTaxPeriod, usePayTaxPeriod, useCreateTaxPeriod } from "@/hooks/finance/use-finance";
 import { Can } from "@/components/auth/can";
+import { UaeVatReturnPanel } from "./uae-vat-return-panel";
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; dot: string }> = {
   open:    { color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    dot: "bg-blue-500" },
@@ -23,7 +24,7 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; dot: string }> 
 function TaxDrawer({ period, open, onClose }: { period: TaxPeriod | null; open: boolean; onClose: () => void }) {
   const { t } = useTranslation("finance");
   const currency = useCurrency();
-  const [tab, setTab] = React.useState<"overview" | "sales" | "purchases">("overview");
+  const [tab, setTab] = React.useState<"overview" | "sales" | "purchases" | "fta">("overview");
   const fileReturn = useFileTaxPeriod();
   const payReturn  = usePayTaxPeriod();
   // Fetched here, for this period only. The list page used to load every VAT-bearing transaction
@@ -56,11 +57,11 @@ function TaxDrawer({ period, open, onClose }: { period: TaxPeriod | null; open: 
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
           </div>
           <div className="flex border-b border-border px-6">
-            {(["overview", "sales", "purchases"] as const).map(tabKey => (
+            {(["overview", "sales", "purchases", "fta"] as const).map(tabKey => (
               <button key={tabKey} onClick={() => setTab(tabKey)}
                 className={cn("px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px",
                   tab === tabKey ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-                {tabKey === "sales" ? t("tax.drawer.sales", { count: salesTxns.length }) : tabKey === "purchases" ? t("tax.drawer.purchases", { count: purchaseTxns.length }) : t("tax.drawer.overview")}
+                {tabKey === "sales" ? t("tax.drawer.sales", { count: salesTxns.length }) : tabKey === "purchases" ? t("tax.drawer.purchases", { count: purchaseTxns.length }) : tabKey === "fta" ? t("tax.drawer.ftaReturn", { defaultValue: "FTA Return" }) : t("tax.drawer.overview")}
               </button>
             ))}
           </div>
@@ -101,6 +102,7 @@ function TaxDrawer({ period, open, onClose }: { period: TaxPeriod | null; open: 
                 </div>
               </>
             )}
+            {tab === "fta" && <UaeVatReturnPanel period={period} />}
             {(tab === "sales" || tab === "purchases") && (
               <div className="rounded-xl border border-border overflow-hidden">
                 <table className="w-full text-sm">
