@@ -9,6 +9,9 @@ import { useFieldErrors } from "@/hooks/use-field-errors";
 import { useAccounts, useCreateFinanceCustomer, useUpdateFinanceCustomer } from "@/hooks/finance/use-finance";
 import type { FinanceCustomerDto } from "@/lib/finance/finance.api";
 
+const EMIRATES = [["AUH","Abu Dhabi"],["DXB","Dubai"],["SHJ","Sharjah"],["AJM","Ajman"],["UAQ","Umm Al Quwain"],["RAK","Ras Al Khaimah"],["FUJ","Fujairah"]] as const;
+const EMPTY_TAX = { trn: "", emirate: "", city: "", countryCode: "AE", peppolId: "" };
+
 interface CustomerFormProps {
   open: boolean;
   onClose: () => void;
@@ -28,6 +31,8 @@ export function CustomerForm({ open, onClose, customer }: CustomerFormProps) {
   const [ccEmails, setCcEmails]   = React.useState("");
   const [accountId, setAccountId] = React.useState("");
   const [isActive, setIsActive]   = React.useState(true);
+  const [tax, setTax]             = React.useState(EMPTY_TAX);
+  const setTaxField = (k: keyof typeof EMPTY_TAX, v: string) => { setTax(p => ({ ...p, [k]: v })); errors.clearField(k.toLowerCase()); };
 
   // Receivables sit on the asset side, so only asset accounts are valid here.
   const { data: accounts } = useAccounts({ accountType: "asset", isActive: true });
@@ -40,7 +45,7 @@ export function CustomerForm({ open, onClose, customer }: CustomerFormProps) {
 
   const reset = React.useCallback(() => {
     setName(""); setEmail(""); setPhone(""); setAddress(""); setCcEmails("");
-    setAccountId(""); setIsActive(true);
+    setAccountId(""); setIsActive(true); setTax(EMPTY_TAX);
     errors.clear();
   }, [errors]);
 
@@ -57,9 +62,13 @@ export function CustomerForm({ open, onClose, customer }: CustomerFormProps) {
       setCcEmails(customer.ccEmails ?? "");
       setAccountId(customer.accountId ?? "");
       setIsActive(customer.isActive);
+      setTax({
+        trn: customer.trn ?? "", emirate: customer.emirate ?? "", city: customer.city ?? "",
+        countryCode: customer.countryCode ?? "AE", peppolId: customer.peppolId ?? "",
+      });
     } else {
       setName(""); setEmail(""); setPhone(""); setAddress(""); setCcEmails("");
-      setAccountId(""); setIsActive(true);
+      setAccountId(""); setIsActive(true); setTax(EMPTY_TAX);
     }
   }, [open, customer]);
 
@@ -75,6 +84,11 @@ export function CustomerForm({ open, onClose, customer }: CustomerFormProps) {
       ccEmails:  ccEmails.trim() || undefined,
       accountId: accountId      || undefined,
       isActive,
+      trn:         tax.trn.replace(/\s/g, "") || undefined,
+      emirate:     tax.countryCode.trim().toUpperCase() === "AE" ? tax.emirate || undefined : undefined,
+      city:        tax.city.trim() || undefined,
+      countryCode: tax.countryCode.trim().toUpperCase() || undefined,
+      peppolId:    tax.peppolId.trim() || undefined,
     };
 
     try {
@@ -204,6 +218,49 @@ export function CustomerForm({ open, onClose, customer }: CustomerFormProps) {
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                     />
                     <FieldError message={errors.get("address")} />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                  {t("customers.form.taxIdentity", { defaultValue: "Tax & e-invoicing" })}
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customers.form.trn", { defaultValue: "TRN" })}</label>
+                    <Input value={tax.trn} onChange={e => setTaxField("trn", e.target.value)}
+                      placeholder={tax.countryCode.trim().toUpperCase() === "AE" ? t("customers.form.trnPh", { defaultValue: "15 digits, starts with 100" }) : ""}
+                      inputMode="numeric" aria-invalid={!!errors.get("trn")} className="h-9 text-sm" />
+                    <FieldError message={errors.get("trn")} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customers.form.country", { defaultValue: "Country code" })}</label>
+                    <Input value={tax.countryCode} maxLength={2} onChange={e => setTaxField("countryCode", e.target.value.toUpperCase())}
+                      placeholder="AE" aria-invalid={!!errors.get("countrycode")} className="h-9 text-sm" />
+                    <FieldError message={errors.get("countrycode")} />
+                  </div>
+                  {tax.countryCode.trim().toUpperCase() === "AE" && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customers.form.emirate", { defaultValue: "Emirate" })}</label>
+                      <select value={tax.emirate} onChange={e => setTaxField("emirate", e.target.value)}
+                        className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                        <option value="">{t("customers.form.emirateNone", { defaultValue: "�" })}</option>
+                        {EMIRATES.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+                      </select>
+                      <FieldError message={errors.get("emirate")} />
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customers.form.city", { defaultValue: "City" })}</label>
+                    <Input value={tax.city} onChange={e => setTaxField("city", e.target.value)} className="h-9 text-sm" />
+                  </div>
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customers.form.peppolId", { defaultValue: "Peppol ID" })}</label>
+                    <Input value={tax.peppolId} onChange={e => setTaxField("peppolId", e.target.value)}
+                      aria-invalid={!!errors.get("peppolid")} className="h-9 text-sm" />
+                    <FieldError message={errors.get("peppolid")} />
+                    <p className="text-[11px] text-muted-foreground">{t("customers.form.peppolHint", { defaultValue: "Used to send e-invoices to this customer once e-invoicing is switched on. Leave blank if unknown." })}</p>
                   </div>
                 </div>
               </div>

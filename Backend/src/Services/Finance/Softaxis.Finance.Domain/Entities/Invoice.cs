@@ -113,7 +113,10 @@ public sealed class Invoice
     public ICollection<InvoiceItem> Items { get; private set; } = new List<InvoiceItem>();
 
     public decimal SubTotal  => Items.Sum(i => i.Quantity * i.UnitPrice);
-    public decimal TaxAmount => SubTotal * TaxRate / 100;
+    /// <summary>The part of the subtotal VAT is charged on — standard-rated lines only. Zero-rated,
+    /// exempt and out-of-scope lines sit in the subtotal but carry no tax.</summary>
+    public decimal TaxableAmount => Items.Where(i => VatCategory.IsStandard(i.TaxCategory)).Sum(i => i.Quantity * i.UnitPrice);
+    public decimal TaxAmount => TaxableAmount * TaxRate / 100;
     public decimal Total     => SubTotal + TaxAmount;
     public decimal AmountDue => Total - AmountPaid;
 
@@ -271,14 +274,28 @@ public sealed class InvoiceItem
 {
     private InvoiceItem() { }
 
-    public InvoiceItem(Guid invoiceId, string description, decimal quantity, decimal unitPrice)
+    public InvoiceItem(Guid invoiceId, string description, decimal quantity, decimal unitPrice,
+        string? taxCategory = null, string? unitCode = null, string? exemptionReason = null)
     {
         Id          = Guid.NewGuid();
         InvoiceId   = invoiceId;
         Description = description.Trim();
         Quantity    = quantity;
         UnitPrice   = unitPrice;
+        TaxCategory = VatCategory.Normalise(taxCategory);
+        UnitCode    = string.IsNullOrWhiteSpace(unitCode) ? null : unitCode.Trim().ToUpperInvariant();
+        // A reason only means something on a line that is not taxed at the standard rate.
+        ExemptionReason = VatCategory.IsStandard(TaxCategory) || string.IsNullOrWhiteSpace(exemptionReason)
+            ? null : exemptionReason.Trim();
     }
+
+    /// <summary>VAT category (UNCL 5305, as PINT AE uses): S standard, Z zero-rated, E exempt,
+    /// O out of scope. Null = S, so invoices written before categories existed read as before.</summary>
+    public string? TaxCategory     { get; private set; }
+    /// <summary>UN/ECE Recommendation 20 unit code (e.g. C62 one, H87 piece, HUR hour). Optional.</summary>
+    public string? UnitCode        { get; private set; }
+    /// <summary>Why a zero-rated / exempt / out-of-scope line carries no VAT — required by PINT AE.</summary>
+    public string? ExemptionReason { get; private set; }
 
     public Guid    Id          { get; private set; }
     public Guid    InvoiceId   { get; private set; }
@@ -288,4 +305,26 @@ public sealed class InvoiceItem
     public decimal LineTotal   => Quantity * UnitPrice;
 
     public Invoice? Invoice { get; private set; }
+}
+
+/// <summary>VAT category codes (UNCL 5305 subset used by UAE PINT AE).</summary>
+public static class VatCategory
+{
+    public const string Standard   = "S";
+    public const string ZeroRated  = "Z";
+    public const string Exempt     = "E";
+    public const string OutOfScope = "O";
+
+    public static readonly IReadOnlyList<string> All = [Standard, ZeroRated, Exempt, OutOfScope];
+
+    /// <summary>Null and "S" are both standard — null is how lines saved before categories read.</summary>
+    public static bool IsStandard(string? category) => category is null || category == Standard;
+
+    /// <summary>Upper-cases a known code; standard and anything blank are stored as null.</summary>
+    public static string? Normalise(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category)) return null;
+        var c = category.Trim().ToUpperInvariant();
+        return c == Standard ? null : c;
+    }
 }

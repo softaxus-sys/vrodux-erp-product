@@ -3,14 +3,14 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Receipt, CheckCircle2, Clock, AlertCircle, DollarSign,
-  Calendar, X, ArrowUpRight, ArrowDownRight, FileText, Plus,
+  Calendar, X, ArrowUpRight, ArrowDownRight, FileText, Plus, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { TaxPeriodDto as TaxPeriod } from "@/lib/finance/finance.api";
-import { useTaxPeriods, useTaxTransactions, useTaxSummary, useFileTaxPeriod, usePayTaxPeriod, useCreateTaxPeriod } from "@/hooks/finance/use-finance";
+import { useTaxPeriods, useTaxTransactions, useTaxSummary, useFileTaxPeriod, usePayTaxPeriod, useDeleteTaxPeriod, useCreateTaxPeriod } from "@/hooks/finance/use-finance";
 import { Can } from "@/components/auth/can";
 import { UaeVatReturnPanel } from "./uae-vat-return-panel";
 
@@ -27,13 +27,15 @@ function TaxDrawer({ period, open, onClose }: { period: TaxPeriod | null; open: 
   const [tab, setTab] = React.useState<"overview" | "sales" | "purchases" | "fta">("overview");
   const fileReturn = useFileTaxPeriod();
   const payReturn  = usePayTaxPeriod();
+  const deletePeriod = useDeleteTaxPeriod();
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
   // Fetched here, for this period only. The list page used to load every VAT-bearing transaction
   // the tenant has ever had — derived from every invoice and bill — just to filter one period out
   // of it in the browser. Nothing loads until a period is actually opened.
   const { data: taxTransactions = [] } = useTaxTransactions(open ? period?.period : undefined);
-  React.useEffect(() => { if (open) setTab("overview"); }, [open]);
+  React.useEffect(() => { if (open) { setTab("overview"); setConfirmDelete(false); } }, [open]);
   if (!period) return null;
-  const busy = fileReturn.isPending || payReturn.isPending;
+  const busy = fileReturn.isPending || payReturn.isPending || deletePeriod.isPending;
   const sc = STATUS_CONFIG[period.status] ?? STATUS_CONFIG.open;
   const salesTxns = taxTransactions.filter(t => t.type === "sale");
   const purchaseTxns = taxTransactions.filter(t => t.type === "purchase");
@@ -133,7 +135,34 @@ function TaxDrawer({ period, open, onClose }: { period: TaxPeriod | null; open: 
           <div className="border-t border-border px-6 py-4 flex items-center gap-2">
             {period.status === "open" && <Button size="sm" disabled={busy} className="gap-1.5 h-9" onClick={() => fileReturn.mutate(period.id, { onSuccess: onClose })}><FileText className="h-3.5 w-3.5" />{t("tax.drawer.fileReturn")}</Button>}
             {period.status === "filed" && <Button size="sm" disabled={busy} className="gap-1.5 h-9 bg-success hover:bg-success/90" onClick={() => payReturn.mutate(period.id, { onSuccess: onClose })}><CheckCircle2 className="h-3.5 w-3.5" />{t("tax.drawer.markPaid")}</Button>}
+            {period.status === "open" && (
+              <Can permission="finance.tax.edit">
+                <Button size="sm" variant="outline" disabled={busy} className="gap-1.5 h-9 ml-auto text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setConfirmDelete(true)}>
+                  <Trash2 className="h-3.5 w-3.5" />{t("tax.drawer.deletePeriod", { defaultValue: "Delete period" })}
+                </Button>
+              </Can>
+            )}
           </div>
+          <AnimatePresence>
+            {confirmDelete && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="absolute inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={() => setConfirmDelete(false)}>
+                <div className="w-full max-w-sm bg-background border border-border rounded-xl shadow-xl p-5 space-y-3" onClick={e => e.stopPropagation()}>
+                  <p className="font-semibold text-sm">{t("tax.drawer.deleteTitle", { defaultValue: "Delete {{period}}?", period: period.period })}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("tax.drawer.deleteBody", { defaultValue: "The period and any unfiled FTA return prepared for it are removed. Your invoices and bills are not affected. A period already filed, paid or submitted on EmaraTax cannot be deleted." })}
+                  </p>
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setConfirmDelete(false)}>{t("common:cancel", { defaultValue: "Cancel" })}</Button>
+                    <Button size="sm" variant="destructive" disabled={deletePeriod.isPending}
+                      onClick={() => deletePeriod.mutate(period.id, { onSuccess: () => { setConfirmDelete(false); onClose(); } })}>
+                      {t("tax.drawer.deletePeriod", { defaultValue: "Delete period" })}
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </>)}
     </AnimatePresence>

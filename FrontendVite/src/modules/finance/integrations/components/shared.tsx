@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, AlertTriangle, CircleDashed, PowerOff, Unplug, type LucideIcon } from "lucide-react";
+import { CheckCircle2, AlertTriangle, CircleDashed, PowerOff, Unplug, Info, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { IntegrationDto, IntegrationHealth, PostingStatus } from "@/lib/finance/integrations.api";
 
@@ -13,6 +13,7 @@ export const HEALTH_META: Record<IntegrationHealth, { icon: LucideIcon; text: st
   partial:       { icon: CircleDashed,  text: "text-amber-600 dark:text-amber-400",     bg: "bg-amber-500/10" },
   off:           { icon: PowerOff,      text: "text-muted-foreground",                  bg: "bg-muted/60" },
   not_connected: { icon: Unplug,        text: "text-muted-foreground",                  bg: "bg-muted/60" },
+  by_design:     { icon: Info,          text: "text-sky-600 dark:text-sky-400",         bg: "bg-sky-500/10" },
 };
 
 const STATUS_CLASS: Record<PostingStatus, string> = {

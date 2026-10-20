@@ -12,11 +12,42 @@ import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { InvoiceQuotationsPanel } from "./invoice-quotations-panel";
-import type { InvoiceDto as Invoice } from "@/lib/finance/finance.api";
+import type { InvoiceDto as Invoice, VatCategory } from "@/lib/finance/finance.api";
+
+/** Suggests saved customers on the invoice name field and finds an exact (case-insensitive) match. */
+function useCustomerAutofill() {
+  const { data } = useFinanceCustomers({ isActive: true });
+  return React.useMemo(() => {
+    const list = data ?? [];
+    const byName = new Map(list.map(c => [c.name.trim().toLowerCase(), c]));
+    return {
+      match: (name: string) => byName.get(name.trim().toLowerCase()),
+      datalist: (
+        <datalist id="finance-customer-names">
+          {list.map(c => <option key={c.id} value={c.name} />)}
+        </datalist>
+      ),
+    };
+  }, [data]);
+}
+
+/** Per-line VAT treatment. Only "S" lines carry the invoice's tax rate. */
+function VatCategorySelect({ value, onChange }: { value: VatCategory; onChange: (v: VatCategory) => void }) {
+  const { t } = useTranslation("finance");
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value as VatCategory)}
+      className="h-8 w-full rounded-md border border-border bg-card px-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30">
+      <option value="S">{t("invoicing.vatCategory.S", { defaultValue: "Standard" })}</option>
+      <option value="Z">{t("invoicing.vatCategory.Z", { defaultValue: "Zero-rated" })}</option>
+      <option value="E">{t("invoicing.vatCategory.E", { defaultValue: "Exempt" })}</option>
+      <option value="O">{t("invoicing.vatCategory.O", { defaultValue: "Out of scope" })}</option>
+    </select>
+  );
+}
 import {
   useCreateInvoice, useUpdateInvoice,
   useSendInvoice, useMarkInvoicePaid, useCancelInvoice, useResetInvoiceStatus,
-  useInvoiceById,
+  useInvoiceById, useFinanceCustomers,
 } from "@/hooks/finance/use-finance";
 import { toast } from "sonner";
 import { printInvoice } from "./invoice-print";
@@ -64,6 +95,7 @@ function EditInvoice({
   const [customerEmail, setCustomerEmail] = React.useState(invoice.customerEmail ?? "");
   const [customerAddress, setCustomerAddress] = React.useState("");
   const [customerTrn, setCustomerTrn] = React.useState("");
+  const customers = useCustomerAutofill();
   const [ccEmails, setCcEmails] = React.useState(invoice.ccEmails ?? "");
   const [scheduledSendDate, setScheduledSendDate] = React.useState(invoice.scheduledSendDate ?? "");
   const [remindBeforeDue, setRemindBeforeDue] = React.useState(invoice.remindBeforeDue ?? true);
@@ -73,7 +105,7 @@ function EditInvoice({
   const [notes,         setNotes]         = React.useState("");
   const [status,        setStatus]        = React.useState<string>(invoice.status);
   const [items, setItems] = React.useState([
-    { id: "1", description: "", quantity: 1, unitPrice: 0 },
+    { id: "1", description: "", quantity: 1, unitPrice: 0, taxCategory: "S" as VatCategory },
   ]);
 
   React.useEffect(() => {
@@ -88,18 +120,20 @@ function EditInvoice({
             description: i.description,
             quantity: Number(i.quantity),
             unitPrice: Number(i.unitPrice),
+            taxCategory: (i.taxCategory ?? "S") as VatCategory,
           }))
-        : [{ id: "1", description: "", quantity: 1, unitPrice: 0 }]
+        : [{ id: "1", description: "", quantity: 1, unitPrice: 0, taxCategory: "S" as VatCategory }]
     );
   }, [detail]);
 
   const addItem = () =>
-    setItems(prev => [...prev, { id: String(Date.now()), description: "", quantity: 1, unitPrice: 0 }]);
+    setItems(prev => [...prev, { id: String(Date.now()), description: "", quantity: 1, unitPrice: 0, taxCategory: "S" as VatCategory }]);
   const removeItem = (id: string) =>
     setItems(prev => prev.filter(i => i.id !== id));
 
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-  const vat   = subtotal * (taxRate / 100);
+  // Only standard-rated lines carry VAT.
+  const vat   = items.filter(i => i.taxCategory === "S").reduce((s, i) => s + i.quantity * i.unitPrice, 0) * (taxRate / 100);
   const total = subtotal + vat;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,6 +160,7 @@ function EditInvoice({
             description: i.description.trim(),
             quantity:    i.quantity,
             unitPrice:   i.unitPrice,
+            taxCategory: i.taxCategory,
           })),
         },
       });
@@ -165,8 +200,21 @@ function EditInvoice({
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2 space-y-1.5">
             <Label>{t("invoicing.drawer.form.customerName")}</Label>
-            <Input value={customerName} onChange={e => setCustomerName(e.target.value)}
+            <Input value={customerName} list="finance-customer-names"
+              onChange={e => {
+                const v = e.target.value;
+                setCustomerName(v);
+                // Picking a known customer copies their details � only into fields still empty,
+                // so nothing already typed on this invoice is overwritten.
+                const m = customers.match(v);
+                if (!m) return;
+                if (!customerTrn.trim() && m.trn) setCustomerTrn(m.trn);
+                if (!customerEmail.trim() && m.email) setCustomerEmail(m.email);
+                const addr = [m.address, m.city].filter(Boolean).join("\n");
+                if (!customerAddress.trim() && addr) setCustomerAddress(addr);
+              }}
               placeholder={t("invoicing.drawer.form.customerNamePh")} required />
+            {customers.datalist}
           </div>
           <div className="col-span-2 space-y-1.5">
             <Label>{t("invoicing.drawer.form.customerEmail")}</Label>
@@ -251,6 +299,7 @@ function EditInvoice({
                   <th className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground">{t("invoicing.drawer.form.description")}</th>
                   <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground w-16">{t("invoicing.drawer.form.qty")}</th>
                   <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground w-28">{t("invoicing.drawer.form.unitPrice")}</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground w-32">{t("invoicing.drawer.form.vatCategory", { defaultValue: "VAT" })}</th>
                   <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground w-24">{t("invoicing.drawer.form.total")}</th>
                   <th className="w-8" />
                 </tr>
@@ -272,6 +321,10 @@ function EditInvoice({
                       <Input type="number" min={0} step={0.01} value={item.unitPrice}
                         onChange={(e) => setItems(prev => prev.map(i => i.id === item.id ? { ...i, unitPrice: +e.target.value } : i))}
                         className="h-8 text-xs text-right border-0 bg-transparent focus-visible:ring-1 px-2" />
+                    </td>
+                    <td className="px-2 py-2">
+                      <VatCategorySelect value={item.taxCategory}
+                        onChange={(v) => setItems(prev => prev.map(i => i.id === item.id ? { ...i, taxCategory: v } : i))} />
                     </td>
                     <td className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">
                       {formatCurrency(item.quantity * item.unitPrice, currency)}
@@ -608,6 +661,7 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
   const [customerEmail, setCustomerEmail] = React.useState("");
   const [customerAddress, setCustomerAddress] = React.useState("");
   const [customerTrn, setCustomerTrn] = React.useState("");
+  const customers = useCustomerAutofill();
   const [ccEmails, setCcEmails] = React.useState("");
   const [scheduledSendDate, setScheduledSendDate] = React.useState("");
   const [remindBeforeDue, setRemindBeforeDue] = React.useState(true);
@@ -616,14 +670,15 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
   const [taxRate]                         = React.useState(5);
   const [notes,         setNotes]         = React.useState("");
   const [items, setItems] = React.useState([
-    { id: "1", description: "", quantity: 1, unitPrice: 0 }
+    { id: "1", description: "", quantity: 1, unitPrice: 0, taxCategory: "S" as VatCategory }
   ]);
 
-  const addItem    = () => setItems((prev) => [...prev, { id: String(Date.now()), description: "", quantity: 1, unitPrice: 0 }]);
+  const addItem    = () => setItems((prev) => [...prev, { id: String(Date.now()), description: "", quantity: 1, unitPrice: 0, taxCategory: "S" as VatCategory }]);
   const removeItem = (id: string) => setItems((prev) => prev.filter((i) => i.id !== id));
 
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-  const vat   = subtotal * (taxRate / 100);
+  // Only standard-rated lines carry VAT.
+  const vat   = items.filter(i => i.taxCategory === "S").reduce((s, i) => s + i.quantity * i.unitPrice, 0) * (taxRate / 100);
   const total = subtotal + vat;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -649,6 +704,7 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
           description: i.description.trim(),
           quantity:    i.quantity,
           unitPrice:   i.unitPrice,
+            taxCategory: i.taxCategory,
         })),
       });
       toast.success(t("invoicing.drawer.create.created"));
@@ -672,8 +728,21 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2 space-y-1.5">
             <Label>{t("invoicing.drawer.form.customerName")}</Label>
-            <Input value={customerName} onChange={e => setCustomerName(e.target.value)}
+            <Input value={customerName} list="finance-customer-names"
+              onChange={e => {
+                const v = e.target.value;
+                setCustomerName(v);
+                // Picking a known customer copies their details � only into fields still empty,
+                // so nothing already typed on this invoice is overwritten.
+                const m = customers.match(v);
+                if (!m) return;
+                if (!customerTrn.trim() && m.trn) setCustomerTrn(m.trn);
+                if (!customerEmail.trim() && m.email) setCustomerEmail(m.email);
+                const addr = [m.address, m.city].filter(Boolean).join("\n");
+                if (!customerAddress.trim() && addr) setCustomerAddress(addr);
+              }}
               placeholder={t("invoicing.drawer.form.customerNamePh")} required />
+            {customers.datalist}
           </div>
           <div className="col-span-2 space-y-1.5">
             <Label>{t("invoicing.drawer.form.customerEmail")}</Label>
@@ -739,6 +808,7 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
                   <th className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground">{t("invoicing.drawer.form.description")}</th>
                   <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground w-16">{t("invoicing.drawer.form.qty")}</th>
                   <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground w-28">{t("invoicing.drawer.form.unitPrice")}</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground w-32">{t("invoicing.drawer.form.vatCategory", { defaultValue: "VAT" })}</th>
                   <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground w-24">{t("invoicing.drawer.form.total")}</th>
                   <th className="w-8" />
                 </tr>
@@ -760,6 +830,10 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
                       <Input type="number" min={0} step={0.01} value={item.unitPrice}
                         onChange={(e) => setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, unitPrice: +e.target.value } : i))}
                         className="h-8 text-xs text-right border-0 bg-transparent focus-visible:ring-1 px-2" />
+                    </td>
+                    <td className="px-2 py-2">
+                      <VatCategorySelect value={item.taxCategory}
+                        onChange={(v) => setItems(prev => prev.map(i => i.id === item.id ? { ...i, taxCategory: v } : i))} />
                     </td>
                     <td className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">
                       {formatCurrency(item.quantity * item.unitPrice, currency)}

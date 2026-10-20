@@ -366,7 +366,7 @@ export function ListingForm({ open, onClose, editing }: Props) {
                         setBuildingOpen(true);
                       }}
                       onFocus={() => !isEdit && setBuildingOpen(true)}
-                      placeholder="Cayan Tower"
+                      placeholder="Building name"
                       className="h-9 text-sm pe-24"
                     />
                     {propertyId ? (
@@ -429,7 +429,7 @@ export function ListingForm({ open, onClose, editing }: Props) {
                 <div className="space-y-1.5">
                   <Label>Location / community</Label>
                   <Input value={city} onChange={e => setCity(e.target.value)}
-                    placeholder="Dubai Marina" className="h-9 text-sm" />
+                    placeholder="Area / community" className="h-9 text-sm" />
                 </div>
 
                 <div className="col-span-2 space-y-1.5">
@@ -446,7 +446,7 @@ export function ListingForm({ open, onClose, editing }: Props) {
                   {canSeeConfidential ? (
                     <>
                       <Input value={unitNumber} onChange={e => setUnitNumber(e.target.value)}
-                        placeholder="1206" className="h-9 text-sm" />
+                        placeholder="e.g. 101" className="h-9 text-sm" />
                       {!isEdit && !unitNumber.trim() && (
                         <p className="text-[11px] text-muted-foreground">
                           Left blank, a placeholder is generated so the listing is not lost.
@@ -466,7 +466,7 @@ export function ListingForm({ open, onClose, editing }: Props) {
                 <div className="space-y-1.5">
                   <Label>Layout (as written)</Label>
                   <Input value={bedsLabel} onChange={e => setBedsLabel(e.target.value)}
-                    placeholder="2bhk+maid" className="h-9 text-sm" />
+                    placeholder="e.g. 2 bedroom" className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Bedrooms</Label>
@@ -488,12 +488,12 @@ export function ListingForm({ open, onClose, editing }: Props) {
                 <div className="space-y-1.5">
                   <Label>Area (as written)</Label>
                   <Input value={areaLabel} onChange={e => setAreaLabel(e.target.value)}
-                    placeholder="713.54sqft" className="h-9 text-sm" />
+                    placeholder="e.g. 750 sqft" className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Area (sqft)</Label>
                   <Input type="number" min={0} value={area} onChange={e => setArea(e.target.value)}
-                    placeholder="713.54" className="h-9 text-sm text-right" />
+                    placeholder="0" className="h-9 text-sm text-right" />
                 </div>
 
                 <div className="space-y-1.5">
@@ -551,7 +551,7 @@ export function ListingForm({ open, onClose, editing }: Props) {
                 <div className="col-span-2 space-y-1.5">
                   <Label>Price as written</Label>
                   <Input value={priceLabel} onChange={e => setPriceLabel(e.target.value)}
-                    placeholder="700k (rented till 29 Feb 2026 in 55k)" className="h-9 text-sm" />
+                    placeholder="Price as written on the sheet" className="h-9 text-sm" />
                   <p className="text-[11px] text-muted-foreground">
                     Kept word for word alongside the figure — the condition a deal is agreed on
                     rarely fits in a number.
@@ -579,12 +579,12 @@ export function ListingForm({ open, onClose, editing }: Props) {
                 <div className="col-span-2 space-y-1.5">
                   <Label>Listed by / permit no.</Label>
                   <Input value={listedBy} onChange={e => setListedBy(e.target.value)}
-                    placeholder="zaryab / 7126390600" className="h-9 text-sm" />
+                    placeholder="Name or reference" className="h-9 text-sm" />
                 </div>
                 <div className="col-span-2 space-y-1.5">
                   <Label>Agent (contact with)</Label>
                   <Input value={agentName} onChange={e => setAgentName(e.target.value)}
-                    placeholder="Nida" className="h-9 text-sm" />
+                    placeholder="Agent name" className="h-9 text-sm" />
                 </div>
               </Section>
 
@@ -610,17 +610,17 @@ export function ListingForm({ open, onClose, editing }: Props) {
                     <div className="col-span-2 space-y-1.5">
                       <Label>Owner name</Label>
                       <Input value={ownerName} onChange={e => setOwnerName(e.target.value)}
-                        placeholder="Majid" className="h-9 text-sm" />
+                        placeholder="Owner name" className="h-9 text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <Label>Contact number</Label>
                       <Input value={ownerPhone} onChange={e => setOwnerPhone(e.target.value)}
-                        placeholder="0545556075" className="h-9 text-sm" />
+                        placeholder="Phone number" className="h-9 text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <Label>Second number</Label>
                       <Input value={ownerPhoneAlt} onChange={e => setOwnerPhoneAlt(e.target.value)}
-                        placeholder="0509040075" className="h-9 text-sm" />
+                        placeholder="Optional" className="h-9 text-sm" />
                     </div>
                     <div className="col-span-2 space-y-1.5">
                       <Label>Assigned agent (sees these details)</Label>

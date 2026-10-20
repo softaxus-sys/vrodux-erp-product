@@ -31,8 +31,8 @@ internal sealed class GetInvoicesHandler(FinanceDbContext db) : IQueryHandler<Ge
                 x.Id, x.InvoiceNumber, x.CustomerName, x.CustomerEmail,
                 x.InvoiceDate, x.DueDate, x.TaxRate,
                 x.Items.Sum(i => i.Quantity * i.UnitPrice),
-                x.Items.Sum(i => i.Quantity * i.UnitPrice) * x.TaxRate / 100,
-                x.Items.Sum(i => i.Quantity * i.UnitPrice) + x.Items.Sum(i => i.Quantity * i.UnitPrice) * x.TaxRate / 100,
+                x.Items.Where(i => i.TaxCategory == null || i.TaxCategory == "S").Sum(i => i.Quantity * i.UnitPrice) * x.TaxRate / 100,
+                x.Items.Sum(i => i.Quantity * i.UnitPrice) + x.Items.Where(i => i.TaxCategory == null || i.TaxCategory == "S").Sum(i => i.Quantity * i.UnitPrice) * x.TaxRate / 100,
                 x.CurrencyCode, x.Status, x.ScheduledSendDate, x.RemindBeforeDue, x.Items.Count, x.PaidAt, x.CreatedAt, x.UpdatedAt))
             .ToListAsync(ct);
 

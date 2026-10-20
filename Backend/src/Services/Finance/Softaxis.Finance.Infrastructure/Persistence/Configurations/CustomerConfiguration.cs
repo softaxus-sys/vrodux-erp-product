@@ -19,6 +19,11 @@ internal sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(x => x.Phone).HasMaxLength(30);
         builder.Property(x => x.Address).HasMaxLength(500);
         builder.Property(x => x.CcEmails).HasMaxLength(2000);
+        builder.Property(x => x.Trn).HasMaxLength(50);
+        builder.Property(x => x.Emirate).HasMaxLength(3);
+        builder.Property(x => x.City).HasMaxLength(100);
+        builder.Property(x => x.CountryCode).HasMaxLength(2);
+        builder.Property(x => x.PeppolId).HasMaxLength(100);
         builder.Property(x => x.IsActive).IsRequired().HasDefaultValue(true);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);

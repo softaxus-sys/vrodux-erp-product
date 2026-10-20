@@ -56,7 +56,8 @@ internal sealed class UpdateInvoiceHandler(FinanceDbContext db) : ICommandHandle
         if (posted)
         {
             var newSubTotal = cmd.Items.Sum(i => i.Quantity * i.UnitPrice);
-            var newTotal    = newSubTotal + newSubTotal * cmd.TaxRate / 100m;
+            var newTaxable  = cmd.Items.Where(i => VatCategory.IsStandard(VatCategory.Normalise(i.TaxCategory))).Sum(i => i.Quantity * i.UnitPrice);
+            var newTotal    = newSubTotal + newTaxable * cmd.TaxRate / 100m;
 
             // A cent of tolerance: the comparison is against a stored decimal, and refusing an
             // edit over a rounding artefact would be its own kind of wrong.
@@ -76,7 +77,7 @@ internal sealed class UpdateInvoiceHandler(FinanceDbContext db) : ICommandHandle
         db.InvoiceItems.RemoveRange(invoice.Items);
         invoice.Items.Clear();
         foreach (var item in cmd.Items)
-            invoice.Items.Add(new InvoiceItem(invoice.Id, item.Description, item.Quantity, item.UnitPrice));
+            invoice.Items.Add(new InvoiceItem(invoice.Id, item.Description, item.Quantity, item.UnitPrice, item.TaxCategory, item.UnitCode, item.ExemptionReason));
 
         await db.SaveChangesAsync(ct);
 

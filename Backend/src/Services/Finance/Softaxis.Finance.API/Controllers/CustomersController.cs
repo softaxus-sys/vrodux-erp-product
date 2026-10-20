@@ -51,7 +51,8 @@ public sealed class CustomersController(ISender sender) : FinanceControllerBase
         CancellationToken ct) =>
         NoContentOrError(await sender.Send(
             new UpdateCustomerCommand(id, req.Name, req.Email, req.Phone,
-                req.Address, req.AccountId, req.CcEmails, req.IsActive), ct));
+                req.Address, req.AccountId, req.CcEmails, req.IsActive,
+                req.Trn, req.Emirate, req.City, req.CountryCode, req.PeppolId), ct));
 
     /// <summary>DELETE /api/finance/customers/{id}</summary>
     [HttpDelete("{id:guid}")]
@@ -69,5 +70,10 @@ public sealed class CustomersController(ISender sender) : FinanceControllerBase
         Guid?   AccountId = null,
         /// <summary>Their people to copy on invoices and receipts. Comma or semicolon separated.</summary>
         string? CcEmails  = null,
-        bool    IsActive  = true);
+        bool    IsActive  = true,
+        string? Trn         = null,
+        string? Emirate     = null,
+        string? City        = null,
+        string? CountryCode = null,
+        string? PeppolId    = null);
 }

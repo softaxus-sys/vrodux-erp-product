@@ -32,7 +32,11 @@ internal sealed record IntegrationDefinition(
     string Notes,          // what is true today, including the gaps
     IReadOnlyList<PostingRole> Roles,
     // False: never posted without a person looking, whatever the workspace's mode says.
-    bool AutoAllowed = true);
+    bool AutoAllowed = true,
+    // True: nothing is posted ON PURPOSE (the ledger is already covered elsewhere, or the module
+    // records no money). Shown as "Not needed", not as a broken link, and no "documents not in
+    // the ledger" count is reported — those documents are not supposed to be there.
+    bool ByDesign = false);
 
 /// <summary>
 /// Every transaction type that does, or should, reach the General Ledger.
@@ -158,13 +162,13 @@ internal static class IntegrationCatalogue
 
         new("purchase.grn", "purchase", "Goods receipts and purchase returns", IntegrationKind.None,
             "Goods received or returned",
-            "Receipts and returns update the purchase order only. The ledger expenses purchases when the bill is approved, so posting receipts as stock would double-count until bills are changed to clear an accrual account.",
-            []),
+            "Already covered: the purchase reaches the ledger when the supplier's purchase invoice is approved (Purchases debited, Accounts payable credited). Posting the goods receipt as well would count the same goods twice. Stock is not carried as an asset in the ledger, so receipts and returns change the purchase order and stock levels only.",
+            [], ByDesign: true),
 
         new("inventory.movement", "inventory", "Stock adjustments and write-offs", IntegrationKind.None,
             "Stock adjusted, written off or transferred",
-            "Stock value is not carried in the ledger (purchases are expensed), so there is no inventory account to adjust.",
-            []),
+            "Not needed with the current method: purchases are expensed when the purchase invoice is approved, and stock is not carried as an asset in the ledger, so there is no inventory account for an adjustment to move. Stock quantities are still tracked in Inventory.",
+            [], ByDesign: true),
 
         new("hospitality.booking", "hospitality", "Hotel guest payments", IntegrationKind.Queue,
             "Payment taken from a guest",
@@ -173,8 +177,8 @@ internal static class IntegrationCatalogue
 
         new("construction.project", "construction", "Construction contracts", IntegrationKind.None,
             "Progress billed or contractor paid",
-            "The module raises no journal entries.",
-            []),
+            "Nothing to post: Construction records a contract's total value and a project's budget, but no progress bills, client invoices or contractor payments. Bill the client with a Finance invoice and pay contractors with a payment voucher or purchase invoice — those post to the ledger.",
+            [], ByDesign: true),
     ];
 
     public static IntegrationDefinition? Find(string key) =>

@@ -22,7 +22,12 @@ public sealed record VatSourceLine(
     decimal VatFcy,
     decimal NetAed,
     decimal VatAed,
-    bool    MissingFxRate);
+    bool    MissingFxRate,
+    /// <summary>VAT category: S, Z, E or O. Null = derived from the rate (5% → S, 0% → Z).</summary>
+    string? Category = null)
+{
+    public string EffectiveCategory => Category ?? (Rate == 0m ? "Z" : "S");
+}
 
 public sealed record VatTaxpayer(
     string Trn, string NameEn, string? NameAr, string? Address, string DefaultEmirate,
@@ -101,7 +106,7 @@ public static class UaeVatReturnBuilder
         // ── Lines ────────────────────────────────────────────────────────────────────
         foreach (var l in lines)
         {
-            if (l.Rate != StandardRate && l.Rate != 0m)
+            if (l.EffectiveCategory == "S" && l.Rate != StandardRate && l.Rate != 0m)
                 issues.Add(new("error", "Rate.Unsupported",
                     $"{l.DocumentNumber} uses a {l.Rate:0.##}% rate. UAE VAT only supports 5% or 0%.", l.DocumentNumber));
             if (l.MissingFxRate)
@@ -118,18 +123,21 @@ public static class UaeVatReturnBuilder
         var sales     = lines.Where(l => l.Type == "sale").ToList();
         var purchases = lines.Where(l => l.Type == "purchase").ToList();
 
-        if (sales.Any(l => l.Rate == 0m))
+        if (sales.Any(l => l.Category is null && l.Rate == 0m))
             issues.Add(new("warning", "ZeroRate.Unclassified",
-                "0% sales are reported as zero-rated (box 3). Vrodux does not yet distinguish exempt, GCC or out-of-scope supplies — review before filing."));
+                "Some 0% sales have no VAT category and are reported as zero-rated (box 3). Set each line's category (zero-rated, exempt or out of scope) on the invoice to report them correctly."));
+        if (sales.Any(l => l.EffectiveCategory == "O"))
+            issues.Add(new("info", "OutOfScope.Excluded", "Out-of-scope sales are not reported in any VAT 201 box."));
         if (sales.Any(l => l.Rate == StandardRate))
             issues.Add(new("info", "Emirate.Default",
                 $"All standard-rated sales are reported in {Emirates.GetValueOrDefault(taxpayer.DefaultEmirate).Name ?? taxpayer.DefaultEmirate} — invoices carry no place of supply yet."));
         issues.Add(new("info", "Boxes.NotDerived",
-            "Boxes 2 and 10 (reverse charge), 4 (GCC), 5 (exempt), 6 (import VAT) and 7/11 (corrections) have no source data in Vrodux and are reported as 0."));
+            "Boxes 2 and 10 (reverse charge), 4 (GCC), 6 (import VAT) and 7/11 (corrections) have no source data in Vrodux and are reported as 0."));
 
         // ── Boxes ────────────────────────────────────────────────────────────────────
-        var std   = sales.Where(l => l.Rate == StandardRate).ToList();
-        var zero  = sales.Where(l => l.Rate == 0m).ToList();
+        var std    = sales.Where(l => l.EffectiveCategory == "S" && l.Rate == StandardRate).ToList();
+        var zero   = sales.Where(l => l.EffectiveCategory == "Z").ToList();
+        var exempt = sales.Where(l => l.EffectiveCategory == "E").ToList();
         var stdIn = purchases.Where(l => l.Rate == StandardRate).ToList();
 
         var boxes = new List<VatBox>();
@@ -141,7 +149,7 @@ public static class UaeVatReturnBuilder
         boxes.Add(new("2", "Supplies subject to the reverse charge provisions", 0m, 0m));
         boxes.Add(new("3", "Zero rated supplies", R(zero.Sum(l => l.NetAed)), 0m));
         boxes.Add(new("4", "Supplies of goods and services to registered customers in other GCC implementing states", 0m, 0m));
-        boxes.Add(new("5", "Exempt supplies", 0m, 0m));
+        boxes.Add(new("5", "Exempt supplies", R(exempt.Sum(l => l.NetAed)), 0m));
         boxes.Add(new("6", "Import VAT accounted through UAE customs", 0m, 0m));
         boxes.Add(new("7", "Amendments or corrections to Output figures", 0m, 0m));
         var outAmount = boxes.Sum(b => b.Amount);

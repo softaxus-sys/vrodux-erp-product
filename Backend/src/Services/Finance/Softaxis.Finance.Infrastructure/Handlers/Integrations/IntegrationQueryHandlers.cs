@@ -116,6 +116,11 @@ internal sealed class GetIntegrationOverviewHandler(FinanceDbContext db, Posting
                        : issues.Count > 0 ? "attention"
                        : "connected";
             }
+            else if (def.ByDesign)
+            {
+                // Nothing is meant to post; a "not in the ledger" count would read as a fault.
+                health = "by_design";
+            }
             else
             {
                 var coverage = await engine.CoverageAsync(def.Key, tenantId, ct);

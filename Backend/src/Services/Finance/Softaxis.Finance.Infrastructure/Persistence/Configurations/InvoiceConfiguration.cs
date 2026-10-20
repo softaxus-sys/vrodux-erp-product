@@ -40,6 +40,7 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         // Computed — not mapped
         builder.Ignore(x => x.SubTotal);
         builder.Ignore(x => x.TaxAmount);
+        builder.Ignore(x => x.TaxableAmount);
         builder.Ignore(x => x.Total);
         builder.Ignore(x => x.AmountDue);
 
@@ -76,6 +77,10 @@ internal sealed class InvoiceItemConfiguration : IEntityTypeConfiguration<Invoic
         builder.Property(x => x.Description).IsRequired().HasMaxLength(300);
         builder.Property(x => x.Quantity).HasPrecision(18, 4);
         builder.Property(x => x.UnitPrice).HasPrecision(18, 2);
+
+        builder.Property(x => x.TaxCategory).HasMaxLength(2);
+        builder.Property(x => x.UnitCode).HasMaxLength(10);
+        builder.Property(x => x.ExemptionReason).HasMaxLength(300);
 
         builder.Ignore(x => x.LineTotal);
 

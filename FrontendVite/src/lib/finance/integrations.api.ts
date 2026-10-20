@@ -6,7 +6,8 @@ const BASE = `${getApiBaseUrl()}/api/finance/integrations`;
 /** native = Finance posts it itself · queue = collected and posted from the queue ·
  *  client = a user creates the Finance document from another screen · none = nothing posts. */
 export type IntegrationKind = "native" | "queue" | "client" | "none";
-export type IntegrationHealth = "connected" | "attention" | "partial" | "off" | "not_connected";
+/** by_design = nothing is posted on purpose (covered elsewhere, or no money recorded). */
+export type IntegrationHealth = "connected" | "attention" | "partial" | "off" | "not_connected" | "by_design";
 export type IntegrationMode = "off" | "review" | "auto";
 export type PostingStatus = "pending" | "posting" | "posted" | "failed" | "skipped" | "reversed";
 

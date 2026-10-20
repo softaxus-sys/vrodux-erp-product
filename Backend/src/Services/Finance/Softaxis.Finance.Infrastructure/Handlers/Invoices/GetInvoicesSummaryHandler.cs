@@ -12,7 +12,7 @@ internal sealed class GetInvoicesSummaryHandler(FinanceDbContext db) : IQueryHan
     public async Task<Result<InvoicesSummaryDto>> Handle(GetInvoicesSummaryQuery query, CancellationToken ct)
     {
         var all = await db.Invoices.AsNoTracking().Include(x => x.Items)
-            .Select(x => new { x.Status, Total = x.Items.Sum(i => i.Quantity * i.UnitPrice) * (1 + x.TaxRate / 100) })
+            .Select(x => new { x.Status, Total = x.Items.Sum(i => i.Quantity * i.UnitPrice) + x.Items.Where(i => i.TaxCategory == null || i.TaxCategory == "S").Sum(i => i.Quantity * i.UnitPrice) * x.TaxRate / 100 })
             .ToListAsync(ct);
 
         return Result.Success(new InvoicesSummaryDto(

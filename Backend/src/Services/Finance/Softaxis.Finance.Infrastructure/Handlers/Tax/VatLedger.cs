@@ -66,6 +66,8 @@ internal static class VatLedger
             {
                 i.Id, i.InvoiceDate, i.InvoiceNumber, i.CustomerName, i.TaxRate,
                 SubTotal = i.Items.Sum(x => x.Quantity * x.UnitPrice),
+                // Only standard-rated lines carry VAT; zero-rated / exempt / out-of-scope lines do not.
+                Taxable  = i.Items.Where(x => x.TaxCategory == null || x.TaxCategory == "S").Sum(x => x.Quantity * x.UnitPrice),
             })
             .ToListAsync(ct);
 
@@ -91,7 +93,7 @@ internal static class VatLedger
 
         rows.AddRange(sales.Select(s => new TaxTransactionDto(
             s.Id, s.InvoiceDate, "sale", s.InvoiceNumber,
-            s.SubTotal, Math.Round(s.SubTotal * s.TaxRate / 100m, 2), s.TaxRate,
+            s.SubTotal, Math.Round(s.Taxable * s.TaxRate / 100m, 2), s.TaxRate,
             s.CustomerName, PeriodFor(s.InvoiceDate))));
 
         rows.AddRange(purchases.Select(p => new TaxTransactionDto(
@@ -118,7 +120,10 @@ internal static class VatLedger
             .Select(i => new
             {
                 i.InvoiceDate, i.InvoiceNumber, i.CustomerName, i.CustomerTrn, i.TaxRate, i.CurrencyCode,
-                SubTotal = i.Items.Sum(x => x.Quantity * x.UnitPrice),
+                Std    = i.Items.Where(x => x.TaxCategory == null || x.TaxCategory == "S").Sum(x => x.Quantity * x.UnitPrice),
+                Zero   = i.Items.Where(x => x.TaxCategory == "Z").Sum(x => x.Quantity * x.UnitPrice),
+                Exempt = i.Items.Where(x => x.TaxCategory == "E").Sum(x => x.Quantity * x.UnitPrice),
+                Out    = i.Items.Where(x => x.TaxCategory == "O").Sum(x => x.Quantity * x.UnitPrice),
             })
             .ToListAsync(ct);
 
@@ -154,12 +159,22 @@ internal static class VatLedger
         foreach (var s in sales)
         {
             var cur = (s.CurrencyCode ?? "AED").Trim().ToUpperInvariant();
-            var vat = Math.Round(s.SubTotal * s.TaxRate / 100m, 2);
             var rate = await RateAsync(cur, s.InvoiceDate);
-            lines.Add(new(
-                "sale", s.InvoiceDate, s.InvoiceNumber, s.CustomerName, s.CustomerTrn, s.TaxRate, cur,
-                s.SubTotal, vat, Math.Round(s.SubTotal * rate, 2), Math.Round(vat * rate, 2),
-                cur != "AED" && !knownRateCodes.Contains(cur)));
+            var missingFx = cur != "AED" && !knownRateCodes.Contains(cur);
+            // One source line per VAT category on the invoice, so a mixed invoice lands in the right boxes.
+            // The standard part keeps today's semantics (category null), so all-standard invoices read as before.
+            var std = s.Std;
+            var anyCategorised = s.Zero != 0 || s.Exempt != 0 || s.Out != 0;
+            if (std != 0 || !anyCategorised)
+            {
+                var vat = Math.Round(std * s.TaxRate / 100m, 2);
+                lines.Add(new("sale", s.InvoiceDate, s.InvoiceNumber, s.CustomerName, s.CustomerTrn, s.TaxRate, cur,
+                    std, vat, Math.Round(std * rate, 2), Math.Round(vat * rate, 2), missingFx));
+            }
+            foreach (var (cat, net) in new[] { ("Z", s.Zero), ("E", s.Exempt), ("O", s.Out) })
+                if (net != 0)
+                    lines.Add(new("sale", s.InvoiceDate, s.InvoiceNumber, s.CustomerName, s.CustomerTrn, 0m, cur,
+                        net, 0m, Math.Round(net * rate, 2), 0m, missingFx, cat));
         }
 
         foreach (var p in purchases)

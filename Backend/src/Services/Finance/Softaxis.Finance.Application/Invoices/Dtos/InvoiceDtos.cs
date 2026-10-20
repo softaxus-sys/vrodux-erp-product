@@ -5,12 +5,21 @@ public sealed record InvoiceItemDto(
     string  Description,
     decimal Quantity,
     decimal UnitPrice,
-    decimal LineTotal);
+    decimal LineTotal,
+    string? TaxCategory     = null,
+    string? UnitCode        = null,
+    string? ExemptionReason = null);
 
 public sealed record InvoiceItemRequest(
     string  Description,
     decimal Quantity,
-    decimal UnitPrice);
+    decimal UnitPrice,
+    /// <summary>S standard (default), Z zero-rated, E exempt, O out of scope.</summary>
+    string? TaxCategory     = null,
+    /// <summary>UN/ECE Rec 20 unit code, e.g. C62, H87, HUR.</summary>
+    string? UnitCode        = null,
+    /// <summary>Why a non-standard line carries no VAT.</summary>
+    string? ExemptionReason = null);
 
 public sealed record InvoiceSummaryDto(
     Guid      Id,

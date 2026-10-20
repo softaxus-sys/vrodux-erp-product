@@ -24,6 +24,15 @@ public sealed class CreateInvoiceValidator : AbstractValidator<CreateInvoiceComm
         RuleFor(x => x.CustomerName).NotEmpty();
         RuleFor(x => x.InvoiceDate).NotEmpty();
         RuleFor(x => x.DueDate).NotEmpty();
+        RuleForEach(x => x.Items).ChildRules(i =>
+        {
+            i.RuleFor(l => l.TaxCategory)
+                .Must(c => Softaxis.Finance.Domain.Entities.VatCategory.All.Contains(c!.Trim().ToUpperInvariant()))
+                .WithMessage("Tax category must be S (standard), Z (zero-rated), E (exempt) or O (out of scope).")
+                .When(l => !string.IsNullOrWhiteSpace(l.TaxCategory));
+            i.RuleFor(l => l.UnitCode).MaximumLength(10);
+            i.RuleFor(l => l.ExemptionReason).MaximumLength(300);
+        });
         RuleFor(x => x.CcEmails).MaximumLength(2000);
         RuleFor(x => x.CustomerAddress).MaximumLength(1000);
         RuleFor(x => x.CustomerTrn).MaximumLength(50);
@@ -47,6 +56,15 @@ public sealed class UpdateInvoiceValidator : AbstractValidator<UpdateInvoiceComm
         RuleFor(x => x.CustomerName).NotEmpty();
         RuleFor(x => x.InvoiceDate).NotEmpty();
         RuleFor(x => x.DueDate).NotEmpty();
+        RuleForEach(x => x.Items).ChildRules(i =>
+        {
+            i.RuleFor(l => l.TaxCategory)
+                .Must(c => Softaxis.Finance.Domain.Entities.VatCategory.All.Contains(c!.Trim().ToUpperInvariant()))
+                .WithMessage("Tax category must be S (standard), Z (zero-rated), E (exempt) or O (out of scope).")
+                .When(l => !string.IsNullOrWhiteSpace(l.TaxCategory));
+            i.RuleFor(l => l.UnitCode).MaximumLength(10);
+            i.RuleFor(l => l.ExemptionReason).MaximumLength(300);
+        });
         RuleFor(x => x.Status).NotEmpty();
     }
 }

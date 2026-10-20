@@ -9,6 +9,8 @@ import { useCurrency } from "@/hooks/use-currency";
 import { useCreatePurchaseOrder } from "@/hooks/purchase/use-purchase-orders";
 import { useAllPurchaseVendors } from "@/hooks/purchase/use-vendors";
 import { ProductPicker } from "./product-picker";
+import { useAuthStore } from "@/store/auth.store";
+import { taxForCountry } from "@/lib/onboarding/geo-data";
 
 interface POLine {
   id: string;
@@ -32,15 +34,24 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
   const { t } = useTranslation("purchase");
   const currency = useCurrency();
 
-  const TAX_OPTIONS = [
-    { label: t("orders.form.tax") + " (17%)", rate: 17 },
-    { label: "Zero Rated (0%)", rate: 0 },
-    { label: t("orders.form.tax") + " (Exempt)", rate: 0 },
-  ];
+  // Rates come from the workspace's country (same table the POS/Inventory product forms use),
+  // so a UAE tenant sees VAT 5%, a Pakistani one GST 17%, and an unknown country only 0%.
+  const country = useAuthStore(st => st.tenant?.country);
+  const tax = React.useMemo(() => taxForCountry(country), [country]);
+  const defaultRate = Number(tax.standard) || 0;
+  // Keyed by option, not rate: zero-rated and exempt are both 0% but are different choices.
+  const TAX_OPTIONS = React.useMemo(() => [
+    ...tax.rates.filter(r => Number(r) > 0).sort((a, b) => Number(b) - Number(a))
+      .map(r => ({ key: `r${r}`, label: `${tax.label} (${r}%)`, rate: Number(r) })),
+    { key: "zero",   label: t("orders.form.zeroRated", { defaultValue: "Zero rated (0%)" }), rate: 0 },
+    { key: "exempt", label: t("orders.form.exempt",    { defaultValue: "Exempt" }),          rate: 0 },
+  ], [tax, t]);
+  const defaultKey = TAX_OPTIONS.find(o => o.rate === defaultRate)?.key ?? "zero";
   const [vendorId, setVendorId]         = React.useState("");
   const [expectedDate, setExpectedDate] = React.useState("");
-  const [taxRate, setTaxRate]           = React.useState(17);
-  const [lines, setLines]               = React.useState<POLine[]>([newLine(17), newLine(17)]);
+  const [taxKey, setTaxKey]             = React.useState(defaultKey);
+  const taxRate = TAX_OPTIONS.find(o => o.key === taxKey)?.rate ?? 0;
+  const [lines, setLines]               = React.useState<POLine[]>([newLine(defaultRate), newLine(defaultRate)]);
   const [notes, setNotes]               = React.useState("");
 
   const { mutate: createOrder, isPending } = useCreatePurchaseOrder();
@@ -58,8 +69,8 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
   const isValid = vendorId && lines.some(l => l.description.trim() && l.qty > 0 && l.unitCost > 0);
 
   const reset = () => {
-    setVendorId(""); setExpectedDate(""); setTaxRate(17);
-    setLines([newLine(17), newLine(17)]); setNotes("");
+    setVendorId(""); setExpectedDate(""); setTaxKey(defaultKey);
+    setLines([newLine(defaultRate), newLine(defaultRate)]); setNotes("");
   };
 
   const handleClose = () => { reset(); onClose(); };
@@ -138,9 +149,9 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.form.tax")}</label>
-                  <select value={taxRate} onChange={e => setTaxRate(+e.target.value)}
-                    className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                    {TAX_OPTIONS.map(v => <option key={v.label} value={v.rate}>{v.label}</option>)}
+                  <select value={taxKey} onChange={e => setTaxKey(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    {TAX_OPTIONS.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -206,7 +217,7 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
                         <td />
                       </tr>
                       <tr>
-                        <td colSpan={3} className="px-3 py-2 text-right text-muted-foreground font-medium">{t("orders.form.tax")} ({taxRate}%)</td>
+                        <td colSpan={3} className="px-3 py-2 text-right text-muted-foreground font-medium">{tax.label} ({taxRate}%)</td>
                         <td className="px-3 py-2 text-right font-semibold text-foreground">{formatCurrency(taxAmount, currency)}</td>
                         <td />
                       </tr>

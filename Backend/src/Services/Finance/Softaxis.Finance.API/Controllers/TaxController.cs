@@ -46,6 +46,14 @@ public sealed class TaxController(ISender sender) : FinanceControllerBase
         return NoContentOrError(result);
     }
 
+    [HttpDelete("periods/{id:guid}")]
+    [RequirePermission("finance.tax.edit")]
+    public async Task<IActionResult> DeletePeriod(Guid id, CancellationToken ct)
+    {
+        var result = await sender.Send(new DeleteTaxPeriodCommand(id), ct);
+        return NoContentOrError(result);
+    }
+
     [HttpPost("periods/{id:guid}/pay")]
     [RequirePermission("finance.tax.edit")]
     public async Task<IActionResult> PayPeriod(Guid id, CancellationToken ct)

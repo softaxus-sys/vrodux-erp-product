@@ -10,7 +10,7 @@ internal static class InvoiceMappings
         x.InvoiceDate, x.DueDate, x.TaxRate, x.SubTotal, x.TaxAmount, x.Total,
         x.CurrencyCode, x.Status, x.Notes, x.CcEmails,
         x.ScheduledSendDate, x.RemindBeforeDue, x.LastReminderSentAt,
-        x.Items.Select(i => new InvoiceItemDto(i.Id, i.Description, i.Quantity, i.UnitPrice, i.LineTotal)).ToList(),
+        x.Items.Select(i => new InvoiceItemDto(i.Id, i.Description, i.Quantity, i.UnitPrice, i.LineTotal, i.TaxCategory, i.UnitCode, i.ExemptionReason)).ToList(),
         x.PaidAt, x.CreatedAt, x.UpdatedAt,
         x.CustomerAddress, x.CustomerTrn);
 }

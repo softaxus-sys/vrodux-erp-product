@@ -415,3 +415,50 @@ public class GatewayAndHandlerTests : IDisposable
         public UaeVatOptions Get(string? name) => value;
     }
 }
+
+public class VatCategoryTests
+{
+    private static VatSourceLine Cat(string no, decimal net, string cat) =>
+        new("sale", "2026-07-15", no, "Customer, Inc", null, 0m, "AED", net, 0m, net, 0m, false, cat);
+
+    [Fact]
+    public void Zero_rated_exempt_and_out_of_scope_lines_land_in_their_own_boxes()
+    {
+        var lines = new[] { Fx.Sale("INV-1", 10_000m), Cat("INV-1", 3_000m, "Z"), Cat("INV-2", 2_000m, "E"), Cat("INV-3", 900m, "O") };
+        var c = Fx.Compute(lines, gl: 500m);
+        var box = (string id) => c.Boxes.Single(b => b.Box == id);
+
+        Assert.Equal(10_000m, box("1b").Amount);
+        Assert.Equal(3_000m, box("3").Amount);
+        Assert.Equal(2_000m, box("5").Amount);
+        Assert.Equal(15_000m, box("8").Amount);   // out of scope is reported nowhere
+        Assert.Equal(500m, box("8").Vat);
+        Assert.DoesNotContain(c.Issues, i => i.Code == "ZeroRate.Unclassified");
+        Assert.Contains(c.Issues, i => i.Code == "OutOfScope.Excluded");
+    }
+
+    [Fact]
+    public void Uncategorised_zero_percent_sale_still_counts_as_zero_rated_with_a_warning()
+    {
+        var c = Fx.Compute([Fx.Sale("INV-9", 1_000m, rate: 0m)], gl: null);
+        Assert.Equal(1_000m, c.Boxes.Single(b => b.Box == "3").Amount);
+        Assert.Contains(c.Issues, i => i.Code == "ZeroRate.Unclassified");
+    }
+
+    [Fact]
+    public void Invoice_tax_is_charged_on_standard_rated_lines_only()
+    {
+        var inv = new Invoice("Buyer", null, "2026-07-01", "2026-07-31", 5m, null);
+        inv.Items.Add(new InvoiceItem(inv.Id, "Service", 1, 1_000m));
+        inv.Items.Add(new InvoiceItem(inv.Id, "Export freight", 1, 400m, "z", "C62", "Export of services"));
+        inv.Items.Add(new InvoiceItem(inv.Id, "Residential rent", 1, 600m, "E"));
+
+        Assert.Equal(2_000m, inv.SubTotal);
+        Assert.Equal(1_000m, inv.TaxableAmount);
+        Assert.Equal(50m, inv.TaxAmount);
+        Assert.Equal(2_050m, inv.Total);
+        Assert.Equal("Z", inv.Items.ElementAt(1).TaxCategory);
+        Assert.Null(inv.Items.First().TaxCategory);
+        Assert.Null(new InvoiceItem(inv.Id, "x", 1, 1m, "S", null, "ignored").ExemptionReason);
+    }
+}

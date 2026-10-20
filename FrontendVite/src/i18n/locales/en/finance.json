@@ -81,7 +81,8 @@
         "scheduledSend": "Send automatically on",
         "scheduledSendHint": "Leave empty to send it yourself. On this date the invoice is emailed to the customer and posted to the ledger.",
         "remindBeforeDue": "Remind the customer before the due date",
-        "remindBeforeDueHint": "A reminder goes out 7, 3 and 1 days before the due date while any amount is still outstanding."
+        "remindBeforeDueHint": "A reminder goes out 7, 3 and 1 days before the due date while any amount is still outstanding.",
+        "vatCategory": "VAT"
       },
       "edit": {
         "title": "Edit Invoice",
@@ -135,6 +136,12 @@
         "scheduledFor": "Scheduled to be emailed to the customer on {{date}}.",
         "lastReminder": "Last due-date reminder sent {{date}}."
       }
+    },
+    "vatCategory": {
+      "S": "Standard",
+      "Z": "Zero-rated",
+      "E": "Exempt",
+      "O": "Out of scope"
     }
   },
   "expenses": {
@@ -711,7 +718,10 @@
       "txVat": "VAT",
       "fileReturn": "File Return",
       "markPaid": "Mark Paid",
-      "ftaReturn": "FTA Return"
+      "ftaReturn": "FTA Return",
+      "deletePeriod": "Delete period",
+      "deleteTitle": "Delete {{period}}?",
+      "deleteBody": "The period and any unfiled FTA return prepared for it are removed. Your invoices and bills are not affected. A period already filed, paid or submitted on EmaraTax cannot be deleted."
     },
     "form": {
       "title": "New VAT Return",
@@ -1131,7 +1141,16 @@
       "cancel": "Cancel",
       "save": "Save Changes",
       "create": "Create Customer",
-      "saving": "Saving…"
+      "saving": "Saving…",
+      "taxIdentity": "Tax & e-invoicing",
+      "trn": "TRN",
+      "trnPh": "15 digits, starts with 100",
+      "country": "Country code",
+      "emirate": "Emirate",
+      "emirateNone": "�",
+      "city": "City",
+      "peppolId": "Peppol ID",
+      "peppolHint": "Used to send e-invoices to this customer once e-invoicing is switched on. Leave blank if unknown."
     }
   },
   "ageing": {
@@ -1239,7 +1258,8 @@
       "attention": "Needs attention",
       "partial": "Manual",
       "off": "Switched off",
-      "not_connected": "Not connected"
+      "not_connected": "Not connected",
+      "by_design": "Not needed"
     },
     "status": {
       "pending": "Waiting",

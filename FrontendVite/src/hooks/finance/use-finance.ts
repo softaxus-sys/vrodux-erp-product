@@ -883,6 +883,20 @@ export function useCreateTaxPeriod() {
   });
 }
 
+export function useDeleteTaxPeriod() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.deleteTaxPeriod(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "tax-periods"] });
+      qc.invalidateQueries({ queryKey: [QK, "tax-summary"] });
+      qc.invalidateQueries({ queryKey: ["finance", "uae-vat"] });
+      toast.success("VAT period deleted.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useFileTaxPeriod() {
   const qc = useQueryClient();
   return useMutation({
