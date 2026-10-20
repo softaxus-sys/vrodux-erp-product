@@ -1,0 +1,32 @@
+{
+  "videos": {
+    "title": "Video guides",
+    "subtitle": "Short walkthroughs of every module. Watch one before raising a ticket: the answer may be a couple of minutes away.",
+    "search": "Search guides…",
+    "all": "All",
+    "module": "Module",
+    "allModules": "All modules",
+    "showAll": "Show all guides",
+    "showMine": "Only my modules",
+    "hiddenCount_one": "{{count}} more guide for a module your workspace doesn't use is hidden.",
+    "hiddenCount_other": "{{count}} more guides for modules your workspace doesn't use are hidden.",
+    "guideCount_one": "{{count}} guide",
+    "guideCount_other": "{{count}} guides",
+    "play": "Play",
+    "watch": "Watch the guide",
+    "watchNamed": "Watch: {{title}}",
+    "chapters": "In this video",
+    "empty": "No guides match your search.",
+    "emptyHint": "Try a different word, or clear the filters.",
+    "clearFilters": "Clear filters",
+    "errorTitle": "Couldn't load the video guides",
+    "errorBody": "Check your connection and try again.",
+    "retry": "Try again",
+    "playerError": "This video couldn't be played.",
+    "close": "Close",
+    "gettingStartedTitle": "New here?",
+    "gettingStartedBody": "Watch the {{length}} Getting Started guide: sign-up, company setup, users and roles.",
+    "ticketHint": "Check the video guides first: the answer may be a short video away.",
+    "browse": "Browse all guides"
+  }
+}

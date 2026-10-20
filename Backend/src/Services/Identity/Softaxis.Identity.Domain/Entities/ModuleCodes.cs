@@ -47,6 +47,9 @@ public static class ModuleCodes
     // ── Import / Export (trade) ──────────────────────────────────────────────
     public const string Trade = "trade";
 
+    // ── Lead Generation (prospect search, credits, cold outreach) ────────────
+    public const string LeadGen = "leadgen";
+
     // ── Project Management ───────────────────────────────────────────────────
     public const string ProjectManagement = "project-management";
 

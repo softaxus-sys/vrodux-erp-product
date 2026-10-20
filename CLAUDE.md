@@ -8475,6 +8475,7 @@ Goal: every screen usable on phones and tablets, signup/trial included. Frontend
   page-level horizontal scroll. **Not verified:** pages with real data (no backend available), real devices / iOS Safari,
   the cart sheets and master-data back button in a browser, Arabic/RTL on phones, Electron.
 
+
 ---
 
 ## Module 81 — Hospitality: Hotel PMS (phase 1 of the Hotel + Tourism module)
@@ -8504,3 +8505,70 @@ itineraries, supplier bookings, group payments) is a later phase in the same mod
   folio maths, lifecycle, permissions); frontend `tsc` 0 errors, `vite build` ✅.
 - **Not verified:** the screens in a browser with a signed-in session; Arabic. Tape chart shades Fri/Sat as
   weekend regardless of the hotel setting. Local test rows (tagged room types, rooms, bookings) remain in the dev DB.
+
+---
+
+## Module 82 — Help & Support: Video Guides (module demo videos, hosted on Contabo)
+
+A "Video Guides" page inside Help & Support lists the 19 recorded module walkthroughs and plays them in
+the app. The videos are **not** served by our API: they sit in a public Contabo bucket, described by one
+JSON manifest, so adding or replacing a video is an upload plus a manifest edit — no deploy.
+
+- **Manifest** `https://sin1.contabostorage.com/5eebb73791834c68aa89cf1633f74425:demo-videos/manifest.json`
+  (`videos[]`: slug, order, title, category, description, module, durationSeconds, video, poster,
+  chapters[{start,title}]). `video`/`poster` are **relative** to the same base. `module` is the app's module
+  key, or `null` for guides everyone sees; `master-data` maps to `settings` (what the nav gates it on).
+- **Frontend**: `lib/support/video-guides.api.ts` (plain `fetch` with `credentials: "omit"` — deliberately NOT
+  `rawApiClient`, which would send the user's bearer token to a third party and redirect to /login on 401),
+  `hooks/support/use-video-guides.ts` (React Query, 1h stale), `modules/support/video-guides/components/`
+  `{video-guides-view, video-player-dialog, watch-guide-link}.tsx`, route `/support/videos` (no module guard,
+  same posture as `/support`), nav item "Video Guides" (icon `PlayCircle`).
+- **Behaviour**: search (title, description, category, chapter titles), category tabs, module filter, default
+  scope = guides for modules the tenant has (`hasModuleAccess`) with a "Show all guides" toggle; skeleton,
+  real error state with Retry, and empty state. The player is a native `<video>` with a clickable chapter list.
+  Nothing is stored (no resume position or tracking).
+- **Contextual links**: a "New here?" Getting Started card on the Help & Support landing page, and a hint row
+  in the New ticket form (plus a Getting Started link when the category is Onboarding). The ticket form has no
+  "module" field, so the link keys off the category instead. Both render nothing if the manifest hasn't loaded.
+- **i18n**: new `support` namespace (en + ar, plural forms included). Video titles/descriptions come from the
+  manifest, so they stay English until a per-language manifest exists: add the language code to
+  `LOCALIZED_MANIFESTS` in `video-guides.api.ts` once `manifest.<lang>.json` is uploaded.
+- **Config**: `VITE_VIDEO_GUIDES_BASE` overrides the storage base per environment.
+- **CSP**: none is configured anywhere in this repo (nginx sets only X-Frame-Options, Referrer-Policy and
+  Permissions-Policy; no COEP), so no header change was needed. If a CSP is ever added, allow
+  `https://sin1.contabostorage.com` in `media-src` and `img-src`.
+- **Build / verification**: `tsc` shows no errors in touched files (repo baseline unchanged) and `vite build`
+  passes. Verified in a browser against the demo tenant: manifest + all posters load (200), a video reaches
+  readyState 4 with the right duration, a chapter click seeks and plays, search/empty/show-all work, no
+  console errors, RTL layout renders in Arabic. **Not done:** not committed or deployed.
+
+---
+
+## Module 83 — Lead Generation (find UAE businesses, reveal contacts with credits, cold-email outreach + inbox)
+
+New service `Softaxis.LeadGen` (schema `leadgen`, clean CQRS). Module key `leadgen`, in every plan and always-on for tenants (access is by permission, not plan). Finds real businesses (Google Places + website enrichment), shared business pool across tenants, free discovery then **paid reveal** (credits, refunds for unusable / bounced contacts), push to CRM, and cold-email campaigns sent from the tenant's own connected mailbox (Google, Microsoft, SMTP/IMAP) with a reply inbox. UAE is live; other countries are catalogued as not live yet.
+
+### RBAC (dynamic, per role)
+29 keys: `leadgen.searches` (view/create/delete), `.prospects` (view/create/edit/delete/reveal/import/export), `.credits` (view/create/edit), `.mailboxes` (view/create/edit/delete), `.campaigns` (view/create/edit/delete/send), `.inbox` (view/edit/send), `.settings` (view/edit), `.reports` (view/export). Migration `AddLeadGenPermissions` (Identity). Default roles Lead Generation Manager / Specialist (`ModuleRoleCatalogue`). `reveal` and `send` were added to the matrix `ACTION_ORDER`.
+
+### Backend
+Domain / Application / Infrastructure / API under `Backend/src/Services/LeadGen`. Migration `InitialLeadGen` (18 tables). Background workers (start delayed so the deploy health check isn't held): `SearchWorker` 25s, `OutreachSendWorker` 3 min, `MailboxSyncWorker` 4 min; all clear `TenantAmbient` in `finally`; single-instance assumption. Credits are spent atomically with an idempotent ledger. Outbound: warm-up ramp 10/20/30/40 per day, send window in the campaign time zone, unsubscribe link + sender address on every email, global + tenant suppression, bounce/complaint auto-pause, SSRF-safe website fetching. Super-admin API `api/admin/leadgen/*` (packs, platform settings, grant credits, usage).
+
+### Frontend
+`modules/leadgen/{overview,find,prospects,campaigns,inbox,mailboxes,credits,settings,admin}`, pages `pages/leadgen/*`, routes `/lead-generation[/find|prospects|campaigns|inbox|mailboxes|credits|settings]` in `ModuleGuard module="leadgen"` and `/super-admin/lead-generation` (button in the super-admin header). Namespace `leadgen` (en + ar, 650 keys, parity verified; strings use `{{count}}` without plural suffixes).
+
+### Needs configuring before it works in production
+`LEADGEN_GOOGLE_PLACES_API_KEY`; `LEADGEN_STRIPE_WEBHOOK_SECRET` + a Stripe webhook pointing at the gateway; optional PayPal; Gmail OAuth (restricted scopes need Google verification) and a Microsoft app; optional email verifier (`LEADGEN_EMAIL_VERIFIER_*`); `ConnectionStrings__LeadGenDb`. Migrations auto-apply on startup; admins gain the permissions via the usual sync, other roles need a grant and a re-login.
+
+### Verified / not verified
+Backend builds (0 errors). Frontend `tsc` clean for these files. **Not runtime-tested** (no gateway run, no signed-in browser, no provider keys) and no unit tests yet. Not built: own-domain DNS sending, resold mailboxes, other countries, calls, own/team scoping of prospects, Arabic email text, SMS/WhatsApp.
+
+---
+
+## Module 84 — Hospitality: Tourism (tour packages, departures, tour bookings) — frontend gap fixed
+
+The tourism side of Module 81 ("phase 2"). Committed in `eb5a7955` ("tourisim"): `lib/hospitality/tours.api.ts`, `hooks/hospitality/use-tours.ts`, `modules/hospitality/tours/components/{packages-view,tour-ui}.tsx`, `lib/hospitality/tour-print.ts`. API base `api/hospitality/tours` (dashboard, packages, departures, bookings with travellers, services, instalments, payments).
+
+- **Missing file found and fixed:** `packages-view.tsx` imports `./new-tour-booking-drawer`, which was **never committed**, so the build failed on any checkout that did not have it. It is now written: `NewTourBookingDrawer({ prefill?: { departureId?, packageId? }, onClose, onCreated? })` — pick a package and a departure (dates and prices come from the departure) or enter a custom-dated trip; customer, adults / children / single rooms, price overrides, discount, tax, source, notes; live total; refuses more travellers than seats left; "Create & confirm" or "Save as enquiry". It posts `CreateTourBookingRequest` through `useCreateTourBooking`.
+- **Build:** frontend `tsc -p tsconfig.app.json` reports no errors in any tourism file. **Not run in a browser** and not checked against a live gateway; the request shape follows `tours.api.ts`, which mirrors the server DTOs.
+- **Not built / unknown:** whether a bookings list or a tour dashboard page exists in nav is not confirmed here; travellers are not collected in this drawer (add them from the booking afterwards).

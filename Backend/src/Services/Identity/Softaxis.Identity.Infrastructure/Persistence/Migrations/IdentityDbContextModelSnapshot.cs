@@ -2898,6 +2898,209 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("0b3916c5-4a64-a6e6-259f-540d324f911b"),
+                            Action = "view",
+                            Description = "View leadgen searches",
+                            ModuleId = "leadgen.searches"
+                        },
+                        new
+                        {
+                            Id = new Guid("4338c152-eecd-41a2-5c1e-7fa225504a39"),
+                            Action = "create",
+                            Description = "Create leadgen searches",
+                            ModuleId = "leadgen.searches"
+                        },
+                        new
+                        {
+                            Id = new Guid("9824f8ea-247c-ecc5-0707-dc102eb9859f"),
+                            Action = "delete",
+                            Description = "Delete leadgen searches",
+                            ModuleId = "leadgen.searches"
+                        },
+                        new
+                        {
+                            Id = new Guid("556786f9-9f17-f44d-15c4-17e49c887682"),
+                            Action = "view",
+                            Description = "View leadgen prospects",
+                            ModuleId = "leadgen.prospects"
+                        },
+                        new
+                        {
+                            Id = new Guid("212f1e83-ad9a-441c-6c0e-8991804d4e42"),
+                            Action = "create",
+                            Description = "Create leadgen prospects",
+                            ModuleId = "leadgen.prospects"
+                        },
+                        new
+                        {
+                            Id = new Guid("fcdf50e8-27b0-2e9e-37f9-126367dc3c86"),
+                            Action = "edit",
+                            Description = "Edit leadgen prospects",
+                            ModuleId = "leadgen.prospects"
+                        },
+                        new
+                        {
+                            Id = new Guid("fc5d5de6-a1a4-6ea1-dba9-ac48f685faf1"),
+                            Action = "delete",
+                            Description = "Delete leadgen prospects",
+                            ModuleId = "leadgen.prospects"
+                        },
+                        new
+                        {
+                            Id = new Guid("01c4b492-f6e9-a6bb-4862-dd8216431f1b"),
+                            Action = "reveal",
+                            Description = "Reveal leadgen prospects",
+                            ModuleId = "leadgen.prospects"
+                        },
+                        new
+                        {
+                            Id = new Guid("20fc4191-de6c-b120-8320-33bf0b3bf06a"),
+                            Action = "import",
+                            Description = "Import leadgen prospects",
+                            ModuleId = "leadgen.prospects"
+                        },
+                        new
+                        {
+                            Id = new Guid("f2b4675d-70a0-b1c8-2fbd-2dc27ca3d5cb"),
+                            Action = "export",
+                            Description = "Export leadgen prospects",
+                            ModuleId = "leadgen.prospects"
+                        },
+                        new
+                        {
+                            Id = new Guid("85243459-3069-ea0b-bff3-0ad703085afb"),
+                            Action = "view",
+                            Description = "View leadgen credits",
+                            ModuleId = "leadgen.credits"
+                        },
+                        new
+                        {
+                            Id = new Guid("8f9afe00-ead8-5c25-d35b-0163e648c132"),
+                            Action = "create",
+                            Description = "Create leadgen credits",
+                            ModuleId = "leadgen.credits"
+                        },
+                        new
+                        {
+                            Id = new Guid("b2796ac5-5559-8c29-bc10-4dbdb19ec50e"),
+                            Action = "edit",
+                            Description = "Edit leadgen credits",
+                            ModuleId = "leadgen.credits"
+                        },
+                        new
+                        {
+                            Id = new Guid("3f014554-447e-fbfc-22c8-b808846dd013"),
+                            Action = "view",
+                            Description = "View leadgen mailboxes",
+                            ModuleId = "leadgen.mailboxes"
+                        },
+                        new
+                        {
+                            Id = new Guid("620eeb53-bf39-0b8f-136f-a552b34827c4"),
+                            Action = "create",
+                            Description = "Create leadgen mailboxes",
+                            ModuleId = "leadgen.mailboxes"
+                        },
+                        new
+                        {
+                            Id = new Guid("3e4f85f6-5574-a222-c67b-ef753c392e92"),
+                            Action = "edit",
+                            Description = "Edit leadgen mailboxes",
+                            ModuleId = "leadgen.mailboxes"
+                        },
+                        new
+                        {
+                            Id = new Guid("be438cf9-a15c-8dc6-b2ec-0d838fc9d14c"),
+                            Action = "delete",
+                            Description = "Delete leadgen mailboxes",
+                            ModuleId = "leadgen.mailboxes"
+                        },
+                        new
+                        {
+                            Id = new Guid("28f99e50-8620-09f2-9a7c-f5783ee5a240"),
+                            Action = "view",
+                            Description = "View leadgen campaigns",
+                            ModuleId = "leadgen.campaigns"
+                        },
+                        new
+                        {
+                            Id = new Guid("4b1feb72-be00-33b6-d842-5f3cd067ad7e"),
+                            Action = "create",
+                            Description = "Create leadgen campaigns",
+                            ModuleId = "leadgen.campaigns"
+                        },
+                        new
+                        {
+                            Id = new Guid("b964efce-9b98-f406-7404-50995531d08a"),
+                            Action = "edit",
+                            Description = "Edit leadgen campaigns",
+                            ModuleId = "leadgen.campaigns"
+                        },
+                        new
+                        {
+                            Id = new Guid("959fc4b5-0e07-5f19-d6c2-70c25815b7a1"),
+                            Action = "delete",
+                            Description = "Delete leadgen campaigns",
+                            ModuleId = "leadgen.campaigns"
+                        },
+                        new
+                        {
+                            Id = new Guid("42364707-a6bd-06d0-8009-efe63554a022"),
+                            Action = "send",
+                            Description = "Send leadgen campaigns",
+                            ModuleId = "leadgen.campaigns"
+                        },
+                        new
+                        {
+                            Id = new Guid("a6506256-8b37-b440-278a-d7ca9c25e488"),
+                            Action = "view",
+                            Description = "View leadgen inbox",
+                            ModuleId = "leadgen.inbox"
+                        },
+                        new
+                        {
+                            Id = new Guid("e96b8092-5c32-5353-f405-f9dc3ec9e33a"),
+                            Action = "edit",
+                            Description = "Edit leadgen inbox",
+                            ModuleId = "leadgen.inbox"
+                        },
+                        new
+                        {
+                            Id = new Guid("7a77050e-a71d-4383-fdf6-0e33da49116a"),
+                            Action = "send",
+                            Description = "Send leadgen inbox",
+                            ModuleId = "leadgen.inbox"
+                        },
+                        new
+                        {
+                            Id = new Guid("55309f80-e064-7d8f-e90a-fc527928c232"),
+                            Action = "view",
+                            Description = "View leadgen settings",
+                            ModuleId = "leadgen.settings"
+                        },
+                        new
+                        {
+                            Id = new Guid("3134a989-39fc-2a22-18de-2f1eee6e963c"),
+                            Action = "edit",
+                            Description = "Edit leadgen settings",
+                            ModuleId = "leadgen.settings"
+                        },
+                        new
+                        {
+                            Id = new Guid("a07e8e48-6653-a353-6ccd-ed35e6594aef"),
+                            Action = "view",
+                            Description = "View leadgen reports",
+                            ModuleId = "leadgen.reports"
+                        },
+                        new
+                        {
+                            Id = new Guid("28f331b6-a573-fbae-8d77-486a570a94e5"),
+                            Action = "export",
+                            Description = "Export leadgen reports",
+                            ModuleId = "leadgen.reports"
+                        },
+                        new
+                        {
                             Id = new Guid("65584a54-e95e-4f76-0fab-38daed09bd06"),
                             Action = "view",
                             Description = "View seo sites",

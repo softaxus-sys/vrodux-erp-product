@@ -93,6 +93,12 @@
     <Project Path="src/Services/Manufacturing/Softaxis.Manufacturing.Domain/Softaxis.Manufacturing.Domain.csproj" />
     <Project Path="src/Services/Manufacturing/Softaxis.Manufacturing.Infrastructure/Softaxis.Manufacturing.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/LeadGen/">
+    <Project Path="src/Services/LeadGen/Softaxis.LeadGen.API/Softaxis.LeadGen.API.csproj" />
+    <Project Path="src/Services/LeadGen/Softaxis.LeadGen.Application/Softaxis.LeadGen.Application.csproj" />
+    <Project Path="src/Services/LeadGen/Softaxis.LeadGen.Domain/Softaxis.LeadGen.Domain.csproj" />
+    <Project Path="src/Services/LeadGen/Softaxis.LeadGen.Infrastructure/Softaxis.LeadGen.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/Trade/">
     <Project Path="src/Services/Trade/Softaxis.Trade.API/Softaxis.Trade.API.csproj" />
     <Project Path="src/Services/Trade/Softaxis.Trade.Application/Softaxis.Trade.Application.csproj" />

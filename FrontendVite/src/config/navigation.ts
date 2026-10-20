@@ -57,6 +57,7 @@ export const navigationConfig: NavGroup[] = [
         module: "support",
         children: [
           { id: "support-my-tickets", label: "My Tickets", labelAr: "تذاكري", href: "/support", icon: "MessageSquare", module: "support" },
+          { id: "support-videos", label: "Video Guides", labelAr: "أدلة الفيديو", href: "/support/videos", icon: "PlayCircle", module: "support" },
           // Only ever meaningful for the Softaxis operator tenant — see SupportQueueGuard.
           { id: "support-queue", label: "Ticket Queue", labelAr: "قائمة التذاكر", href: "/support/queue", icon: "Headset", module: "support", requiresPermission: "support.tickets.view" },
         ],
@@ -512,6 +513,23 @@ export const navigationConfig: NavGroup[] = [
           { id: "trade-in-transit", label: "Stock in Transit", labelAr: "بضاعة في الطريق", href: "/trade/in-transit", icon: "PackageSearch", requiresPermission: "trade.shipments.view" },
           { id: "trade-duty-rates", label: "Duty Rates", labelAr: "الرسوم الجمركية", href: "/trade/duty-rates", icon: "Percent", requiresPermission: "trade.costs.view" },
           { id: "trade-parties", label: "Suppliers & Agents", labelAr: "الموردون والوكلاء", href: "/trade/parties", icon: "Users", requiresPermission: "trade.parties.view" },
+        ],
+      },
+      {
+        id: "leadgen",
+        label: "Lead Generation",
+        labelAr: "توليد العملاء المحتملين",
+        icon: "Radar",
+        module: "leadgen",
+        children: [
+          { id: "leadgen-overview", label: "Overview", labelAr: "نظرة عامة", href: "/lead-generation", icon: "BarChart3", requiresPermission: "leadgen.reports.view" },
+          { id: "leadgen-find", label: "Find Prospects", labelAr: "البحث عن عملاء", href: "/lead-generation/find", icon: "Search", requiresPermission: "leadgen.searches.view" },
+          { id: "leadgen-prospects", label: "Prospects", labelAr: "العملاء المحتملون", href: "/lead-generation/prospects", icon: "Target", requiresPermission: "leadgen.prospects.view" },
+          { id: "leadgen-campaigns", label: "Campaigns", labelAr: "الحملات", href: "/lead-generation/campaigns", icon: "Send", requiresPermission: "leadgen.campaigns.view" },
+          { id: "leadgen-inbox", label: "Inbox", labelAr: "صندوق الوارد", href: "/lead-generation/inbox", icon: "Inbox", requiresPermission: "leadgen.inbox.view" },
+          { id: "leadgen-mailboxes", label: "Mailboxes", labelAr: "صناديق البريد", href: "/lead-generation/mailboxes", icon: "Mail", requiresPermission: "leadgen.mailboxes.view" },
+          { id: "leadgen-credits", label: "Credits", labelAr: "الرصيد", href: "/lead-generation/credits", icon: "Coins", requiresPermission: "leadgen.credits.view" },
+          { id: "leadgen-settings", label: "Settings", labelAr: "الإعدادات", href: "/lead-generation/settings", icon: "Settings2", requiresPermission: "leadgen.settings.view" },
         ],
       },
       {

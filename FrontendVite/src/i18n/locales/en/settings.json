@@ -930,7 +930,9 @@
       "import": "Import external data",
       "view-confidential": "View confidential listing details",
       "submit": "Submit for approval",
-      "approve-high": "Approve high-value"
+      "approve-high": "Approve high-value",
+      "reveal": "Reveal contact details",
+      "send": "Send email"
     },
     "actionShort": {
       "view": "VIE",
@@ -953,7 +955,9 @@
       "import": "IMP",
       "view-confidential": "CONF",
       "submit": "SUB",
-      "approve-high": "HIGH"
+      "approve-high": "HIGH",
+      "reveal": "REV",
+      "send": "SEND"
     },
     "group": {
       "inventory": "Inventory",
@@ -971,7 +975,8 @@
       "insurance": "Insurance",
       "visa": "Visa Services",
       "restaurant": "Restaurant",
-      "real-estate": "Real Estate"
+      "real-estate": "Real Estate",
+      "leadgen": "Lead Generation"
     },
     "module": {
       "b2b.contracts": "Contracts",
@@ -1061,7 +1066,15 @@
       "trade.parties": "Suppliers, buyers & agents",
       "trade.documents": "Trade documents",
       "trade.costs": "Landed costs",
-      "trade.payments": "Shipment payments & LCs"
+      "trade.payments": "Shipment payments & LCs",
+      "leadgen.searches": "Prospect searches",
+      "leadgen.prospects": "Prospects",
+      "leadgen.credits": "Credits",
+      "leadgen.mailboxes": "Mailboxes",
+      "leadgen.campaigns": "Campaigns",
+      "leadgen.inbox": "Inbox",
+      "leadgen.settings": "Targeting & sender settings",
+      "leadgen.reports": "Reports"
     }
   },
   "roles": {

@@ -159,6 +159,9 @@ services:
       # down (DNS failure on a named instance, error 26) and rolled the release back.
       ConnectionStrings__NotificationsDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
       ConnectionStrings__CalendarDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      # Lead Generation (schema "leadgen"). Not present in appsettings.json on purpose, so the code's
+      # "?? IdentityDb" fallback would also work — set explicitly anyway, like every other module.
+      ConnectionStrings__LeadGenDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
       # Softaxis's own tenant id — every agent-side support ticket check fails closed until this
       # is set (see ISupportAccessGuard). Set once Softaxis's own tenant has been created.
       Support__OperatorTenantId: "${SUPPORT_OPERATOR_TENANT_ID:-}"
@@ -198,6 +201,21 @@ services:
       # connect attempt outright for both Search Console and Analytics.
       Google__ClientId: "${GOOGLE_CLIENT_ID:-}"
       Google__ClientSecret: "${GOOGLE_CLIENT_SECRET:-}"
+
+      # ── Lead Generation ──────────────────────────────────────────────────
+      # Every value is optional: a feature whose key is missing reports itself as "not set up" on
+      # screen instead of failing. See .env.example for what each one is and where to get it.
+      LeadGen__PublicBaseUrl: "https://${DOMAIN}"
+      LeadGen__PublicApiUrl: "https://${DOMAIN}"
+      LeadGen__GooglePlaces__ApiKey: "${LEADGEN_GOOGLE_PLACES_API_KEY:-}"
+      LeadGen__EmailVerifier__Provider: "${LEADGEN_EMAIL_VERIFIER_PROVIDER:-}"
+      LeadGen__EmailVerifier__ApiKey: "${LEADGEN_EMAIL_VERIFIER_API_KEY:-}"
+      LeadGen__Stripe__WebhookSecret: "${LEADGEN_STRIPE_WEBHOOK_SECRET:-}"
+      LeadGen__Google__ClientId: "${LEADGEN_GMAIL_CLIENT_ID:-}"
+      LeadGen__Google__ClientSecret: "${LEADGEN_GMAIL_CLIENT_SECRET:-}"
+      LeadGen__Microsoft__ClientId: "${LEADGEN_MICROSOFT_CLIENT_ID:-}"
+      LeadGen__Microsoft__ClientSecret: "${LEADGEN_MICROSOFT_CLIENT_SECRET:-}"
+      LeadGen__Microsoft__Tenant: "${LEADGEN_MICROSOFT_TENANT:-common}"
 
       # ── Qasro (qasro.com) — Real Estate listing syndication ─────────────
       # Real OAuth against Qasro's own login/signup — the tenant admin is redirected to Qasro to

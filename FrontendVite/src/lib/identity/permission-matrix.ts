@@ -26,6 +26,8 @@ export const ACTION_ORDER = [
   // Finance posting approval levels: preparing a document for approval, and approving one above
   // the workspace's value limit, are separate decisions from plain approve.
   "submit", "approve-high",
+  // Lead generation: spending credits on a prospect, and putting email in front of a customer.
+  "reveal", "send",
 ] as const;
 
 export type Action = typeof ACTION_ORDER[number];
@@ -56,13 +58,14 @@ export const MODULE_GROUPS: Record<string, string> = {
   library: "Library",
   hospitality: "Hospitality & Tourism",
   trade: "Import / Export",
+  leadgen: "Lead Generation",
   // Only meaningful for whichever tenant is configured as the Support operator (Softaxis's own
   // workspace) — see ISupportAccessGuard on the backend. Granting it elsewhere does nothing.
   support: "Support",
 };
 
 export const GROUP_ORDER = [
-  "POS", "Restaurant", "Inventory", "Manufacturing", "Finance", "Sales", "Purchase", "Import / Export", "CRM",
+  "POS", "Restaurant", "Inventory", "Manufacturing", "Finance", "Sales", "Purchase", "Import / Export", "CRM", "Lead Generation",
   "B2B", "Education", "Healthcare", "Insurance", "Visa Services", "Real Estate", "Library", "Hospitality & Tourism", "HR",
   "Project Management", "SEO AI Agent", "Reports", "File Manager", "Support", "Settings",
 ];

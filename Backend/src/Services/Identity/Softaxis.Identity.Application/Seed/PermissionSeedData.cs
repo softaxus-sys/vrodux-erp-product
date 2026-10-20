@@ -192,6 +192,24 @@ public static class PermissionSeedData
         ["trade.costs"]     = ["view","create","edit","delete"],
         ["trade.payments"]  = ["view","create","edit"],
 
+        // Lead Generation. Every key is a separate decision so an administrator can hand out exactly
+        // what a role needs:
+        //   searches  — create = run a search (finding businesses is free to the workspace)
+        //   prospects — reveal spends credits, import pushes into the CRM, export takes data out
+        //   credits   — create = buy credits (spends the company's money)
+        //   mailboxes — connect and manage the email accounts that send
+        //   campaigns — send = launch / resume sending (the moment mail leaves the building)
+        //   inbox     — edit = label / assign, send = reply to a prospect
+        //   settings  — targeting profile, sender identity, do-not-contact list
+        ["leadgen.searches"]  = ["view","create","delete"],
+        ["leadgen.prospects"] = ["view","create","edit","delete","reveal","import","export"],
+        ["leadgen.credits"]   = ["view","create","edit"],
+        ["leadgen.mailboxes"] = ["view","create","edit","delete"],
+        ["leadgen.campaigns"] = ["view","create","edit","delete","send"],
+        ["leadgen.inbox"]     = ["view","edit","send"],
+        ["leadgen.settings"]  = ["view","edit"],
+        ["leadgen.reports"]   = ["view","export"],
+
         // SEO AI Agent — "sites" (connect/manage a site, super-admin-grant only for now) and
         // "fixes" (review/approve the AI's proposed changes) are separate: approving a fix should
         // not require the same permission as connecting a whole new site.

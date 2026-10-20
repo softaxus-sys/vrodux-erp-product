@@ -35,6 +35,7 @@ using Softaxis.VisaServices.Infrastructure.Extensions;
 using Softaxis.Support.Infrastructure.Extensions;
 using Softaxis.Seo.Infrastructure.Extensions;
 using Softaxis.Calendar.Infrastructure.Extensions;
+using Softaxis.LeadGen.Infrastructure.Extensions;
 using Softaxis.BuildingBlocks.Application.Serialization;
 using Softaxis.BuildingBlocks.Infrastructure.Notifications;
 using Softaxis.BuildingBlocks.Infrastructure.Storage;
@@ -161,6 +162,9 @@ try
     builder.Services.AddSupportInfrastructure(builder.Configuration);
     builder.Services.AddSeoInfrastructure(builder.Configuration);
     builder.Services.AddCalendarInfrastructure(builder.Configuration);
+    // Lead Generation: prospect search, credits, cold outreach. Available to every workspace; who may
+    // use it is decided entirely by the leadgen.* permissions administrators grant to roles.
+    builder.Services.AddLeadGenInfrastructure(builder.Configuration);
 
     // ── In-memory cache (used by SubscriptionEnforcementMiddleware) ──────────
     builder.Services.AddMemoryCache();
@@ -290,6 +294,11 @@ try
         Softaxis.Calendar.Application.Abstractions.ICurrentUser,
         Softaxis.Calendar.API.Middleware.CurrentUserService>();
 
+    // LeadGen.Application.Abstractions.ICurrentUser  →  LeadGen CurrentUserService (permission + module checks, actor stamping)
+    builder.Services.AddScoped<
+        Softaxis.LeadGen.Application.Abstractions.ICurrentUser,
+        Softaxis.LeadGen.API.Middleware.CurrentUserService>();
+
     // ── Controllers — pull controllers from all 5 API assemblies ─────────────
     builder.Services.AddControllers()
         .AddApplicationPart(typeof(Softaxis.Identity.API.Controllers.AuthController).Assembly)
@@ -314,6 +323,7 @@ try
         .AddApplicationPart(typeof(Softaxis.Support.API.Controllers.SupportTicketsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Seo.API.Controllers.SeoSitesController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Calendar.API.Controllers.CalendarController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.LeadGen.API.Controllers.SetupController).Assembly)
         .AddJsonOptions(o =>
         {
             // Emit every DateTime as an explicit UTC instant ("…Z").
@@ -344,6 +354,11 @@ try
     builder.Services.AddPublicLinkRateLimiting();
     // Real Estate's website listings API (API-key authenticated).
     Softaxis.RealEstate.API.Extensions.WebsiteRateLimitPolicies.AddWebsiteApiRateLimiting(builder.Services);
+    // Lead Generation's anonymous endpoints (unsubscribe page, mailbox sign-in callback).
+    Softaxis.LeadGen.API.Extensions.LeadGenRateLimitPolicies.AddLeadGenRateLimiting(builder.Services);
+    // The Library member portal's [EnableRateLimiting] attributes name policies that nothing had
+    // registered, so its public endpoints threw on the first request. Registered here, like the others.
+    Softaxis.Library.API.Extensions.LibraryRateLimitPolicies.AddLibraryPortalRateLimiting(builder.Services);
 
     // ── CORS ──────────────────────────────────────────────────────────────────
     builder.Services.AddCors(opts =>
@@ -477,6 +492,7 @@ try
         await app.Services.MigrateAndSeedSupportAsync();            // Support
         await app.Services.MigrateAndSeedSeoAsync();                // SEO AI Agent
         await app.Services.MigrateAndSeedCalendarAsync();           // Calendar (core)
+        await app.Services.MigrateAndSeedLeadGenAsync();            // Lead Generation (every workspace)
         await app.Services.MigrateNotificationsAsync();             // Notifications (+ copies CRM history in)
 
         // Runs last, and only on an installation that mirrors to the cloud: enables SQL Server
@@ -494,7 +510,7 @@ try
         app.MapOpenApi();
         app.MapScalarApiReference(opts =>
         {
-            opts.Title = "Softaxis ERP — Unified API";
+            opts.Title = "Vrodux ERP — Unified API";
             opts.Theme = ScalarTheme.DeepSpace;
             opts.DefaultHttpClient = new(ScalarTarget.CSharp, ScalarClient.HttpClient);
         });
@@ -535,10 +551,10 @@ try
         Status  = "Healthy",
         Service = "Softaxis.ERP.Gateway",
         Time    = DateTime.UtcNow,
-        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Trade", "Support", "Seo", "Calendar" }
+        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Trade", "Support", "Seo", "Calendar", "LeadGen" }
     })).AllowAnonymous();
 
-    Log.Information("Softaxis ERP Gateway started on {Env}", app.Environment.EnvironmentName);
+    Log.Information("Vrodux ERP Gateway started on {Env}", app.Environment.EnvironmentName);
     await app.RunAsync();
 }
 catch (Exception ex) when (ex is not HostAbortedException)

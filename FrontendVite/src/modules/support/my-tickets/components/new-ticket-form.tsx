@@ -1,13 +1,20 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { PlayCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TICKET_CATEGORIES, TICKET_PRIORITIES, type TicketCategory, type TicketPriority, type AttachmentInput } from "@/lib/support/support.api";
 import { useCreateTicket } from "@/hooks/support/use-support";
 import { AttachmentPicker } from "@/modules/support/components/attachment-picker";
+import { useVideoGuides } from "@/hooks/support/use-video-guides";
+import { WatchGuideLink } from "@/modules/support/video-guides/components/watch-guide-link";
 
 export function NewTicketForm({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useTranslation("support");
+  const navigate = useNavigate();
+  const { data: guides } = useVideoGuides();
   const [subject, setSubject] = React.useState("");
   const [category, setCategory] = React.useState<TicketCategory>("general");
   const [priority, setPriority] = React.useState<TicketPriority>("medium");
@@ -39,6 +46,19 @@ export function NewTicketForm({ open, onClose }: { open: boolean; onClose: () =>
               </div>
 
               <div className="p-5 space-y-4">
+                {/* Shown only once the guides have loaded — a hint to a feature that failed to load is just noise. */}
+                {guides && guides.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 text-xs">
+                    <PlayCircle className="h-4 w-4 text-primary shrink-0" />
+                    <span className="flex-1 min-w-[180px] text-muted-foreground">{t("videos.ticketHint")}</span>
+                    {category === "onboarding" && <WatchGuideLink slug="getting-started" />}
+                    <button type="button" className="font-medium text-primary hover:underline"
+                      onClick={() => { onClose(); navigate("/support/videos"); }}>
+                      {t("videos.browse")}
+                    </button>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Subject</label>
                   <Input value={subject} onChange={(e) => setSubject(e.target.value)}

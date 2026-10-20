@@ -934,7 +934,9 @@
       "import": "استيراد بيانات خارجية",
       "view-confidential": "عرض بيانات العقار السرية",
       "submit": "إرسال للاعتماد",
-      "approve-high": "اعتماد المبالغ الكبيرة"
+      "approve-high": "اعتماد المبالغ الكبيرة",
+      "reveal": "كشف بيانات التواصل",
+      "send": "إرسال بريد"
     },
     "actionShort": {
       "view": "عرض",
@@ -957,7 +959,9 @@
       "import": "استيراد",
       "view-confidential": "سرية",
       "submit": "إرسال",
-      "approve-high": "كبير"
+      "approve-high": "كبير",
+      "reveal": "كشف",
+      "send": "إرسال"
     },
     "group": {
       "inventory": "المخزون",
@@ -975,7 +979,8 @@
       "insurance": "التأمين",
       "visa": "خدمات التأشيرات",
       "restaurant": "المطاعم",
-      "real-estate": "العقارات"
+      "real-estate": "العقارات",
+      "leadgen": "توليد العملاء المحتملين"
     },
     "module": {
       "b2b.contracts": "العقود",
@@ -1065,7 +1070,15 @@
       "trade.parties": "الموردون والمشترون والوكلاء",
       "trade.documents": "المستندات التجارية",
       "trade.costs": "التكاليف الواصلة",
-      "trade.payments": "دفعات الشحنات والاعتمادات"
+      "trade.payments": "دفعات الشحنات والاعتمادات",
+      "leadgen.searches": "عمليات البحث",
+      "leadgen.prospects": "العملاء المحتملون",
+      "leadgen.credits": "الرصيد",
+      "leadgen.mailboxes": "صناديق البريد",
+      "leadgen.campaigns": "الحملات",
+      "leadgen.inbox": "صندوق الوارد",
+      "leadgen.settings": "إعدادات الاستهداف والمرسل",
+      "leadgen.reports": "التقارير"
     }
   },
   "roles": {

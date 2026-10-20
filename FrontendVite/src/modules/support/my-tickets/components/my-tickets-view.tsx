@@ -1,5 +1,7 @@
 import * as React from "react";
-import { LifeBuoy, Plus, MessageSquare } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { LifeBuoy, Plus, MessageSquare, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn, formatDate } from "@/lib/utils";
@@ -10,6 +12,9 @@ import {
 import { useMyTickets } from "@/hooks/support/use-support";
 import { NewTicketForm } from "./new-ticket-form";
 import { TicketDrawer } from "@/modules/support/components/ticket-drawer";
+import { useVideoGuide } from "@/hooks/support/use-video-guides";
+import { formatDuration } from "@/lib/support/video-guides.api";
+import { VideoPlayerDialog } from "@/modules/support/video-guides/components/video-player-dialog";
 
 const STATUS_FILTERS: { value: TicketStatus | "all"; label: string }[] = [
   { value: "all", label: "All" },
@@ -20,7 +25,34 @@ const STATUS_FILTERS: { value: TicketStatus | "all"; label: string }[] = [
   { value: "closed", label: "Closed" },
 ];
 
+/** "New here?" nudge toward the Getting Started guide. Renders nothing until that guide is known to exist. */
+function GettingStartedPromo() {
+  const { t } = useTranslation("support");
+  const guide = useVideoGuide("getting-started");
+  const [open, setOpen] = React.useState(false);
+  if (!guide) return null;
+  return (
+    <>
+      <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+        <PlayCircle className="h-5 w-5 text-primary shrink-0" />
+        <div className="flex-1 min-w-[220px]">
+          <p className="text-sm font-semibold">{t("videos.gettingStartedTitle")}</p>
+          <p className="text-xs text-muted-foreground">
+            {t("videos.gettingStartedBody", { length: formatDuration(guide.durationSeconds) })}
+          </p>
+        </div>
+        <Button size="sm" onClick={() => setOpen(true)}>{t("videos.play")}</Button>
+        <Button size="sm" variant="outline" asChild>
+          <Link to="/support/videos">{t("videos.browse")}</Link>
+        </Button>
+      </div>
+      <VideoPlayerDialog guide={open ? guide : null} onClose={() => setOpen(false)} />
+    </>
+  );
+}
+
 export default function MyTicketsView() {
+  const { t } = useTranslation("support");
   const [statusFilter, setStatusFilter] = React.useState<TicketStatus | "all">("all");
   const [showNewTicket, setShowNewTicket] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -39,10 +71,17 @@ export default function MyTicketsView() {
             <p className="text-sm text-muted-foreground">Raise a ticket with the VroduxERP team, or track one you've already sent.</p>
           </div>
         </div>
-        <Button onClick={() => setShowNewTicket(true)}>
-          <Plus className="h-4 w-4 mr-1.5" /> New ticket
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/support/videos"><PlayCircle className="h-4 w-4 me-1.5" /> {t("videos.title")}</Link>
+          </Button>
+          <Button onClick={() => setShowNewTicket(true)}>
+            <Plus className="h-4 w-4 mr-1.5" /> New ticket
+          </Button>
+        </div>
       </div>
+
+      <GettingStartedPromo />
 
       <div className="flex flex-wrap gap-2 mb-4">
         {STATUS_FILTERS.map(f => (
