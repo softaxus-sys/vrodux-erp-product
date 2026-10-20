@@ -31,6 +31,15 @@ internal sealed class GetBookingsHandler(HospitalityDbContext db) : IQueryHandle
                           || x.GuestEmail.Contains(query.Search)
                           || x.GuestPhone.Contains(query.Search));
 
+        if (query.GuestId is not null)
+            q = q.Where(x => x.GuestId == query.GuestId);
+
+        // A date window means stays that touch it, not stays that start in it.
+        if (!string.IsNullOrWhiteSpace(query.To))
+            q = q.Where(x => string.Compare(x.CheckIn, query.To) <= 0);
+        if (!string.IsNullOrWhiteSpace(query.From))
+            q = q.Where(x => string.Compare(x.CheckOut, query.From) >= 0);
+
         // Counted before paging so the caller knows how many pages exist.
         var total = await q.CountAsync(ct);
 

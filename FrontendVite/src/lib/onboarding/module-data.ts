@@ -126,7 +126,7 @@ export const MODULES: ModuleDef[] = [
   // ── Industry Packs ────────────────────────────────────────────────────────
   {
     id: "hospitality",
-    label: "Hospitality",
+    label: "Hospitality & Tourism",
     description: "Room bookings, housekeeping & hotel operations",
     icon: BedDouble,
     color: "bg-cyan-500/10",

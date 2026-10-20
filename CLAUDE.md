@@ -8474,3 +8474,33 @@ Goal: every screen usable on phones and tablets, signup/trial included. Frontend
   signup steps 1–3, login, shell + drawer, Leads, Visa Cases; an overflow/clipping sweep over ~110 routes found no
   page-level horizontal scroll. **Not verified:** pages with real data (no backend available), real devices / iOS Safari,
   the cart sheets and master-data back button in a browser, Arabic/RTL on phones, Electron.
+
+---
+
+## Module 81 — Hospitality: Hotel PMS (phase 1 of the Hotel + Tourism module)
+
+Hospitality extended into a hotel property-management system. The tourism-agency side (packages,
+itineraries, supplier bookings, group payments) is a later phase in the same module.
+
+- **Domain** (`HotelPms.cs`): `RoomType`, `Guest` (profile kept across stays; a booking finds a returning
+  guest by id, then email, then phone), `RatePlan` (meal plan, refundable, one default "BAR" per tenant),
+  `SeasonalRate` (per plan + room type, weekday/weekend rate, minimum stay; the latest-starting season wins),
+  `RoomBlock` (out of order), `BookingNight` (price snapshot per night), `FolioCharge` (voidable),
+  `HotelSettings` (check-in/out times, weekend days, service %, tax %, fixed nightly fee).
+  `Booking` gains guest/type/plan links, totals, discount, cancel reason, actual check-in/out times.
+- **Pricing:** season → room's own rate → room type base rate. Totals (GCC): sub = room + extras − discount;
+  service = sub × %; tax = (sub + service) × %; fee = nightly fee × nights. Bookings keep the rates they were sold at.
+- **Stay lifecycle:** check-in (optional room change), check-out (refused with a balance unless allowed; creates a
+  housekeeping task), amend dates (re-prices), move room (optionally re-price), cancel with reason + fee, no-show.
+  Availability ignores cancelled/no-show stays and respects out-of-order blocks. A stay covers nights [in, out).
+- Settings, BAR plan and room types from legacy room strings are created per tenant on first read, never at startup.
+- Permissions added: `hospitality.rooms` create/edit/delete, `hospitality.rates`, `hospitality.guests`,
+  `hospitality.folio` (view/create/approve), `hospitality.settings` (migration `AddHotelPmsPermissions`).
+  Migration `AddHotelPms` (additive; unique per-tenant room number, room-type code, rate-plan code —
+  ⚠️ existing duplicate room numbers in a tenant would block it).
+- **Frontend:** Front Desk, Room Calendar (tape chart), Reservations, Rooms (rooms / types / out of order),
+  Housekeeping, Rates, Guests, Hotel Settings; booking drawer with folio, payments, charges, discount, printed bill.
+- **Verified:** backend build 0 errors; 55 scripted API checks against a local gateway (availability, pricing,
+  folio maths, lifecycle, permissions); frontend `tsc` 0 errors, `vite build` ✅.
+- **Not verified:** the screens in a browser with a signed-in session; Arabic. Tape chart shades Fri/Sat as
+  weekend regardless of the hotel setting. Local test rows (tagged room types, rooms, bookings) remain in the dev DB.

@@ -2443,6 +2443,104 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("21684cb0-90ad-bc95-a68b-bcfc31ecd76c"),
+                            Action = "create",
+                            Description = "Create hospitality rooms",
+                            ModuleId = "hospitality.rooms"
+                        },
+                        new
+                        {
+                            Id = new Guid("8d22786e-07c1-262c-9b9d-e6c41bfe4ff2"),
+                            Action = "edit",
+                            Description = "Edit hospitality rooms",
+                            ModuleId = "hospitality.rooms"
+                        },
+                        new
+                        {
+                            Id = new Guid("b63c6b76-019d-6175-5002-ba08fd4fc511"),
+                            Action = "delete",
+                            Description = "Delete hospitality rooms",
+                            ModuleId = "hospitality.rooms"
+                        },
+                        new
+                        {
+                            Id = new Guid("4f159e2e-4462-646e-ff16-78d22f3ce9b4"),
+                            Action = "view",
+                            Description = "View hospitality rates",
+                            ModuleId = "hospitality.rates"
+                        },
+                        new
+                        {
+                            Id = new Guid("049097f5-b55f-6ef1-aaf5-0a6bb3b53324"),
+                            Action = "edit",
+                            Description = "Edit hospitality rates",
+                            ModuleId = "hospitality.rates"
+                        },
+                        new
+                        {
+                            Id = new Guid("884d7e0c-b172-33bf-ec36-14f2c6dba54d"),
+                            Action = "view",
+                            Description = "View hospitality guests",
+                            ModuleId = "hospitality.guests"
+                        },
+                        new
+                        {
+                            Id = new Guid("7e6a372f-8c18-04fc-528c-9f7b48b1b234"),
+                            Action = "create",
+                            Description = "Create hospitality guests",
+                            ModuleId = "hospitality.guests"
+                        },
+                        new
+                        {
+                            Id = new Guid("6868f6d5-1108-7a03-40bf-6e8b5e5731d9"),
+                            Action = "edit",
+                            Description = "Edit hospitality guests",
+                            ModuleId = "hospitality.guests"
+                        },
+                        new
+                        {
+                            Id = new Guid("a8cbf0c1-0a71-a0c6-e2e6-f92e95b40799"),
+                            Action = "delete",
+                            Description = "Delete hospitality guests",
+                            ModuleId = "hospitality.guests"
+                        },
+                        new
+                        {
+                            Id = new Guid("9d64380b-6f46-5f9b-1f40-48c19ce5d8c4"),
+                            Action = "view",
+                            Description = "View hospitality folio",
+                            ModuleId = "hospitality.folio"
+                        },
+                        new
+                        {
+                            Id = new Guid("9f32f8b9-f909-5601-5516-2a56b01cc615"),
+                            Action = "create",
+                            Description = "Create hospitality folio",
+                            ModuleId = "hospitality.folio"
+                        },
+                        new
+                        {
+                            Id = new Guid("65ca427c-d6b8-11b6-9d80-694f8cb6fe52"),
+                            Action = "approve",
+                            Description = "Approve hospitality folio",
+                            ModuleId = "hospitality.folio"
+                        },
+                        new
+                        {
+                            Id = new Guid("ed1696d0-bd71-3399-5582-52028a078866"),
+                            Action = "view",
+                            Description = "View hospitality settings",
+                            ModuleId = "hospitality.settings"
+                        },
+                        new
+                        {
+                            Id = new Guid("4be00fdb-a78a-ed44-d023-32ad3acf726d"),
+                            Action = "edit",
+                            Description = "Edit hospitality settings",
+                            ModuleId = "hospitality.settings"
+                        },
+                        new
+                        {
                             Id = new Guid("d0cd454b-8006-8389-5933-282eba939c96"),
                             Action = "view",
                             Description = "View hospitality housekeeping",
@@ -2461,6 +2559,90 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "edit",
                             Description = "Edit hospitality housekeeping",
                             ModuleId = "hospitality.housekeeping"
+                        },
+                        new
+                        {
+                            Id = new Guid("cef02e35-e5d1-4600-41e8-14163027304c"),
+                            Action = "view",
+                            Description = "View hospitality tours",
+                            ModuleId = "hospitality.tours"
+                        },
+                        new
+                        {
+                            Id = new Guid("6c1bb489-43e7-1baa-2b0a-41991a0b7800"),
+                            Action = "create",
+                            Description = "Create hospitality tours",
+                            ModuleId = "hospitality.tours"
+                        },
+                        new
+                        {
+                            Id = new Guid("5c8fb9f0-5501-4ff1-0355-b374a48fb00d"),
+                            Action = "edit",
+                            Description = "Edit hospitality tours",
+                            ModuleId = "hospitality.tours"
+                        },
+                        new
+                        {
+                            Id = new Guid("aa614ffb-bb9b-9df0-fc0e-65474b02f06d"),
+                            Action = "delete",
+                            Description = "Delete hospitality tours",
+                            ModuleId = "hospitality.tours"
+                        },
+                        new
+                        {
+                            Id = new Guid("b46ec677-6f62-4036-fcb7-7057781256b4"),
+                            Action = "view",
+                            Description = "View hospitality tour-bookings",
+                            ModuleId = "hospitality.tour-bookings"
+                        },
+                        new
+                        {
+                            Id = new Guid("04d131bd-a386-92e2-26bf-6b55c10cadd5"),
+                            Action = "create",
+                            Description = "Create hospitality tour-bookings",
+                            ModuleId = "hospitality.tour-bookings"
+                        },
+                        new
+                        {
+                            Id = new Guid("f9e4cdf4-44ab-387a-183b-c5f820d6d65e"),
+                            Action = "edit",
+                            Description = "Edit hospitality tour-bookings",
+                            ModuleId = "hospitality.tour-bookings"
+                        },
+                        new
+                        {
+                            Id = new Guid("1966a19c-f5af-06ce-7789-6aaa3a45f508"),
+                            Action = "delete",
+                            Description = "Delete hospitality tour-bookings",
+                            ModuleId = "hospitality.tour-bookings"
+                        },
+                        new
+                        {
+                            Id = new Guid("75f9ca1f-aaa2-a494-77ec-7088ed29ca85"),
+                            Action = "record",
+                            Description = "Record hospitality tour-bookings",
+                            ModuleId = "hospitality.tour-bookings"
+                        },
+                        new
+                        {
+                            Id = new Guid("e3885b80-774b-5de8-1baa-c15c947e2417"),
+                            Action = "void",
+                            Description = "Void hospitality tour-bookings",
+                            ModuleId = "hospitality.tour-bookings"
+                        },
+                        new
+                        {
+                            Id = new Guid("caba3aac-e40d-9ea6-8571-7be79e0aefbc"),
+                            Action = "view",
+                            Description = "View hospitality tour-costs",
+                            ModuleId = "hospitality.tour-costs"
+                        },
+                        new
+                        {
+                            Id = new Guid("184f6690-2ab9-b7ab-28f0-66db4d534363"),
+                            Action = "edit",
+                            Description = "Edit hospitality tour-costs",
+                            ModuleId = "hospitality.tour-costs"
                         },
                         new
                         {

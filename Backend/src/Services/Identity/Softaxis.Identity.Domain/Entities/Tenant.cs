@@ -130,6 +130,9 @@ public sealed class Tenant : AuditableEntity<Guid>
         ["library"]      = "library",
         // Importers, exporters and trading companies. "Import & Export" signs up as import_export.
         ["import_export"]= "trade",
+        // Hotels, tour operators and travel agencies. "Hospitality & Tourism" signs up as hospitality_tourism.
+        ["hospitality_tourism"] = "hospitality",
+        ["travel_tourism"]      = "hospitality",
     };
 
     /// <summary>The Industry-Pack module code for a given industry, or null.</summary>

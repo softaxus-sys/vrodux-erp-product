@@ -32,7 +32,7 @@ export const ALL_MODULES: ModuleInfo[] = [
   { code: "project-management",  label: "Project Management",  desc: "Projects, boards, sprints, issues"                      },
   { code: "real-estate",         label: "Real Estate",          desc: "Real estate industry pack"                              },
   { code: "construction",        label: "Construction",         desc: "Construction industry pack"                             },
-  { code: "hospitality",         label: "Hospitality",          desc: "Rooms, bookings, hospitality industry pack"             },
+  { code: "hospitality",         label: "Hospitality & Tourism", desc: "Hotel PMS: rooms, reservations, rates, guests, folio"             },
   { code: "healthcare",          label: "Healthcare",           desc: "Patients, appointments, treatment plans"                },
   { code: "education",           label: "Education",            desc: "Admissions, students, enrollments"                      },
   { code: "insurance",           label: "Insurance",            desc: "Policies, renewals, claims"                             },

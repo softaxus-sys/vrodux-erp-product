@@ -168,6 +168,11 @@ const SeoSitesPage          = lazyWithRetry(() => import("@/pages/seo/sites"));
 const BookingsPage         = lazyWithRetry(() => import("@/pages/hospitality/bookings"));
 const RoomsPage            = lazyWithRetry(() => import("@/pages/hospitality/rooms"));
 const HousekeepingPage     = lazyWithRetry(() => import("@/pages/hospitality/housekeeping"));
+const HotelFrontDeskPage   = lazyWithRetry(() => import("@/pages/hospitality/front-desk"));
+const HotelCalendarPage    = lazyWithRetry(() => import("@/pages/hospitality/calendar"));
+const HotelRatesPage       = lazyWithRetry(() => import("@/pages/hospitality/rates"));
+const HotelGuestsPage      = lazyWithRetry(() => import("@/pages/hospitality/guests"));
+const HotelSettingsPage    = lazyWithRetry(() => import("@/pages/hospitality/settings"));
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 const GeneralSettingsPage  = lazyWithRetry(() => import("@/pages/settings/general"));
@@ -588,7 +593,12 @@ export function App() {
           <Route element={<ModuleGuard module="hospitality" />}>
             <Route path="/hospitality/bookings"     element={<BookingsPage />} />
             <Route path="/hospitality/rooms"        element={<RoomsPage />} />
-            <Route path="/hospitality/housekeeping" element={<HousekeepingPage />} />
+            <Route path="/hospitality/housekeeping" element={<HousekeepingPage />} />
+            <Route path="/hospitality/front-desk"   element={<HotelFrontDeskPage />} />
+            <Route path="/hospitality/calendar"     element={<HotelCalendarPage />} />
+            <Route path="/hospitality/rates"        element={<HotelRatesPage />} />
+            <Route path="/hospitality/guests"       element={<HotelGuestsPage />} />
+            <Route path="/hospitality/settings"     element={<HotelSettingsPage />} />
           </Route>
 
           {/* ── Master Data ─────────────────────────────────────────────────── */}
