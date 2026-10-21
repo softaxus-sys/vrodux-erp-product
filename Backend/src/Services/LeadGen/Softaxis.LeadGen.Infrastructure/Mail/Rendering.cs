@@ -44,7 +44,7 @@ internal sealed partial class EmailRenderer : IEmailRenderer
         };
 
         var subject = MergeFields.Render(subjectTemplate, values).Replace("\r", " ").Replace("\n", " ").Trim();
-        var body = MergeFields.Render(bodyTemplate, values).Replace("\r\n", "\n").Trim();
+        var body = Reflow(MergeFields.Render(bodyTemplate, values).Replace("\r\n", "\n").Trim());
 
         var footerLines = new List<string>();
         if (!string.IsNullOrWhiteSpace(profile?.SenderBusinessName)) footerLines.Add(profile!.SenderBusinessName!);
@@ -56,6 +56,31 @@ internal sealed partial class EmailRenderer : IEmailRenderer
         text.Append(footerNote).Append('\n').Append(unsubscribeUrl);
 
         return new RenderedEmail(subject, text.ToString(), ToHtml(body, footerLines, footerNote, unsubscribeUrl));
+    }
+
+    /// <summary>
+    /// Templates are often typed or pasted with hard line breaks every ~70 characters (a text editor's
+    /// wrap), which made a sentence break mid-line in the received email. A single newline inside a
+    /// paragraph is joined with a space when the line is long and does not end a sentence; short lines
+    /// (greetings, "Best regards,", the signature) and blank-line paragraph breaks are kept as written.
+    /// </summary>
+    internal static string Reflow(string body)
+    {
+        var paragraphs = Regex.Split(body, @"\n{2,}");
+        var result = new List<string>();
+        foreach (var para in paragraphs)
+        {
+            var lines = para.Split('\n');
+            var sb = new StringBuilder(lines[0]);
+            for (var i = 1; i < lines.Length; i++)
+            {
+                var prev = lines[i - 1].TrimEnd();
+                var softWrap = prev.Length >= 40 && !".!?:".Contains(prev[^1]);
+                sb.Append(softWrap ? " " : "\n").Append(lines[i].TrimStart());
+            }
+            result.Add(sb.ToString());
+        }
+        return string.Join("\n\n", result);
     }
 
     private static string ToHtml(string body, List<string> footer, string note, string unsubscribeUrl)
