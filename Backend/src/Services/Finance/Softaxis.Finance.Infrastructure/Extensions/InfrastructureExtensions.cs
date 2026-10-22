@@ -70,12 +70,6 @@ public static class InfrastructureExtensions
         services.Configure<UaeVat.UaeVatOptions>(configuration.GetSection(UaeVat.UaeVatOptions.Section));
         services.AddScoped<Softaxis.Finance.Application.UaeVat.IUaeVatSubmissionGateway,
             UaeVat.UnavailableUaeVatSubmissionGateway>();
-        // UAE e-invoicing (PINT AE) — sends through the configured Accredited Service Provider.
-        // Off until EInvoicing:Enabled and its URLs/credentials are set; until then it records
-        // attempts as not_configured and sends nothing.
-        services.Configure<EInvoicing.EInvoicingOptions>(configuration.GetSection(EInvoicing.EInvoicingOptions.Section));
-        services.AddHttpClient(EInvoicing.OAuthAspGateway.HttpClientName);
-        services.AddScoped<Softaxis.Finance.Application.EInvoicing.IEInvoiceGateway, EInvoicing.OAuthAspGateway>();
         // Finance Integration Center: collects other modules' documents and posts them to the ledger.
         services.AddScoped<Integrations.PostingEngine>();
         services.AddHostedService<Integrations.PostingQueueHostedService>();

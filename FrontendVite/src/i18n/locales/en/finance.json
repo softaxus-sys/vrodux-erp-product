@@ -1657,31 +1657,5 @@
       "manualOnlyNote": "These are always posted by a person: they carry no tax and are not tied to an invoice, so they cannot be posted without being looked at.",
       "separateBlocksAuto": "Automatic posting is off while a second approver is required."
     }
-  },
-  "einvoice": {
-    "title": "E-invoice (UAE)",
-    "subtitle": "PINT AE document for the e-invoicing network",
-    "loading": "Building the e-invoice�",
-    "loadFailed": "Could not build the e-invoice.",
-    "retry": "Retry",
-    "connected": "Sends to {{provider}} ({{env}}).",
-    "notConnected": "No e-invoicing provider is connected yet. You can check and download the XML; sending is switched off.",
-    "ready": "Passes all checks.",
-    "previewXml": "Preview XML",
-    "hideXml": "Hide XML",
-    "download": "Download XML",
-    "recheck": "Re-check",
-    "send": "Send to provider",
-    "sendOffHint": "Connect a provider to send.",
-    "sentHint": "Already accepted � correct it with a credit note.",
-    "fixHint": "Fix the errors above first.",
-    "history": "Sending history",
-    "status": {
-      "accepted": "Accepted",
-      "sending": "Sending",
-      "rejected": "Rejected",
-      "failed": "Failed",
-      "not_configured": "Not sent � no provider"
-    }
   }
 }
