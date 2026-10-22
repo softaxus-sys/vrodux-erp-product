@@ -101,7 +101,10 @@ export function MetaConversionsTab({ integration, canEdit }: { integration: { id
       // when no events have arrived in Meta.
       if (saved.datasetId && saved.hasToken) {
         const v = await verify.mutateAsync(id);
-        if (v.ok) toast.success(enabled ? `${v.message} Lead quality is now being sent.` : `${v.message} Saved.`);
+        // "ok but not verified" = Meta would not let the token read the dataset, which is normal for an
+        // Events Manager token. Say so plainly instead of showing a failure over a setup that may work.
+        if (v.ok && !v.verified) toast.message(v.message, { duration: 12000 });
+        else if (v.ok) toast.success(enabled ? `${v.message} Lead quality is now being sent.` : `${v.message} Saved.`);
         else toast.error(v.message);
       } else {
         toast.success("Saved.");

@@ -122,6 +122,9 @@ public sealed class MetaConversionSettings
 
     public void RecordSent() { LastSentAt = DateTime.UtcNow; LastError = null; Touch(); }
 
+    /// <summary>A test event got through, so an earlier failure no longer describes the current setup.</summary>
+    public void ClearError() { LastError = null; LastFailureAt = null; Touch(); }
+
     public void RecordFailure(string error)
     {
         LastFailureAt = DateTime.UtcNow;

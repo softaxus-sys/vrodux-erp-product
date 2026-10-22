@@ -36,7 +36,9 @@ public sealed record MetaConversionEventDto(
     decimal? Value, string? Currency, string Status, int Attempts, DateTime? NextAttemptAt,
     DateTime? SentAt, string? LastError);
 
-public sealed record MetaVerifyResultDto(bool Ok, string? DatasetName, string Message);
+/// <param name="Verified">False when Meta would not let this token read the dataset (normal for an Events Manager
+/// token). It is not a failure — sending is confirmed with the test events instead.</param>
+public sealed record MetaVerifyResultDto(bool Ok, string? DatasetName, string Message, bool Verified = true);
 public sealed record MetaTestResultDto(bool Ok, string Message);
 public sealed record MetaCatchUpResultDto(int LeadsQueued, int EventsQueued, int AlreadyTracked, int OutsideWindow);
 

@@ -179,7 +179,7 @@ export interface MetaConversionEvent {
   attempts: number; nextAttemptAt: string | null; sentAt: string | null; lastError: string | null;
 }
 
-export interface MetaVerifyResult { ok: boolean; datasetName: string | null; message: string; }
+export interface MetaVerifyResult { ok: boolean; datasetName: string | null; message: string; verified: boolean; }
 export interface MetaTestResult { ok: boolean; message: string; }
 export interface MetaCatchUpResult { leadsQueued: number; eventsQueued: number; alreadyTracked: number; outsideWindow: number; }
 

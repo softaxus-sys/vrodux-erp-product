@@ -134,6 +134,15 @@ internal sealed class VerifyMetaConversionsHandler(CrmDbContext db, ISecretProte
                 check.Name is null ? "Connected to your Meta dataset." : $"Connected to “{check.Name}”."));
         }
 
+        if (check.Inconclusive)
+        {
+            // Not recorded as a failure: the token may well be able to send, and a red "Meta is not accepting
+            // events" banner over a working setup is exactly the wrong thing to show.
+            return Result.Success(new MetaVerifyResultDto(true, null,
+                "Saved. Meta won't let this token read the dataset's name — that is normal for a token made in Events Manager. "
+                + "Press “Send test events” to confirm it can send.", Verified: false));
+        }
+
         s.RecordFailure(check.Error ?? "Could not verify the dataset.");
         await db.SaveChangesAsync(ct);
         return Result.Success(new MetaVerifyResultDto(false, null, check.Error ?? "Could not verify the dataset."));
@@ -148,7 +157,7 @@ internal sealed class SendMetaTestEventHandler(CrmDbContext db, ISecretProtector
         var integration = await MetaConversionSupport.MetaIntegrationAsync(db, cmd.IntegrationId, ct);
         if (!integration.IsSuccess) return Result.Failure<MetaTestResultDto>(integration.Error);
 
-        var s = await db.MetaConversionSettings.AsNoTracking().FirstOrDefaultAsync(x => x.IntegrationId == cmd.IntegrationId, ct);
+        var s = await db.MetaConversionSettings.FirstOrDefaultAsync(x => x.IntegrationId == cmd.IntegrationId, ct);
         var token = protector.Unprotect(s?.AccessToken);
         if (s is null || string.IsNullOrWhiteSpace(s.DatasetId) || string.IsNullOrWhiteSpace(token))
             return Result.Success(new MetaTestResultDto(false, "Enter the Dataset ID and the access token first."));
@@ -175,6 +184,13 @@ internal sealed class SendMetaTestEventHandler(CrmDbContext db, ISecretProtector
             .ToList();
 
         var result = await client.SendAsync(s.DatasetId, token, events, cmd.TestEventCode, ct);
+        if (result.Ok)
+        {
+            // Proof the token can send: any earlier red banner (e.g. from a dataset read it was never
+            // allowed to do) no longer describes this setup.
+            s.ClearError();
+            await db.SaveChangesAsync(ct);
+        }
         return Result.Success(result.Ok
             ? new MetaTestResultDto(true, $"Sent {result.EventsReceived} test event(s). They should appear in Events Manager → Test events within a minute.")
             : new MetaTestResultDto(false, result.Error ?? "Meta did not accept the test event."));

@@ -15,7 +15,12 @@ public sealed record MetaSendResult(bool Ok, int EventsReceived, string? Error, 
     public static MetaSendResult Failure(string error, bool transient) => new(false, 0, error, transient);
 }
 
-public sealed record MetaDatasetCheck(bool Ok, string? Name, string? Error);
+/// <param name="Inconclusive">
+/// Meta refused to READ the dataset because the token lacks that permission. The token Events Manager
+/// generates for the Conversions API is allowed to send events but not to read the dataset, so this is the
+/// normal result for the right kind of token — it says nothing about whether sending will work.
+/// </param>
+public sealed record MetaDatasetCheck(bool Ok, string? Name, string? Error, bool Inconclusive = false);
 
 /// <summary>
 /// Conversions API client: posts lead-stage events to a tenant's Meta dataset, and checks a dataset/token pair.
@@ -36,7 +41,14 @@ public sealed class MetaConversionsClient(
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             using var resp = await client.SendAsync(req, ct);
             var body = await resp.Content.ReadAsStringAsync(ct);
-            if (!resp.IsSuccessStatusCode) return new MetaDatasetCheck(false, null, Explain(body, (int)resp.StatusCode));
+            if (!resp.IsSuccessStatusCode)
+            {
+                // A permission refusal (not an invalid/expired token, which is code 190) on a READ does not
+                // mean the token cannot SEND — see MetaDatasetCheck.Inconclusive.
+                var inconclusive = ErrorCode(body) is 100 or 200 or 10 or 283
+                    && body.Contains("permission", StringComparison.OrdinalIgnoreCase);
+                return new MetaDatasetCheck(false, null, Explain(body, (int)resp.StatusCode), inconclusive);
+            }
 
             var root = JsonDocument.Parse(body).RootElement;
             return new MetaDatasetCheck(true, root.TryGetProperty("name", out var n) ? n.GetString() : null, null);
@@ -124,9 +136,12 @@ public sealed class MetaConversionsClient(
         {
             (190, _) => "The access token is invalid or has expired. Generate a new one in Events Manager and paste it in.",
             (200, _) or (10, _) or (283, _) => "This token is not allowed to send events to that dataset. Generate the token from the same dataset in Events Manager.",
+            (100, _) when message?.Contains("permission", StringComparison.OrdinalIgnoreCase) == true
+                => "This token is not allowed to do that on this dataset. Use the token from Events Manager → your dataset → "
+                   + "Settings → Conversions API → Generate access token (not one from Graph API Explorer), "
+                   + "and make sure you are an admin of the dataset.",
             (100, _) when message?.Contains("does not exist", StringComparison.OrdinalIgnoreCase) == true
-                         || message?.Contains("missing permissions", StringComparison.OrdinalIgnoreCase) == true
-                => "Meta could not find that dataset, or the token cannot see it. Check the Dataset ID.",
+                => "Meta could not find that dataset. Check the Dataset ID.",
             _ => null,
         };
 
