@@ -93,7 +93,7 @@ function ProfileDialog({ open, onClose }: { open: boolean; onClose: () => void }
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           className="absolute inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
           <motion.div initial={{ scale: 0.96 }} animate={{ scale: 1 }} exit={{ scale: 0.96 }}
-            className="w-full max-w-md bg-background border border-border rounded-xl shadow-xl p-5 space-y-3" onClick={e => e.stopPropagation()}>
+            className="w-full max-w-md max-h-full overflow-y-auto bg-background border border-border rounded-xl shadow-xl p-5 space-y-3" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <p className="font-semibold text-sm">UAE VAT registration</p>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}><X className="h-4 w-4" /></Button>

@@ -182,7 +182,10 @@ function buildQuarterOptions() {
     const from = new Date(year, startMonth, 1);
     const to = new Date(year, startMonth + 3, 0);          // last day of quarter
     const due = new Date(year, startMonth + 3, 28);        // 28 days after quarter end
-    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    // Local calendar date. toISOString() converts local midnight to UTC, which east of UTC
+    // (UAE, Pakistan) lands on the previous day — Q4 became 30 Sep – 30 Dec.
+    const iso = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     opts.push({
       label: `Q${q + 1}-${year}`,
       period: `Q${q + 1}-${year}`,
