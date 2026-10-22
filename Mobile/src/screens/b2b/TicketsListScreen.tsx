@@ -7,9 +7,11 @@ import { Badge, ListItemCard } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors, type Tone } from "@/theme";
 import type { SupportTicketDto } from "@/types/b2b";
 
+import { NextStepBar, useVerticalNew } from "@/components/verticals/VerticalActions";
 const PRIORITY_TONE: Record<string, Tone> = { critical: "destructive", high: "warning", medium: "info", low: "neutral" };
 
 export default function TicketsListScreen() {
+  useVerticalNew("b2b.ticket");
   const list = useTicketsList();
 
   const statusFilters: StatusFilterOption[] = useMemo(() => {
@@ -21,7 +23,12 @@ export default function TicketsListScreen() {
     <PagedListView
       items={list.items}
       keyExtractor={(t) => t.id}
-      renderItem={(t) => <TicketRow ticket={t} />}
+      renderItem={(t) => (
+        <>
+          <TicketRow ticket={t} />
+          <NextStepBar formKey="b2b.ticket" id={t.id} status={t.status} />
+        </>
+      )}
       isLoading={list.isLoading}
       isError={list.isError}
       isFetching={list.isFetching}

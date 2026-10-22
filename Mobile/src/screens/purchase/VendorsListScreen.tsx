@@ -7,6 +7,9 @@ import type { PurchaseStackParamList } from "@/navigation/types";
 import { EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
+import { hasPermission } from "@/store/auth.store";
+import { PURCHASE_VENDORS_CREATE } from "@/lib/purchase-write.api";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 type Props = NativeStackScreenProps<PurchaseStackParamList, "VendorsList">;
 
 const PAGE_SIZE = 25;
@@ -14,6 +17,7 @@ const PAGE_SIZE = 25;
 export default function VendorsListScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  useHeaderActions(navigation, [{ label: "New", enabled: hasPermission(PURCHASE_VENDORS_CREATE), onPress: () => navigation.navigate("VendorForm") }]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<VendorDto[]>([]);

@@ -1,28 +1,39 @@
-import { StyleSheet, Text, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { Image } from "react-native";
+import { useAppTheme } from "@/theme";
 
 /**
- * The "V" tile -- mirrors FrontendVite/public/favicon.svg exactly (same #2563eb -> #1e3a8a
- * gradient, same rounded-square tile, same white mark) so the mobile app opens on the same
- * brand mark a user already recognizes from the browser tab / PWA icon. Drawn with a bold "V"
- * glyph rather than an SVG path -- react-native-svg is a dependency neither this app nor its
- * Expo Go testing setup currently needs elsewhere, and a heavy round glyph reads identically at
- * the sizes this renders at (48-96px).
+ * The real Vrodux brand artwork (the same file the web app uses, FrontendVite/public/vrodux-logo.png),
+ * not a re-drawn approximation.
+ *   - "mark"    the V and pixel squares only -- compact places (header, lists)
+ *   - "lockup"  the full "Vrodux ERP Solution" logo -- sign-in screen
+ * The lockup's lettering is navy, which disappears on a dark background, so dark mode gets a
+ * white-lettered copy (the V keeps its blues).
  */
-export function BrandMark({ size = 56 }: { size?: number }) {
+const MARK = require("../../../assets/logo-mark.png");
+const LOCKUP = require("../../../assets/logo.png");
+const LOCKUP_WHITE = require("../../../assets/logo-white.png");
+
+const MARK_ASPECT = 979 / 792;
+const LOCKUP_ASPECT = 2794 / 801;
+
+export function BrandMark({ size = 56, variant = "mark" }: { size?: number; variant?: "mark" | "lockup" }) {
+  const { isDark } = useAppTheme();
+  if (variant === "lockup") {
+    return (
+      <Image
+        source={isDark ? LOCKUP_WHITE : LOCKUP}
+        style={{ width: size * LOCKUP_ASPECT, height: size }}
+        resizeMode="contain"
+        accessibilityLabel="Vrodux ERP Solution"
+      />
+    );
+  }
   return (
-    <LinearGradient
-      colors={["#2563EB", "#1E3A8A"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[styles.tile, { width: size, height: size, borderRadius: size * 0.22 }]}
-    >
-      <Text style={[styles.glyph, { fontSize: size * 0.52 }]}>V</Text>
-    </LinearGradient>
+    <Image
+      source={MARK}
+      style={{ width: size * MARK_ASPECT, height: size }}
+      resizeMode="contain"
+      accessibilityLabel="Vrodux"
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  tile: { alignItems: "center", justifyContent: "center" },
-  glyph: { color: "#FFFFFF", fontWeight: "800", includeFontPadding: false },
-});

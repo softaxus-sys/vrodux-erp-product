@@ -8,6 +8,9 @@ import type { InventoryStackParamList } from "@/navigation/types";
 import { Badge, DetailRow, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
+import { hasPermission } from "@/store/auth.store";
+import { INVENTORY_MOVEMENTS_CREATE } from "@/lib/inventory-write.api";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 type Props = NativeStackScreenProps<InventoryStackParamList, "ProductDetail">;
 
 export default function ProductDetailScreen({ route, navigation }: Props) {
@@ -17,6 +20,9 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   useEffect(() => {
     navigation.setOptions({ headerTitle: productName });
   }, [navigation, productName]);
+  useHeaderActions(navigation, [
+    { label: "Adjust stock", icon: "sliders", enabled: hasPermission(...INVENTORY_MOVEMENTS_CREATE), onPress: () => navigation.navigate("StockAdjust", { productId, productName }) },
+  ]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
 
   const product = useProduct(productId);

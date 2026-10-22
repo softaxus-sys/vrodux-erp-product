@@ -10,6 +10,9 @@ import type { InventoryStackParamList } from "@/navigation/types";
 import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
+import { hasPermission } from "@/store/auth.store";
+import { INVENTORY_PRODUCTS_CREATE } from "@/lib/inventory-write.api";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 type Props = NativeStackScreenProps<InventoryStackParamList, "ProductsList">;
 
 const PAGE_SIZE = 25;
@@ -25,16 +28,11 @@ export default function ProductsListScreen({ navigation }: Props) {
 
   const query = useProductsPaged({ page, pageSize: PAGE_SIZE, search, isLowStock: lowStockOnly || undefined });
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <Pressable onPress={() => navigation.navigate("BarcodeScanner")} hitSlop={8} style={styles.headerButtonWrap}>
-          <Feather name="camera" size={16} color={colors.primary} />
-          <Text style={styles.headerButton}>Scan</Text>
-        </Pressable>
-      ),
-    });
-  }, [navigation, colors, styles]);
+  useHeaderActions(navigation, [
+    { label: "Scan", icon: "camera", onPress: () => navigation.navigate("BarcodeScanner") },
+    { label: "Transfers", icon: "truck", onPress: () => navigation.navigate("TransfersList") },
+    { label: "New", enabled: hasPermission(...INVENTORY_PRODUCTS_CREATE), onPress: () => navigation.navigate("NewProduct") },
+  ]);
 
   useEffect(() => {
     setPage(1);

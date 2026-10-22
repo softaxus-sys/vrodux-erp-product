@@ -31,7 +31,7 @@ export default function MoreScreen({ navigation }: Props) {
             icon={tab.icon}
             title={tab.label}
             subtitle={tab.subtitle}
-            onPress={() => navigation.navigate(tab.key)}
+            onPress={() => navigation.navigate(tab.key as never)}
           />
         ))}
       </View>

@@ -3,6 +3,7 @@ import B2BHomeScreen from "@/screens/b2b/B2BHomeScreen";
 import ProposalsListScreen from "@/screens/b2b/ProposalsListScreen";
 import ContractsListScreen from "@/screens/b2b/ContractsListScreen";
 import TicketsListScreen from "@/screens/b2b/TicketsListScreen";
+import VerticalFormScreen from "@/screens/verticals/VerticalFormScreen";
 import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { B2BStackParamList } from "@/navigation/types";
 
@@ -17,6 +18,7 @@ export default function B2BStack() {
       <Stack.Screen name="ProposalsList" component={ProposalsListScreen} options={{ headerTitle: "Proposals" }} />
       <Stack.Screen name="ContractsList" component={ContractsListScreen} options={{ headerTitle: "Service Contracts" }} />
       <Stack.Screen name="TicketsList" component={TicketsListScreen} options={{ headerTitle: "Support Tickets" }} />
+      <Stack.Screen name="VerticalForm" component={VerticalFormScreen} options={{ headerTitle: "New" }} />
     </Stack.Navigator>
   );
 }

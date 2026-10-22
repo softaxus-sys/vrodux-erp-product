@@ -10,6 +10,9 @@ import type { PurchaseStackParamList } from "@/navigation/types";
 import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
+import { hasPermission } from "@/store/auth.store";
+import { PURCHASE_ORDERS_CREATE } from "@/lib/purchase-write.api";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 type Props = NativeStackScreenProps<PurchaseStackParamList, "PurchaseOrdersList">;
 
 const FILTERS: { key: string; label: string }[] = [
@@ -29,6 +32,7 @@ export default function PurchaseOrdersListScreen({ navigation }: Props) {
   // PurchaseOrderSummaryDto carries no currency of its own -- purchasing is recorded in the
   // tenant's operating currency (CLAUDE.md Module 6e/50), so read it off the session claims.
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
+  useHeaderActions(navigation, [{ label: "New", enabled: hasPermission(PURCHASE_ORDERS_CREATE), onPress: () => navigation.navigate("NewPurchaseOrder") }]);
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);

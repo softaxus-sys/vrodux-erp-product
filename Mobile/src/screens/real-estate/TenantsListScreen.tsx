@@ -10,6 +10,9 @@ import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, Se
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { RealEstateStackParamList } from "@/navigation/types";
 
+import { hasPermission } from "@/store/auth.store";
+import { REAL_ESTATE_TENANTS_CREATE } from "@/lib/real-estate-create";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 type Props = NativeStackScreenProps<RealEstateStackParamList, "TenantsList">;
 
 const FILTERS: { key: string; label: string }[] = [
@@ -25,6 +28,7 @@ export default function TenantsListScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
+  useHeaderActions(navigation, [{ label: "New", enabled: hasPermission(REAL_ESTATE_TENANTS_CREATE), onPress: () => navigation.navigate("NewTenant") }]);
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);

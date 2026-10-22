@@ -7,7 +7,9 @@ import { Badge, ListItemCard } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { TreatmentPlanDto } from "@/types/healthcare";
 
+import { NextStepBar, useVerticalNew } from "@/components/verticals/VerticalActions";
 export default function TreatmentPlansListScreen() {
+  useVerticalNew("healthcare.plan");
   const list = useTreatmentPlansList();
 
   const statusFilters: StatusFilterOption[] = useMemo(() => {
@@ -19,7 +21,12 @@ export default function TreatmentPlansListScreen() {
     <PagedListView
       items={list.items}
       keyExtractor={(p) => p.id}
-      renderItem={(p) => <PlanRow plan={p} />}
+      renderItem={(p) => (
+        <>
+          <PlanRow plan={p} />
+          <NextStepBar formKey="healthcare.plan" id={p.id} status={p.status} />
+        </>
+      )}
       isLoading={list.isLoading}
       isError={list.isError}
       isFetching={list.isFetching}

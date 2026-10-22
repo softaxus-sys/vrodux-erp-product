@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 import { useSession, useSessionCashMovements, useSessionTransactions } from "@/hooks/use-pos";
 import { formatCompactValue } from "@/lib/crm-helpers";
 import { POS_SESSIONS_CREATE, POS_TRANSACTIONS_CREATE } from "@/lib/pos.api";
@@ -26,6 +27,9 @@ export default function POSSessionDetailScreen({ route, navigation }: Props) {
   const session = useSession(sessionId);
   const transactions = useSessionTransactions(sessionId, 1, 20);
   const cashMovements = useSessionCashMovements(sessionId);
+  useHeaderActions(navigation, [
+    { label: "Cash in/out", icon: "dollar-sign", enabled: Boolean(session.data) && !session.data?.closedAt && canSell, onPress: () => navigation.navigate("CashMovement", { sessionId }) },
+  ]);
 
   if (session.isLoading || !session.data) {
     return <LoadingState />;

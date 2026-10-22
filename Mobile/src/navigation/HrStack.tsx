@@ -11,6 +11,8 @@ import JobPostingDetailScreen from "@/screens/hr/JobPostingDetailScreen";
 import ApplicantDetailScreen from "@/screens/hr/ApplicantDetailScreen";
 import PerformanceReviewsListScreen from "@/screens/hr/PerformanceReviewsListScreen";
 import PerformanceReviewDetailScreen from "@/screens/hr/PerformanceReviewDetailScreen";
+import NewEmployeeScreen from "@/screens/hr/NewEmployeeScreen";
+import MarkAttendanceScreen from "@/screens/hr/MarkAttendanceScreen";
 import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { HrStackParamList } from "@/navigation/types";
 
@@ -33,6 +35,8 @@ export default function HrStack() {
       <Stack.Screen name="ApplicantDetail" component={ApplicantDetailScreen} />
       <Stack.Screen name="PerformanceReviewsList" component={PerformanceReviewsListScreen} options={{ headerTitle: "Performance" }} />
       <Stack.Screen name="PerformanceReviewDetail" component={PerformanceReviewDetailScreen} />
+      <Stack.Screen name="NewEmployee" component={NewEmployeeScreen} options={{ headerTitle: "New employee" }} />
+      <Stack.Screen name="MarkAttendance" component={MarkAttendanceScreen} options={{ headerTitle: "Mark attendance" }} />
     </Stack.Navigator>
   );
 }

@@ -29,6 +29,14 @@ export const POS_REPORTS_VIEW = "pos.reports.view";
 export const POS_SESSIONS_CREATE = "pos.sessions.create";
 /** Record a sale. Same enforcement caveat as above -- gates the "New Sale" entry point. */
 export const POS_TRANSACTIONS_CREATE = "pos.transactions.create";
+export const POS_TRANSACTIONS_VOID = "pos.transactions.void";
+export const POS_TRANSACTIONS_REFUND = "pos.transactions.refund";
+
+/** Cash drawer in/out. Category must fit the direction (the server refuses a mismatch). */
+export const CASH_CATEGORIES = {
+  payin: [{ value: "owner_deposit", label: "Owner deposit" }, { value: "bank_withdrawal", label: "Bank withdrawal" }],
+  payout: [{ value: "petty_expense", label: "Petty expense" }, { value: "bank_deposit", label: "Bank deposit" }, { value: "owner_withdrawal", label: "Owner withdrawal" }],
+} as const;
 
 function buildTransactionsQuery(p: TransactionsPageParams): string {
   const qs = new URLSearchParams();
@@ -79,6 +87,19 @@ export const posApi = {
     apiClient.post(`${SESSIONS_BASE}/${sessionId}/close`, payload),
 
   createSale: (payload: CreateSaleRequest): Promise<POSTransactionDto> => apiClient.post(`${TRANSACTIONS_BASE}/sale`, payload),
+
+  voidTransaction: (id: string, reason: string): Promise<POSTransactionDto> =>
+    apiClient.post(`${TRANSACTIONS_BASE}/${id}/void`, { reason }),
+
+  refundTransaction: (id: string, payload: {
+    sessionId: string;
+    lineItems: { productId: string; quantity: number; unitPriceOverride: number; discountPercent: number; discountAmount: number }[];
+    payments: { method: string; amount: number; reference: string | null }[];
+    reason: string;
+  }): Promise<POSTransactionDto> => apiClient.post(`${TRANSACTIONS_BASE}/${id}/refund`, payload),
+
+  recordCashMovement: (sessionId: string, payload: { type: "payin" | "payout"; amount: number; reason: string; category: string }) =>
+    apiClient.post(`${SESSIONS_BASE}/${sessionId}/cash-movement`, payload),
 
   getPaymentMethods: (): Promise<PaymentMethodDto[]> => apiClient.get(PAYMENT_METHODS_BASE),
 };

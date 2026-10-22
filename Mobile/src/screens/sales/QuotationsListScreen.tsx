@@ -9,6 +9,9 @@ import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, Se
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { SalesStackParamList } from "@/navigation/types";
 
+import { hasPermission } from "@/store/auth.store";
+import { SALES_QUOTATIONS_CREATE } from "@/lib/sales-write.api";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 type Props = NativeStackScreenProps<SalesStackParamList, "QuotationsList">;
 
 const FILTERS: { key: string; label: string }[] = [
@@ -26,6 +29,7 @@ const PAGE_SIZE = 25;
 export default function QuotationsListScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  useHeaderActions(navigation, [{ label: "New", enabled: hasPermission(SALES_QUOTATIONS_CREATE), onPress: () => navigation.navigate("NewQuotation") }]);
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);

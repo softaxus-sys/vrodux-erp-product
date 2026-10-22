@@ -10,6 +10,9 @@ import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, Se
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { SalesStackParamList } from "@/navigation/types";
 
+import { hasPermission } from "@/store/auth.store";
+import { SALES_ORDERS_CREATE } from "@/lib/sales-write.api";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 type Props = NativeStackScreenProps<SalesStackParamList, "OrdersList">;
 
 const FILTERS: { key: string; label: string }[] = [
@@ -27,6 +30,7 @@ export default function OrdersListScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
+  useHeaderActions(navigation, [{ label: "New", enabled: hasPermission(SALES_ORDERS_CREATE), onPress: () => navigation.navigate("NewOrder") }]);
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);

@@ -2,6 +2,9 @@ import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useBookingsList, useCheckIn, useCheckOut } from "@/hooks/use-hospitality";
 import { formatCompactValue } from "@/lib/crm-helpers";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { HospitalityStackParamList } from "@/navigation/types";
 import { useAuthStore } from "@/store/auth.store";
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS_TONE } from "@/types/hospitality";
 import type { BookingDto } from "@/types/hospitality";
@@ -9,6 +12,9 @@ import { PagedListView, type StatusFilterOption } from "@/components/verticals/P
 import { Badge, Button, ListItemCard } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
+import { hasPermission } from "@/store/auth.store";
+import { HOSPITALITY_BOOKINGS_CREATE } from "@/lib/hospitality-create";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 const FILTERS: StatusFilterOption[] = [
   { key: "all", label: "All" },
   { key: "confirmed", label: "Confirmed" },
@@ -18,7 +24,9 @@ const FILTERS: StatusFilterOption[] = [
 ];
 
 export default function BookingsListScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<HospitalityStackParamList>>();
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
+  useHeaderActions(navigation, [{ label: "New", enabled: hasPermission(HOSPITALITY_BOOKINGS_CREATE), onPress: () => navigation.navigate("NewBooking") }]);
   const list = useBookingsList();
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();

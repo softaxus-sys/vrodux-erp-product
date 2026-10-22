@@ -3,6 +3,7 @@ import VisaHomeScreen from "@/screens/visa/VisaHomeScreen";
 import CasesListScreen from "@/screens/visa/CasesListScreen";
 import CaseDetailScreen from "@/screens/visa/CaseDetailScreen";
 import RenewalsListScreen from "@/screens/visa/RenewalsListScreen";
+import NewCaseScreen from "@/screens/visa/NewCaseScreen";
 import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { VisaStackParamList } from "@/navigation/types";
 
@@ -17,6 +18,7 @@ export default function VisaStack() {
       <Stack.Screen name="CasesList" component={CasesListScreen} options={{ headerTitle: "Cases" }} />
       <Stack.Screen name="CaseDetail" component={CaseDetailScreen} />
       <Stack.Screen name="RenewalsList" component={RenewalsListScreen} options={{ headerTitle: "Renewals" }} />
+      <Stack.Screen name="NewCase" component={NewCaseScreen} options={{ headerTitle: "New case" }} />
     </Stack.Navigator>
   );
 }

@@ -3,6 +3,7 @@ import EducationHomeScreen from "@/screens/education/EducationHomeScreen";
 import AdmissionsListScreen from "@/screens/education/AdmissionsListScreen";
 import StudentsListScreen from "@/screens/education/StudentsListScreen";
 import EnrollmentsListScreen from "@/screens/education/EnrollmentsListScreen";
+import VerticalFormScreen from "@/screens/verticals/VerticalFormScreen";
 import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { EducationStackParamList } from "@/navigation/types";
 
@@ -17,6 +18,7 @@ export default function EducationStack() {
       <Stack.Screen name="AdmissionsList" component={AdmissionsListScreen} options={{ headerTitle: "Admissions" }} />
       <Stack.Screen name="StudentsList" component={StudentsListScreen} options={{ headerTitle: "Students" }} />
       <Stack.Screen name="EnrollmentsList" component={EnrollmentsListScreen} options={{ headerTitle: "Enrollments" }} />
+      <Stack.Screen name="VerticalForm" component={VerticalFormScreen} options={{ headerTitle: "New" }} />
     </Stack.Navigator>
   );
 }

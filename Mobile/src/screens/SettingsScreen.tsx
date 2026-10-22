@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Image, Linking, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import {
   useChangePassword,
@@ -12,7 +12,7 @@ import {
   useTwoFactorStatus,
   useUpdateProfile,
 } from "@/hooks/use-settings";
-import { ApiError } from "@/lib/api-client";
+import { ApiError, apiClient } from "@/lib/api-client";
 import { authApi } from "@/lib/auth.api";
 import { unregisterPushAsync } from "@/lib/push";
 import { useAuthStore } from "@/store/auth.store";
@@ -47,10 +47,80 @@ export default function SettingsScreen() {
       <ChangePasswordSection />
       <TwoFactorSection />
       <DevicesSection />
+      <DeleteAccountSection />
       <View style={styles.signOutRow}>
         <Button label="Sign out" variant="outline" icon="log-out" onPress={handleLogout} fullWidth />
       </View>
     </ScrollView>
+  );
+}
+
+// ── Delete account ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * A login belongs to the company's workspace, so deletion is a request the Vrodux team verifies and
+ * completes -- sent as a support ticket (open to any signed-in user), which keeps a record of who
+ * asked and when. Nothing is deleted by the tap itself.
+ */
+function DeleteAccountSection() {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
+  const user = useAuthStore((s) => s.user);
+  const tenant = useAuthStore((s) => s.tenant);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function send() {
+    setSending(true);
+    setError(null);
+    try {
+      await apiClient.post("/api/support/tickets", {
+        subject: "Account deletion request",
+        category: "account_security",
+        priority: "high",
+        message:
+          `Please delete my Vrodux ERP account and associated personal data.
+
+` +
+          `Name: ${user?.fullName ?? ""}
+Email: ${user?.email ?? ""}
+Workspace: ${tenant?.name ?? ""}
+` +
+          `Sent from the mobile app's Settings > Delete account.`,
+        attachments: null,
+      });
+      setSent(true);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Couldn't send the request. Check your connection and try again.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function confirm() {
+    Alert.alert(
+      "Request account deletion?",
+      "This asks the Vrodux team to delete your login and personal data. They will verify the request and confirm by email. Business records that belong to your company stay with the company's workspace.",
+      [{ text: "Cancel", style: "cancel" }, { text: "Send request", style: "destructive", onPress: send }],
+    );
+  }
+
+  return (
+    <SectionCard title="Delete account">
+      <View style={styles.formGap}>
+        <Text style={styles.bodyText}>
+          {sent
+            ? "Request sent. The Vrodux team will verify it and reply by email. You can keep using the app until then."
+            : "Ask us to delete your login and personal data. Your company's workspace administrator can also remove you from Settings > Users on the web."}
+        </Text>
+        {error ? <Text style={[styles.bodyText, { color: colors.destructive }]}>{error}</Text> : null}
+        {sent ? null : <Button label={sending ? "Sending…" : "Request account deletion"} variant="outline" icon="trash-2" onPress={confirm} disabled={sending} fullWidth />}
+        <Text style={[styles.bodyText, { color: colors.primary }]} onPress={() => Linking.openURL("https://vrodux.com/delete-account")}>
+          How deletion works
+        </Text>
+      </View>
+    </SectionCard>
   );
 }
 

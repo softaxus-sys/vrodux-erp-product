@@ -10,6 +10,9 @@ import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, Se
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { VisaStackParamList } from "@/navigation/types";
 
+import { hasPermission } from "@/store/auth.store";
+import { VISA_CASES_CREATE } from "@/lib/visa-create";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 type Props = NativeStackScreenProps<VisaStackParamList, "CasesList">;
 
 const FILTERS: { key: string; label: string }[] = [
@@ -28,6 +31,7 @@ export default function CasesListScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
+  useHeaderActions(navigation, [{ label: "New", enabled: hasPermission(VISA_CASES_CREATE), onPress: () => navigation.navigate("NewCase") }]);
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
 

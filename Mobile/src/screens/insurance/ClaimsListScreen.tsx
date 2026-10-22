@@ -9,7 +9,9 @@ import { Badge, ListItemCard } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { InsuranceClaimDto } from "@/types/insurance";
 
+import { NextStepBar, useVerticalNew } from "@/components/verticals/VerticalActions";
 export default function ClaimsListScreen() {
+  useVerticalNew("insurance.claim");
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const list = useClaimsList();
 
@@ -22,7 +24,12 @@ export default function ClaimsListScreen() {
     <PagedListView
       items={list.items}
       keyExtractor={(c) => c.id}
-      renderItem={(c) => <ClaimRow claim={c} currency={currency} />}
+      renderItem={(c) => (
+        <>
+          <ClaimRow claim={c} currency={currency} />
+          <NextStepBar formKey="insurance.claim" id={c.id} status={c.status} />
+        </>
+      )}
       isLoading={list.isLoading}
       isError={list.isError}
       isFetching={list.isFetching}

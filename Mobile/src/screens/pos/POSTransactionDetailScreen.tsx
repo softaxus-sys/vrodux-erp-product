@@ -3,7 +3,9 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useTransaction } from "@/hooks/use-pos";
 import { formatCompactValue } from "@/lib/crm-helpers";
-import { useAuthStore } from "@/store/auth.store";
+import { useAuthStore, hasPermission } from "@/store/auth.store";
+import { POS_TRANSACTIONS_REFUND, POS_TRANSACTIONS_VOID } from "@/lib/pos.api";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 import type { POSStackParamList } from "@/navigation/types";
 import { Badge, DetailRow, ErrorState, LoadingState, SectionCard } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
@@ -20,6 +22,11 @@ export default function POSTransactionDetailScreen({ route, navigation }: Props)
   }, [navigation, transactionNumber]);
 
   const transaction = useTransaction(transactionId);
+  const done = (transaction.data?.status ?? "").toLowerCase() === "completed" && (transaction.data?.type ?? "").toLowerCase() === "sale";
+  useHeaderActions(navigation, [
+    { label: "Refund", icon: "corner-up-left", enabled: done && hasPermission(POS_TRANSACTIONS_REFUND), onPress: () => navigation.navigate("TransactionAction", { transactionId, mode: "refund" }) },
+    { label: "Void", icon: "x-circle", enabled: done && hasPermission(POS_TRANSACTIONS_VOID), onPress: () => navigation.navigate("TransactionAction", { transactionId, mode: "void" }) },
+  ]);
 
   if (transaction.isLoading || !transaction.data) {
     return <LoadingState />;

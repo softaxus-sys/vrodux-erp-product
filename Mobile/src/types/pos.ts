@@ -44,6 +44,7 @@ export interface CashMovementDto {
 
 export interface POSLineItemDto {
   id: string;
+  productId: string;
   productName: string;
   quantity: number;
   unitPrice: number;

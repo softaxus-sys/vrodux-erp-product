@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RealEstateStackParamList } from "@/navigation/types";
 import { useUnitsPaged, useUnitsSummary } from "@/hooks/use-real-estate";
 import { formatCompactValue } from "@/lib/crm-helpers";
 import { useAuthStore } from "@/store/auth.store";
@@ -8,6 +11,9 @@ import type { UnitDto } from "@/types/real-estate";
 import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
+import { hasPermission } from "@/store/auth.store";
+import { REAL_ESTATE_UNITS_CREATE } from "@/lib/real-estate-create";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 const FILTERS: { key: string; label: string }[] = [
   { key: "all", label: "All" },
   { key: "vacant", label: "Vacant" },
@@ -22,9 +28,11 @@ const PAGE_SIZE = 25;
  *  own reasoning in Restaurant). Property Detail also shows a property's own units nested; this
  *  screen is the cross-property browse. */
 export default function UnitsListScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RealEstateStackParamList>>();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
+  useHeaderActions(navigation, [{ label: "New", enabled: hasPermission(REAL_ESTATE_UNITS_CREATE), onPress: () => navigation.navigate("NewListing") }]);
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);

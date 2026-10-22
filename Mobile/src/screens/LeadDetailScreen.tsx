@@ -7,6 +7,9 @@ import { buildLeadSummary, cleanPhone, formatCompactValue, leadHeat, urgencyLabe
 import { useAuthStore } from "@/store/auth.store";
 import { LEAD_STATUS_LABELS, NEXT_STATUSES } from "@/types/crm";
 import type { ActivityType } from "@/types/crm";
+import { hasPermission } from "@/store/auth.store";
+import { CRM_LEADS_EDIT } from "@/lib/crm.api";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 import { Badge, Button, Chip, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
 import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { LeadsStackParamList } from "@/navigation/types";
@@ -20,6 +23,12 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
   useEffect(() => {
     navigation.setOptions({ headerTitle: leadName });
   }, [navigation, leadName]);
+
+  const canEditLead = hasPermission(...CRM_LEADS_EDIT);
+  useHeaderActions(navigation, [
+    { label: "Reassign", icon: "user-check", enabled: canEditLead, onPress: () => navigation.navigate("LeadReassign", { leadId, leadName }) },
+    { label: "Edit", icon: "edit-2", enabled: canEditLead, onPress: () => navigation.navigate("LeadForm", { leadId }) },
+  ]);
 
   const lead = useLead(leadId);
   const activities = useActivities("lead", leadId);

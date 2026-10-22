@@ -7,6 +7,9 @@ import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, Se
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { HrStackParamList } from "@/navigation/types";
 
+import { hasPermission } from "@/store/auth.store";
+import { HR_EMPLOYEES_CREATE } from "@/lib/hr-directory.api";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 type Props = NativeStackScreenProps<HrStackParamList, "EmployeesList">;
 
 type StatusFilter = "active" | "all" | EmployeeStatus;
@@ -21,6 +24,10 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
 export default function EmployeesListScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  useHeaderActions(navigation, [
+    { label: "Attendance", icon: "clock", enabled: hasPermission("hr.attendance.create"), onPress: () => navigation.navigate("MarkAttendance") },
+    { label: "New", enabled: hasPermission(HR_EMPLOYEES_CREATE), onPress: () => navigation.navigate("NewEmployee") },
+  ]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("active");
   const [department, setDepartment] = useState<string | null>(null);

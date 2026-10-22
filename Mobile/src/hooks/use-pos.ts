@@ -97,3 +97,28 @@ export function usePaymentMethods() {
     queryFn: posApi.getPaymentMethods,
   });
 }
+
+export function useVoidTransaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => posApi.voidTransaction(id, reason),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [QK] }),
+  });
+}
+
+export function useRefundTransaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof posApi.refundTransaction>[1] }) => posApi.refundTransaction(id, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [QK] }),
+  });
+}
+
+export function useRecordCashMovement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, payload }: { sessionId: string; payload: Parameters<typeof posApi.recordCashMovement>[1] }) =>
+      posApi.recordCashMovement(sessionId, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [QK] }),
+  });
+}

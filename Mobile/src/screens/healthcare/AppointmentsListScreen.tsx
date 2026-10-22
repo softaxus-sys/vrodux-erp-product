@@ -7,7 +7,9 @@ import { Badge, ListItemCard } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { AppointmentDto } from "@/types/healthcare";
 
+import { NextStepBar, useVerticalNew } from "@/components/verticals/VerticalActions";
 export default function AppointmentsListScreen() {
+  useVerticalNew("healthcare.appointment");
   const list = useAppointmentsList();
 
   const statusFilters: StatusFilterOption[] = useMemo(() => {
@@ -19,7 +21,12 @@ export default function AppointmentsListScreen() {
     <PagedListView
       items={list.items}
       keyExtractor={(a) => a.id}
-      renderItem={(a) => <AppointmentRow appointment={a} />}
+      renderItem={(a) => (
+        <>
+          <AppointmentRow appointment={a} />
+          <NextStepBar formKey="healthcare.appointment" id={a.id} status={a.status} />
+        </>
+      )}
       isLoading={list.isLoading}
       isError={list.isError}
       isFetching={list.isFetching}

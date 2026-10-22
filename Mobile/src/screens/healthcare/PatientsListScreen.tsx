@@ -8,7 +8,9 @@ import { Badge, ListItemCard } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { PatientDto } from "@/types/healthcare";
 
+import { useVerticalNew } from "@/components/verticals/VerticalActions";
 export default function PatientsListScreen() {
+  useVerticalNew("healthcare.patient");
   const list = usePatientsList();
 
   const statusFilters: StatusFilterOption[] = useMemo(() => {

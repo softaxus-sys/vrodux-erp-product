@@ -10,6 +10,9 @@ import ContractDetailScreen from "@/screens/real-estate/ContractDetailScreen";
 import RentDueScreen from "@/screens/real-estate/RentDueScreen";
 import BrokersListScreen from "@/screens/real-estate/BrokersListScreen";
 import BrokerDetailScreen from "@/screens/real-estate/BrokerDetailScreen";
+import NewListingScreen from "@/screens/real-estate/NewListingScreen";
+import NewTenantScreen from "@/screens/real-estate/NewTenantScreen";
+import NewLeaseScreen from "@/screens/real-estate/NewLeaseScreen";
 import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { RealEstateStackParamList } from "@/navigation/types";
 
@@ -31,6 +34,9 @@ export default function RealEstateStack() {
       <Stack.Screen name="RentDue" component={RentDueScreen} options={{ headerTitle: "Rent Due" }} />
       <Stack.Screen name="BrokersList" component={BrokersListScreen} options={{ headerTitle: "Brokers" }} />
       <Stack.Screen name="BrokerDetail" component={BrokerDetailScreen} />
+      <Stack.Screen name="NewListing" component={NewListingScreen} options={{ headerTitle: "New listing" }} />
+      <Stack.Screen name="NewTenant" component={NewTenantScreen} options={{ headerTitle: "New tenant" }} />
+      <Stack.Screen name="NewLease" component={NewLeaseScreen} options={{ headerTitle: "New lease" }} />
     </Stack.Navigator>
   );
 }

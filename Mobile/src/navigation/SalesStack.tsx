@@ -4,6 +4,7 @@ import OrdersListScreen from "@/screens/sales/OrdersListScreen";
 import OrderDetailScreen from "@/screens/sales/OrderDetailScreen";
 import QuotationsListScreen from "@/screens/sales/QuotationsListScreen";
 import QuotationDetailScreen from "@/screens/sales/QuotationDetailScreen";
+import SalesDocFormScreen from "@/screens/sales/SalesDocFormScreen";
 import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { SalesStackParamList } from "@/navigation/types";
 
@@ -19,6 +20,8 @@ export default function SalesStack() {
       <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
       <Stack.Screen name="QuotationsList" component={QuotationsListScreen} options={{ headerTitle: "Quotations" }} />
       <Stack.Screen name="QuotationDetail" component={QuotationDetailScreen} />
+      <Stack.Screen name="NewOrder" component={SalesDocFormScreen} options={{ headerTitle: "New sales order" }} />
+      <Stack.Screen name="NewQuotation" component={SalesDocFormScreen} options={{ headerTitle: "New quotation" }} />
     </Stack.Navigator>
   );
 }

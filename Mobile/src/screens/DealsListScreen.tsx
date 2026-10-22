@@ -5,6 +5,9 @@ import { useDealsPaged } from "@/hooks/use-deals";
 import { formatCompactValue } from "@/lib/crm-helpers";
 import { DEAL_STAGE_TONE, PIPELINE_STAGES } from "@/types/crm";
 import type { DealDto } from "@/types/crm";
+import { hasPermission } from "@/store/auth.store";
+import { CRM_PIPELINE_CREATE } from "@/lib/crm-write.api";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { DealsStackParamList } from "@/navigation/types";
@@ -17,6 +20,7 @@ const PAGE_SIZE = 25;
 export default function DealsListScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  useHeaderActions(navigation, [{ label: "New", enabled: hasPermission(...CRM_PIPELINE_CREATE), onPress: () => navigation.navigate("DealForm") }]);
   const [stage, setStage] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);

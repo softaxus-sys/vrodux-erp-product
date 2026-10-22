@@ -9,7 +9,9 @@ import { Badge, ListItemCard } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { ProposalDto } from "@/types/b2b";
 
+import { NextStepBar, useVerticalNew } from "@/components/verticals/VerticalActions";
 export default function ProposalsListScreen() {
+  useVerticalNew("b2b.proposal");
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const list = useProposalsList();
 
@@ -22,7 +24,12 @@ export default function ProposalsListScreen() {
     <PagedListView
       items={list.items}
       keyExtractor={(p) => p.id}
-      renderItem={(p) => <ProposalRow proposal={p} currency={currency} />}
+      renderItem={(p) => (
+        <>
+          <ProposalRow proposal={p} currency={currency} />
+          <NextStepBar formKey="b2b.proposal" id={p.id} status={p.status} />
+        </>
+      )}
       isLoading={list.isLoading}
       isError={list.isError}
       isFetching={list.isFetching}

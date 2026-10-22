@@ -59,6 +59,7 @@ import InsuranceStack from "@/navigation/InsuranceStack";
 import ConstructionStack from "@/navigation/ConstructionStack";
 import HospitalityStack from "@/navigation/HospitalityStack";
 import ReportsStack from "@/navigation/ReportsStack";
+import { LibraryStack, ManufacturingStack, TradeStack, RecipeStack, CalendarStack, SupportStack } from "@/navigation/ExtraModuleStack";
 import type { AppTabParamList } from "@/navigation/types";
 
 export type ModuleTabKey = Exclude<keyof AppTabParamList, "Dashboard" | "More">;
@@ -104,11 +105,17 @@ const MODULE_TAB_ORDER: ModuleTabDef[] = [
   { key: "Insurance", label: "Insurance", subtitle: "Policies, renewals, claims", icon: "shield", component: InsuranceStack, isStack: true },
   { key: "Construction", label: "Construction", subtitle: "Projects, sites, contractors, BOQs", icon: "tool", component: ConstructionStack, isStack: true },
   { key: "Hospitality", label: "Hospitality", subtitle: "Rooms, bookings, housekeeping", icon: "key", component: HospitalityStack, isStack: true },
+  { key: "Library", label: "Library", subtitle: "Lend, return, members, fines", icon: "book", component: LibraryStack, isStack: true },
+  { key: "Manufacturing", label: "Manufacturing", subtitle: "Production orders and BOMs", icon: "tool", component: ManufacturingStack, isStack: true },
+  { key: "Trade", label: "Import / Export", subtitle: "Shipments and trade parties", icon: "package", component: TradeStack, isStack: true },
+  { key: "Recipe", label: "Recipes", subtitle: "Recipes and cost per serving", icon: "book-open", component: RecipeStack, isStack: true },
+  { key: "Calendar", label: "Calendar", subtitle: "Upcoming events", icon: "calendar", component: CalendarStack, isStack: true },
   { key: "Reports", label: "Reports", subtitle: "POS and Inventory tabular reports", icon: "bar-chart-2", component: ReportsStack, isStack: true },
   { key: "FileManager", label: "File Manager", subtitle: "Browse CRM document library", icon: "folder", component: FileManagerScreen, isStack: false },
   // Last on purpose -- ungated (every session qualifies, see isTabAvailable below), so it should
   // never crowd out an actual module tab; it only surfaces directly for a session with nothing
   // else, and sits in "More" for everyone else.
+  { key: "Support", label: "Help & Support", subtitle: "Send a request to our team", icon: "life-buoy", component: SupportStack, isStack: true },
   { key: "Settings", label: "Settings", subtitle: "Profile, password, two-factor auth", icon: "settings", component: SettingsScreen, isStack: false },
 ];
 
@@ -192,6 +199,18 @@ function isTabAvailable(key: ModuleTabKey): boolean {
       return hasModuleAccess("construction");
     case "Hospitality":
       return hasModuleAccess("hospitality");
+    case "Library":
+      return hasModuleAccess("library") && hasPermission("library.circulation.view", "library.catalog.view", "library.members.view", "library.fines.view");
+    case "Manufacturing":
+      return hasModuleAccess("manufacturing") && hasPermission("manufacturing.orders.view", "manufacturing.boms.view");
+    case "Trade":
+      return hasModuleAccess("trade") && hasPermission("trade.shipments.view", "trade.parties.view");
+    case "Recipe":
+      return hasModuleAccess("recipe");
+    case "Calendar":
+    case "Support":
+      // Core features open to every signed-in user -- no module subscription or permission gates them.
+      return true;
     case "Reports":
       // POS/Inventory reports carry no permission gate on the backend at all (confirmed by
       // reading ReportsController/InventoryReportsController directly) -- the web hub itself only

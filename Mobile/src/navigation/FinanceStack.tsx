@@ -15,6 +15,7 @@ import TaxPeriodsListScreen from "@/screens/finance/TaxPeriodsListScreen";
 import TaxPeriodDetailScreen from "@/screens/finance/TaxPeriodDetailScreen";
 import RecurringInvoicesListScreen from "@/screens/finance/RecurringInvoicesListScreen";
 import RecurringInvoiceDetailScreen from "@/screens/finance/RecurringInvoiceDetailScreen";
+import NewInvoiceScreen from "@/screens/finance/NewInvoiceScreen";
 import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { FinanceStackParamList } from "@/navigation/types";
 
@@ -30,6 +31,7 @@ export default function FinanceStack() {
       <Stack.Screen name="InvoiceDetail" component={InvoiceDetailScreen} />
       <Stack.Screen name="ExpensesList" component={ExpensesListScreen} options={{ headerTitle: "Expenses" }} />
       <Stack.Screen name="ExpenseDetail" component={ExpenseDetailScreen} />
+      <Stack.Screen name="NewInvoice" component={NewInvoiceScreen} options={{ headerTitle: "New invoice" }} />
       <Stack.Screen name="NewExpense" component={NewExpenseScreen} options={{ headerTitle: "New Expense" }} />
       <Stack.Screen name="AccountsList" component={AccountsListScreen} options={{ headerTitle: "Chart of Accounts" }} />
       <Stack.Screen name="BankAccountsList" component={BankAccountsListScreen} options={{ headerTitle: "Bank Accounts" }} />

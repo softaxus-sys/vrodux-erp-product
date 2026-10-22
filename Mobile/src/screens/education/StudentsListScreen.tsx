@@ -8,7 +8,9 @@ import { Badge, ListItemCard } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { StudentDto } from "@/types/education";
 
+import { useVerticalNew } from "@/components/verticals/VerticalActions";
 export default function StudentsListScreen() {
+  useVerticalNew("education.student");
   const list = useStudentsList();
 
   const statusFilters: StatusFilterOption[] = useMemo(() => {

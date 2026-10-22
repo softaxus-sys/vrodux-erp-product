@@ -57,8 +57,7 @@ export default function LoginScreen({ navigation }: Props) {
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.brandBlock}>
-          <BrandMark size={64} />
-          <Text style={styles.title}>Vrodux ERP</Text>
+          <BrandMark size={72} variant="lockup" />
           <Text style={styles.subtitle}>Sign in to your workspace</Text>
         </View>
 

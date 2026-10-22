@@ -3,6 +3,7 @@ import HospitalityHomeScreen from "@/screens/hospitality/HospitalityHomeScreen";
 import RoomsListScreen from "@/screens/hospitality/RoomsListScreen";
 import BookingsListScreen from "@/screens/hospitality/BookingsListScreen";
 import HousekeepingListScreen from "@/screens/hospitality/HousekeepingListScreen";
+import NewBookingScreen from "@/screens/hospitality/NewBookingScreen";
 import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { HospitalityStackParamList } from "@/navigation/types";
 
@@ -17,6 +18,7 @@ export default function HospitalityStack() {
       <Stack.Screen name="RoomsList" component={RoomsListScreen} options={{ headerTitle: "Rooms" }} />
       <Stack.Screen name="BookingsList" component={BookingsListScreen} options={{ headerTitle: "Bookings" }} />
       <Stack.Screen name="HousekeepingList" component={HousekeepingListScreen} options={{ headerTitle: "Housekeeping" }} />
+      <Stack.Screen name="NewBooking" component={NewBookingScreen} options={{ headerTitle: "New booking" }} />
     </Stack.Navigator>
   );
 }

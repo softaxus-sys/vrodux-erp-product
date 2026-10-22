@@ -6,11 +6,16 @@ export type AuthStackParamList = {
 export type LeadsStackParamList = {
   LeadsList: undefined;
   LeadDetail: { leadId: string; leadName: string };
+  LeadForm: { leadId?: string } | undefined;
+  LeadReassign: { leadId: string; leadName: string };
+  AccountsList: undefined;
+  AccountForm: { accountId?: string };
 };
 
 export type DealsStackParamList = {
   DealsList: undefined;
   DealDetail: { dealId: string; dealTitle: string };
+  DealForm: { dealId?: string } | undefined;
 };
 
 export type HrStackParamList = {
@@ -26,12 +31,18 @@ export type HrStackParamList = {
   ApplicantDetail: { applicantId: string; applicantName: string };
   PerformanceReviewsList: undefined;
   PerformanceReviewDetail: { reviewId: string; employeeName: string };
+  NewEmployee: undefined;
+  MarkAttendance: undefined;
 };
 
 export type InventoryStackParamList = {
   ProductsList: undefined;
   ProductDetail: { productId: string; productName: string };
   BarcodeScanner: undefined;
+  StockAdjust: { productId: string; productName: string };
+  NewProduct: undefined;
+  TransfersList: undefined;
+  NewTransfer: undefined;
 };
 
 export type SalesStackParamList = {
@@ -40,6 +51,8 @@ export type SalesStackParamList = {
   OrderDetail: { orderId: string; orderNumber: string };
   QuotationsList: undefined;
   QuotationDetail: { quotationId: string; quotationNumber: string };
+  NewOrder: undefined;
+  NewQuotation: undefined;
 };
 
 export type PurchaseStackParamList = {
@@ -49,6 +62,8 @@ export type PurchaseStackParamList = {
   ReceiveOrder: { orderId: string; orderNumber: string };
   VendorsList: undefined;
   VendorDetail: { vendorId: string; vendorName: string };
+  NewPurchaseOrder: undefined;
+  VendorForm: { vendorId?: string } | undefined;
 };
 
 export type FinanceStackParamList = {
@@ -58,6 +73,7 @@ export type FinanceStackParamList = {
   ExpensesList: undefined;
   ExpenseDetail: { expenseId: string; expenseNumber: string };
   NewExpense: undefined;
+  NewInvoice: undefined;
   AccountsList: undefined;
   BankAccountsList: undefined;
   BankAccountDetail: { accountId: string; accountName: string };
@@ -91,6 +107,8 @@ export type POSStackParamList = {
   OpenShift: undefined;
   CloseShift: { sessionId: string };
   NewSale: { sessionId: string };
+  TransactionAction: { transactionId: string; mode: "void" | "refund" };
+  CashMovement: { sessionId: string };
 };
 
 export type RestaurantStackParamList = {
@@ -117,6 +135,7 @@ export type VisaStackParamList = {
   CasesList: undefined;
   CaseDetail: { caseId: string; caseNumber: string };
   RenewalsList: undefined;
+  NewCase: undefined;
 };
 
 export type RealEstateStackParamList = {
@@ -132,6 +151,9 @@ export type RealEstateStackParamList = {
   ContractsList: undefined;
   ContractDetail: { contractId: string; contractNumber: string };
   RentDue: undefined;
+  NewListing: undefined;
+  NewTenant: undefined;
+  NewLease: undefined;
   BrokersList: undefined;
   // No GET /brokers/{id} exists on the backend either -- same reasoning as TenantDetail above.
   BrokerDetail: { broker: import("@/types/real-estate").BrokerDto };
@@ -150,28 +172,28 @@ export type B2BStackParamList = {
   B2BHome: undefined;
   ProposalsList: undefined;
   ContractsList: undefined;
-  TicketsList: undefined;
+  TicketsList: undefined;  VerticalForm: { formKey: string };
 };
 
 export type EducationStackParamList = {
   EducationHome: undefined;
   AdmissionsList: undefined;
   StudentsList: undefined;
-  EnrollmentsList: undefined;
+  EnrollmentsList: undefined;  VerticalForm: { formKey: string };
 };
 
 export type HealthcareStackParamList = {
   HealthcareHome: undefined;
   PatientsList: undefined;
   AppointmentsList: undefined;
-  TreatmentPlansList: undefined;
+  TreatmentPlansList: undefined;  VerticalForm: { formKey: string };
 };
 
 export type InsuranceStackParamList = {
   InsuranceHome: undefined;
   PoliciesList: undefined;
   RenewalsList: undefined;
-  ClaimsList: undefined;
+  ClaimsList: undefined;  VerticalForm: { formKey: string };
 };
 
 export type ConstructionStackParamList = {
@@ -187,10 +209,26 @@ export type HospitalityStackParamList = {
   RoomsList: undefined;
   BookingsList: undefined;
   HousekeepingList: undefined;
+  NewBooking: undefined;
+};
+
+export type ExtraStackParamList = {
+  ModuleHome: { moduleKey: string };
+  ModuleList: { listKey: string };
+  RecordDetail: { listKey: string; record: Record<string, any> };
+  VerticalForm: { formKey: string };
+  LibraryDesk: undefined;
+  NewEvent: undefined;
 };
 
 export type AppTabParamList = {
   Dashboard: undefined;
+  Library: undefined;
+  Manufacturing: undefined;
+  Trade: undefined;
+  Recipe: undefined;
+  Calendar: undefined;
+  Support: undefined;
   Leads: undefined;
   Pipeline: undefined;
   HR: undefined;

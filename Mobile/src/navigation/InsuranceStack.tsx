@@ -3,6 +3,7 @@ import InsuranceHomeScreen from "@/screens/insurance/InsuranceHomeScreen";
 import PoliciesListScreen from "@/screens/insurance/PoliciesListScreen";
 import RenewalsListScreen from "@/screens/insurance/RenewalsListScreen";
 import ClaimsListScreen from "@/screens/insurance/ClaimsListScreen";
+import VerticalFormScreen from "@/screens/verticals/VerticalFormScreen";
 import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { InsuranceStackParamList } from "@/navigation/types";
 
@@ -17,6 +18,7 @@ export default function InsuranceStack() {
       <Stack.Screen name="PoliciesList" component={PoliciesListScreen} options={{ headerTitle: "Policies" }} />
       <Stack.Screen name="RenewalsList" component={RenewalsListScreen} options={{ headerTitle: "Renewals" }} />
       <Stack.Screen name="ClaimsList" component={ClaimsListScreen} options={{ headerTitle: "Claims" }} />
+      <Stack.Screen name="VerticalForm" component={VerticalFormScreen} options={{ headerTitle: "New" }} />
     </Stack.Navigator>
   );
 }

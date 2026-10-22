@@ -9,7 +9,9 @@ import { Badge, ListItemCard } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { PolicyDto } from "@/types/insurance";
 
+import { NextStepBar, useVerticalNew } from "@/components/verticals/VerticalActions";
 export default function PoliciesListScreen() {
+  useVerticalNew("insurance.policy");
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const list = usePoliciesList();
 
@@ -22,7 +24,12 @@ export default function PoliciesListScreen() {
     <PagedListView
       items={list.items}
       keyExtractor={(p) => p.id}
-      renderItem={(p) => <PolicyRow policy={p} currency={currency} />}
+      renderItem={(p) => (
+        <>
+          <PolicyRow policy={p} currency={currency} />
+          <NextStepBar formKey="insurance.policy" id={p.id} status={p.status} />
+        </>
+      )}
       isLoading={list.isLoading}
       isError={list.isError}
       isFetching={list.isFetching}

@@ -5,6 +5,8 @@ import PurchaseOrderDetailScreen from "@/screens/purchase/PurchaseOrderDetailScr
 import ReceiveOrderScreen from "@/screens/purchase/ReceiveOrderScreen";
 import VendorsListScreen from "@/screens/purchase/VendorsListScreen";
 import VendorDetailScreen from "@/screens/purchase/VendorDetailScreen";
+import NewPurchaseOrderScreen from "@/screens/purchase/NewPurchaseOrderScreen";
+import VendorFormScreen from "@/screens/purchase/VendorFormScreen";
 import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { PurchaseStackParamList } from "@/navigation/types";
 
@@ -25,6 +27,8 @@ export default function PurchaseStack() {
       />
       <Stack.Screen name="VendorsList" component={VendorsListScreen} options={{ headerTitle: "Vendors" }} />
       <Stack.Screen name="VendorDetail" component={VendorDetailScreen} />
+      <Stack.Screen name="NewPurchaseOrder" component={NewPurchaseOrderScreen} options={{ headerTitle: "New purchase order" }} />
+      <Stack.Screen name="VendorForm" component={VendorFormScreen} options={({ route }) => ({ headerTitle: route.params?.vendorId ? "Edit vendor" : "New vendor" })} />
     </Stack.Navigator>
   );
 }

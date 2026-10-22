@@ -9,6 +9,9 @@ import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, Se
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { FinanceStackParamList } from "@/navigation/types";
 
+import { hasPermission } from "@/store/auth.store";
+import { FINANCE_INVOICING_CREATE } from "@/lib/finance-create";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 type Props = NativeStackScreenProps<FinanceStackParamList, "InvoicesList">;
 
 const FILTERS: { key: string; label: string }[] = [
@@ -25,6 +28,7 @@ const PAGE_SIZE = 25;
 export default function InvoicesListScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  useHeaderActions(navigation, [{ label: "New", enabled: hasPermission(FINANCE_INVOICING_CREATE), onPress: () => navigation.navigate("NewInvoice") }]);
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);

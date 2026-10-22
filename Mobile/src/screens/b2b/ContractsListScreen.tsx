@@ -9,7 +9,9 @@ import { Badge, ListItemCard } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { ServiceContractDto } from "@/types/b2b";
 
+import { NextStepBar, useVerticalNew } from "@/components/verticals/VerticalActions";
 export default function ContractsListScreen() {
+  useVerticalNew("b2b.contract");
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const list = useContractsList();
 
@@ -22,7 +24,12 @@ export default function ContractsListScreen() {
     <PagedListView
       items={list.items}
       keyExtractor={(c) => c.id}
-      renderItem={(c) => <ContractRow contract={c} currency={currency} />}
+      renderItem={(c) => (
+        <>
+          <ContractRow contract={c} currency={currency} />
+          <NextStepBar formKey="b2b.contract" id={c.id} status={c.status} />
+        </>
+      )}
       isLoading={list.isLoading}
       isError={list.isError}
       isFetching={list.isFetching}

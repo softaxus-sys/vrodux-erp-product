@@ -9,7 +9,9 @@ import { Badge, ListItemCard } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { EnrollmentDto } from "@/types/education";
 
+import { useVerticalNew } from "@/components/verticals/VerticalActions";
 export default function EnrollmentsListScreen() {
+  useVerticalNew("education.enrollment");
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const list = useEnrollmentsList();
 

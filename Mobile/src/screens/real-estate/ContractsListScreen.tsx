@@ -10,6 +10,9 @@ import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState } f
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { RealEstateStackParamList } from "@/navigation/types";
 
+import { hasPermission } from "@/store/auth.store";
+import { REAL_ESTATE_CONTRACTS_CREATE } from "@/lib/real-estate-create";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 type Props = NativeStackScreenProps<RealEstateStackParamList, "ContractsList">;
 
 const FILTERS: { key: string; label: string }[] = [
@@ -24,6 +27,7 @@ export default function ContractsListScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
+  useHeaderActions(navigation, [{ label: "New", enabled: hasPermission(REAL_ESTATE_CONTRACTS_CREATE), onPress: () => navigation.navigate("NewLease") }]);
   const [status, setStatus] = useState("all");
 
   const summary = useContractsSummary();

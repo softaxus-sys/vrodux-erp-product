@@ -4,6 +4,9 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useLeadsPaged } from "@/hooks/use-leads";
 import { buildLeadSummary, formatCompactValue, leadHeat, urgencyLabel } from "@/lib/crm-helpers";
 import type { LeadDto } from "@/types/crm";
+import { hasPermission } from "@/store/auth.store";
+import { CRM_LEADS_CREATE } from "@/lib/crm-write.api";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 import { Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { LeadsStackParamList } from "@/navigation/types";
@@ -23,6 +26,10 @@ const PAGE_SIZE = 25;
 export default function LeadsListScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  useHeaderActions(navigation, [
+    { label: "Accounts", icon: "briefcase", onPress: () => navigation.navigate("AccountsList") },
+    { label: "New", enabled: hasPermission(...CRM_LEADS_CREATE), onPress: () => navigation.navigate("LeadForm") },
+  ]);
   const [status, setStatus] = useState("open");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);

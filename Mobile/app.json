@@ -18,7 +18,7 @@
       "package": "com.softaxis.vroduxerp",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "backgroundColor": "#1E3A8A",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -37,11 +37,11 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 260,
           "resizeMode": "contain",
-          "backgroundColor": "#F8FAFC",
+          "backgroundColor": "#FFFFFF",
           "dark": {
-            "image": "./assets/splash-icon.png",
+            "image": "./assets/splash-icon-dark.png",
             "backgroundColor": "#020817"
           }
         }
@@ -49,7 +49,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Vrodux ERP uses the camera to scan product barcodes.",
+          "cameraPermission": "Vrodux ERP uses the camera to scan barcodes on products and library books.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
@@ -57,7 +57,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
+          "icon": "./assets/notification-icon.png",
           "color": "#1E3A8A"
         }
       ],

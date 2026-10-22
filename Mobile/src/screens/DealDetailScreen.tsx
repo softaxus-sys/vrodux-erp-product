@@ -4,7 +4,9 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useDeal, useMoveDealStage } from "@/hooks/use-deals";
 import { useActivities, useCreateActivity } from "@/hooks/use-activities";
 import { cleanPhone, formatCompactValue } from "@/lib/crm-helpers";
-import { useAuthStore } from "@/store/auth.store";
+import { hasPermission, useAuthStore } from "@/store/auth.store";
+import { CRM_PIPELINE_EDIT } from "@/lib/crm.api";
+import { useHeaderActions } from "@/components/forms/useHeaderAction";
 import { FORECAST_LABELS, NEXT_STAGES, PIPELINE_STAGES, STAGE_PROBABILITY } from "@/types/crm";
 import type { ActivityType, DealStage } from "@/types/crm";
 import { Button, Chip, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
@@ -24,6 +26,10 @@ export default function DealDetailScreen({ route, navigation }: Props) {
   useEffect(() => {
     navigation.setOptions({ headerTitle: dealTitle });
   }, [navigation, dealTitle]);
+
+  useHeaderActions(navigation, [
+    { label: "Edit", icon: "edit-2", enabled: hasPermission(...CRM_PIPELINE_EDIT), onPress: () => navigation.navigate("DealForm", { dealId }) },
+  ]);
 
   const deal = useDeal(dealId);
   const activities = useActivities("deal", dealId);
