@@ -105,6 +105,12 @@
     <Project Path="src/Services/Trade/Softaxis.Trade.Domain/Softaxis.Trade.Domain.csproj" />
     <Project Path="src/Services/Trade/Softaxis.Trade.Infrastructure/Softaxis.Trade.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/Messaging/">
+    <Project Path="src/Services/Messaging/Softaxis.Messaging.API/Softaxis.Messaging.API.csproj" />
+    <Project Path="src/Services/Messaging/Softaxis.Messaging.Application/Softaxis.Messaging.Application.csproj" />
+    <Project Path="src/Services/Messaging/Softaxis.Messaging.Domain/Softaxis.Messaging.Domain.csproj" />
+    <Project Path="src/Services/Messaging/Softaxis.Messaging.Infrastructure/Softaxis.Messaging.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/Library/">
     <Project Path="src/Services/Library/Softaxis.Library.API/Softaxis.Library.API.csproj" />
     <Project Path="src/Services/Library/Softaxis.Library.Application/Softaxis.Library.Application.csproj" />

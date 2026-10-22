@@ -516,6 +516,18 @@ export const navigationConfig: NavGroup[] = [
         ],
       },
       {
+        id: "whatsapp",
+        label: "WhatsApp",
+        labelAr: "واتساب",
+        icon: "MessageSquare",
+        module: "whatsapp",
+        children: [
+          { id: "whatsapp-inbox", label: "Inbox", labelAr: "المحادثات", href: "/whatsapp/inbox", icon: "Inbox", requiresPermission: "messaging.inbox.view" },
+          { id: "whatsapp-templates", label: "Templates", labelAr: "القوالب", href: "/whatsapp/templates", icon: "FileText", requiresPermission: "messaging.templates.view" },
+          { id: "whatsapp-settings", label: "Setup & Auto-replies", labelAr: "الإعداد والردود التلقائية", href: "/whatsapp/settings", icon: "Settings2", requiresPermission: "messaging.settings.view" },
+        ],
+      },
+      {
         id: "leadgen",
         label: "Lead Generation",
         labelAr: "توليد العملاء المحتملين",
@@ -680,7 +692,8 @@ export const navigationConfig: NavGroup[] = [
           { id: "hotel-calendar", label: "Room Calendar", href: "/hospitality/calendar", icon: "CalendarDays" },
           { id: "bookings", label: "Reservations", href: "/hospitality/bookings", icon: "CalendarCheck" },
           { id: "rooms", label: "Rooms", href: "/hospitality/rooms", icon: "BedDouble" },
-          { id: "housekeeping", label: "Housekeeping", href: "/hospitality/housekeeping", icon: "SprayCan" },
+          { id: "housekeeping", label: "Housekeeping", href: "/hospitality/housekeeping", icon: "SprayCan" },
+
           { id: "hotel-rates", label: "Rates", href: "/hospitality/rates", icon: "Tags" },
           { id: "hotel-guests", label: "Guests", href: "/hospitality/guests", icon: "Contact" },
           { id: "hotel-settings", label: "Hotel Settings", href: "/hospitality/settings", icon: "Settings2" },

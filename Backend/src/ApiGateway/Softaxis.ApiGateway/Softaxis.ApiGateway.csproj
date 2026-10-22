@@ -64,6 +64,8 @@
     <ProjectReference Include="..\..\Services\Calendar\Softaxis.Calendar.Infrastructure\Softaxis.Calendar.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\LeadGen\Softaxis.LeadGen.API\Softaxis.LeadGen.API.csproj" />
     <ProjectReference Include="..\..\Services\LeadGen\Softaxis.LeadGen.Infrastructure\Softaxis.LeadGen.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Messaging\Softaxis.Messaging.API\Softaxis.Messaging.API.csproj" />
+    <ProjectReference Include="..\..\Services\Messaging\Softaxis.Messaging.Infrastructure\Softaxis.Messaging.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

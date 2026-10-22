@@ -36,6 +36,7 @@ using Softaxis.Support.Infrastructure.Extensions;
 using Softaxis.Seo.Infrastructure.Extensions;
 using Softaxis.Calendar.Infrastructure.Extensions;
 using Softaxis.LeadGen.Infrastructure.Extensions;
+using Softaxis.Messaging.Infrastructure.Extensions;
 using Softaxis.BuildingBlocks.Application.Serialization;
 using Softaxis.BuildingBlocks.Infrastructure.Notifications;
 using Softaxis.BuildingBlocks.Infrastructure.Storage;
@@ -165,6 +166,9 @@ try
     // Lead Generation: prospect search, credits, cold outreach. Available to every workspace; who may
     // use it is decided entirely by the leadgen.* permissions administrators grant to roles.
     builder.Services.AddLeadGenInfrastructure(builder.Configuration);
+    // WhatsApp per workspace (Meta Cloud API): templates, sending from any module, inbox, auto replies.
+    // Available to every workspace; access is decided by the messaging.* permissions.
+    builder.Services.AddMessagingInfrastructure(builder.Configuration);
 
     // ── In-memory cache (used by SubscriptionEnforcementMiddleware) ──────────
     builder.Services.AddMemoryCache();
@@ -299,6 +303,11 @@ try
         Softaxis.LeadGen.Application.Abstractions.ICurrentUser,
         Softaxis.LeadGen.API.Middleware.CurrentUserService>();
 
+    // Messaging.Application.Abstractions.ICurrentUser  →  Messaging CurrentUserService (sender name on messages)
+    builder.Services.AddScoped<
+        Softaxis.Messaging.Application.Abstractions.ICurrentUser,
+        Softaxis.Messaging.API.Middleware.CurrentUserService>();
+
     // ── Controllers — pull controllers from all 5 API assemblies ─────────────
     builder.Services.AddControllers()
         .AddApplicationPart(typeof(Softaxis.Identity.API.Controllers.AuthController).Assembly)
@@ -324,6 +333,7 @@ try
         .AddApplicationPart(typeof(Softaxis.Seo.API.Controllers.SeoSitesController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Calendar.API.Controllers.CalendarController).Assembly)
         .AddApplicationPart(typeof(Softaxis.LeadGen.API.Controllers.SetupController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.Messaging.API.Controllers.WhatsAppController).Assembly)
         .AddJsonOptions(o =>
         {
             // Emit every DateTime as an explicit UTC instant ("…Z").
@@ -493,6 +503,7 @@ try
         await app.Services.MigrateAndSeedSeoAsync();                // SEO AI Agent
         await app.Services.MigrateAndSeedCalendarAsync();           // Calendar (core)
         await app.Services.MigrateAndSeedLeadGenAsync();            // Lead Generation (every workspace)
+        await app.Services.MigrateMessagingAsync();                 // WhatsApp (every workspace)
         await app.Services.MigrateNotificationsAsync();             // Notifications (+ copies CRM history in)
 
         // Runs last, and only on an installation that mirrors to the cloud: enables SQL Server
@@ -551,7 +562,7 @@ try
         Status  = "Healthy",
         Service = "Softaxis.ERP.Gateway",
         Time    = DateTime.UtcNow,
-        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Trade", "Support", "Seo", "Calendar", "LeadGen" }
+        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Trade", "Support", "Seo", "Calendar", "LeadGen", "Messaging" }
     })).AllowAnonymous();
 
     Log.Information("Vrodux ERP Gateway started on {Env}", app.Environment.EnvironmentName);
