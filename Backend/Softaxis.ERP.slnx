@@ -150,5 +150,6 @@
     <Project Path="tests/Softaxis.Finance.UaeVat.Tests/Softaxis.Finance.UaeVat.Tests.csproj" />
     <Project Path="tests/Softaxis.Finance.Tests/Softaxis.Finance.Tests.csproj" />
     <Project Path="tests/Softaxis.POS.Tests/Softaxis.POS.Tests.csproj" />
+    <Project Path="tests/Softaxis.CRM.Tests/Softaxis.CRM.Tests.csproj" />
   </Folder>
 </Solution>

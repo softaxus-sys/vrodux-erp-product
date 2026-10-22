@@ -39,6 +39,9 @@ public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbCon
     public DbSet<IntegrationSyncLog>  IntegrationSyncLogs      => Set<IntegrationSyncLog>();
     public DbSet<RawLeadInbox>        RawLeadInbox             => Set<RawLeadInbox>();
     public DbSet<LeadSource>          LeadSources              => Set<LeadSource>();
+    // Lead quality fed back to Meta (Conversions API): per-integration settings + the send outbox.
+    public DbSet<MetaConversionSettings> MetaConversionSettings => Set<MetaConversionSettings>();
+    public DbSet<MetaConversionEvent>    MetaConversionEvents   => Set<MetaConversionEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

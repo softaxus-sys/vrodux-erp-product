@@ -17,6 +17,9 @@
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.*" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Softaxis.CRM.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Softaxis.CRM.Domain\Softaxis.CRM.Domain.csproj" />
     <ProjectReference Include="..\Softaxis.CRM.Application\Softaxis.CRM.Application.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Softaxis.BuildingBlocks.Domain\Softaxis.BuildingBlocks.Domain.csproj" />

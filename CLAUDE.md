@@ -8594,3 +8594,87 @@ records `not_available`. Manual EmaraTax filing is recorded as `filed_via_portal
   (35, all offline). **Gotcha fixed:** a child with a client-set Guid added via a tracked collection is
   UPDATEd by EF — add it to its DbSet explicitly.
 - Build: ApiGateway 0 errors · `tsc` 0 · `vite build` ✅. **Pending:** restart (migration auto-applies).
+
+---
+
+## Module 86 — CRM: Meta lead quality feedback (Conversions API for CRM)
+
+When a lead that came from a Meta ad changes stage, or its deal is won, Vrodux tells Meta, so the ads learn
+which leads were good and find more like them instead of just more form-fillers. Per tenant, off until the
+tenant switches it on. **Access: the tenant pastes a Dataset ID + a dataset access token generated in Events
+Manager** — it needs no Meta app review (the existing Lead Ads OAuth token cannot be assumed to carry the
+permission to write to a dataset).
+
+### What is sent
+- Lead status changes (`new` → "Lead", `contacted`, `qualified`, `converted` → "Opportunity", `unqualified`,
+  `lost`) and opportunity stage changes (`proposal`, `negotiation`, `won`, `lost`). Defaults in
+  `MetaConversionDefaults`; every event name is editable per tenant, and a blank name sends nothing for
+  that stage. The opportunity's birth stage (`qualified`) is deliberately not sent — the lead's own
+  "Opportunity" event already says it.
+- Payload per Meta's CRM spec: `action_source = system_generated`, `custom_data.event_source = crm`,
+  `lead_event_source = Vrodux`, `event_time` = when the stage actually changed, `event_id` = our row id (Meta
+  de-duplicates on it), `user_data` with Meta's own `lead_id` (a number) plus SHA-256 hashed email, phone(s),
+  first/last name, city.
+- **Deal value** (per-tenant switch, default on): attached to opportunity events with its currency; a won deal
+  sends what it actually closed at (`RealizedValue`), earlier stages the quoted value. Never sent when zero
+  (zero would tell Meta the sale was worth nothing) and never without a currency. Lead-stage events carry no value.
+- **Only leads that came from Meta** (a `LeadSource` with provider `meta` and Meta's lead id) are reported.
+  An opportunity is reported through the lead it was converted from.
+
+### Design
+- **Outbox, not inline calls.** `MetaConversionEvent` rows are added to the caller's own context from the
+  places that already record history — `LeadStatusRecorder.RecordChangeAsync`,
+  `DealStageRecorder.RecordMoveAsync`, and `LeadIntakeService` (a new Meta lead; intake creates no history row).
+  Same save as the change, so they commit together; a slow or unreachable Meta never delays a salesperson.
+  `IMetaConversionOutbox` never throws — a failure to queue must not stop a lead being moved.
+- `MetaConversionSender` (BackgroundService, 3-min startup delay, 60 s loop, never on the boot path): sends up
+  to 200 events a request, per integration with the tenant set as ambient. Transient failures (Meta busy,
+  network, 429/5xx, error codes 1/2/4/17/32/341/613) back off 1m/5m/30m/2h/6h/12h and give up after 7 tries;
+  permanent ones (bad token, wrong dataset, malformed) are marked failed at once with Meta's reason in plain
+  words ("The access token is invalid or has expired…"). Failed events are re-queued with one button after the
+  fix. Sent events are pruned after 90 days. Token travels in the `Authorization` header, never the URL.
+- **Hashing rules are unit-tested** (`Backend/tests/Softaxis.CRM.Tests`, 26 tests, expected hashes made with
+  `sha256sum`, not the code under test) because a one-character difference makes Meta match nobody, silently.
+  Phone: digits with country code, `+`/`00`/trunk-zero handled; a local number with no calling code to add is
+  **omitted rather than hashed wrongly**. Readable email/phone are never stored in the outbox.
+- Tables `meta_conversion_settings` (one per Meta integration; token encrypted via `ISecretProtector`, on its own
+  row so reconnecting Lead Ads — which rewrites the integration's credentials — never wipes it) and
+  `meta_conversion_events`. Migration `AddMetaConversions`, additive.
+- `MetaOptions.ConversionsGraphVersion` (default `v26.0`) is separate from `GraphVersion` so the lead-retrieval
+  calls are untouched.
+
+### API (`api/crm/integrations/meta/{id}/conversions`, view/edit = `settings.integrations.*`)
+`GET` · `PUT` (blank token keeps the stored one; enabling without dataset + token → 422) · `POST verify` (reads
+the dataset name from Meta) · `POST test {testEventCode}` (one sample of every distinct event name to Meta's
+"Test events" tab — never the live dataset) · `POST catch-up {days≤7}` (reports the recent history of Meta
+leads that were never reported; a lead that already has any event is skipped, so pressing it twice is harmless) ·
+`POST retry-failed` · `GET events`.
+
+### Frontend
+"Lead quality" tab on the Meta integration drawer (`meta-conversions-tab.tsx`): 1 connect (Dataset ID + token, with
+where-to-find-it steps), 2 choose what to report (editable stage → event table, deal-value switch, optional
+country code for locally-typed phone numbers), 3 turn on, 4 test; then activity tiles, "Send last 7 days of
+leads", "Retry N failed" and a live event log. Saving checks the dataset with Meta straight away. English only
+(no i18n keys added — same as the Property Finder tab).
+
+### Verified / not verified
+- Backend build 0 errors; frontend `tsc -p tsconfig.app.json` 0 errors and `vite build` ✅; 26 unit tests pass.
+- **Run for real against a local gateway + LocalDB (61 checks, all pass):** validation, defaults, token
+  encrypted at rest and never returned, status changes / convert / deal stages queue the right events with Meta's
+  lead id, won-deal value, no value on lead stages, nothing readable stored, non-Meta leads queue nothing, the
+  background sender reached graph.facebook.com and recorded Meta's rejection, retry, test events, catch-up
+  (idempotent; found and fixed a double "Lead" event for CRM-created leads), off = nothing queued, permissions,
+  and a second workspace getting 404. The intake path was exercised against the database with and without an
+  ambient tenant. Test data was removed afterwards.
+- **NOT verified: a successful send.** Every real call used a fake token, so Meta's acceptance, events appearing
+  in Events Manager, and the live token/dataset pairing are unproven until a tenant connects real credentials.
+  Use the Test events step first. Meta accepts only recent events, which is why catch-up is limited to 7 days;
+  the exact limit for CRM events is not confirmed.
+- Not browser-verified (no signed-in UI session).
+
+### Flags
+- **`Meta:GraphVersion` still defaults to `v21.0`** (lead retrieval). Meta retires versions about two years after
+  release, so v21.0 is at or near end of life — confirm the production env value (`Meta__GraphVersion`) and
+  bump it after testing lead retrieval. Not changed here because it affects a working integration.
+- Phone matching for locally-typed numbers needs the tenant's country code (setting provided; empty by default).
+- Leads without Meta's lead id (organic or imported) cannot be reported.

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { integrationsApi, type UpdateConfigRequest, type MetaPageSelection, type LeadInboxFilters } from "@/lib/crm/integrations.api";
+import { integrationsApi, type UpdateConfigRequest, type MetaPageSelection, type LeadInboxFilters, type SaveMetaConversionsRequest } from "@/lib/crm/integrations.api";
 
 const QK = "crm-integrations";
 
@@ -246,6 +246,83 @@ export function useSelectMetaTargets() {
     mutationFn: ({ id, pages }: { id: string; pages: MetaPageSelection[] }) =>
       integrationsApi.meta.select(id, pages),
     onSuccess: () => { invalidate(); toast.success("Facebook pages connected."); },
+    onError:   (e: Error) => toast.error(e.message),
+  });
+}
+
+// ── Meta lead quality (Conversions API) ──────────────────────────────────────
+
+const CONV = "meta-conversions";
+
+/**
+ * Polls while the tab is open: events are sent by a background worker, so the counts move on their own
+ * and a "waiting" figure that never changes would look like nothing is happening.
+ */
+export function useMetaConversions(id: string | null) {
+  return useQuery({
+    queryKey: [QK, CONV, id],
+    queryFn:  () => integrationsApi.meta.conversions.get(id!),
+    enabled:  !!id,
+    staleTime: 10 * 1000,
+    refetchInterval: 30 * 1000,
+  });
+}
+
+export function useMetaConversionEvents(id: string | null, status?: string) {
+  return useQuery({
+    queryKey: [QK, CONV, "events", id, status ?? "all"],
+    queryFn:  () => integrationsApi.meta.conversions.events(id!, status),
+    enabled:  !!id,
+    staleTime: 10 * 1000,
+    refetchInterval: 30 * 1000,
+  });
+}
+
+function useInvalidateConversions() {
+  const qc = useQueryClient();
+  return () => qc.invalidateQueries({ queryKey: [QK, CONV] });
+}
+
+export function useSaveMetaConversions() {
+  const invalidate = useInvalidateConversions();
+  return useMutation({
+    mutationFn: ({ id, req }: { id: string; req: SaveMetaConversionsRequest }) =>
+      integrationsApi.meta.conversions.save(id, req),
+    onSuccess: () => invalidate(),
+    onError:   (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useVerifyMetaConversions() {
+  const invalidate = useInvalidateConversions();
+  return useMutation({
+    mutationFn: (id: string) => integrationsApi.meta.conversions.verify(id),
+    onSuccess: () => invalidate(),
+    onError:   (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useSendMetaTestEvent() {
+  return useMutation({
+    mutationFn: ({ id, code }: { id: string; code: string }) => integrationsApi.meta.conversions.test(id, code),
+    onError:   (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useCatchUpMetaConversions() {
+  const invalidate = useInvalidateConversions();
+  return useMutation({
+    mutationFn: ({ id, days }: { id: string; days?: number }) => integrationsApi.meta.conversions.catchUp(id, days),
+    onSuccess: () => invalidate(),
+    onError:   (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useRetryFailedMetaConversions() {
+  const invalidate = useInvalidateConversions();
+  return useMutation({
+    mutationFn: (id: string) => integrationsApi.meta.conversions.retryFailed(id),
+    onSuccess: (n) => { invalidate(); toast.success(n > 0 ? `${n} event(s) queued to send again.` : "Nothing to retry."); },
     onError:   (e: Error) => toast.error(e.message),
   });
 }

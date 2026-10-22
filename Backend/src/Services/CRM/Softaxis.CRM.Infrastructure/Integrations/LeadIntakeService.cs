@@ -25,6 +25,7 @@ public sealed class LeadIntakeService(
     IAiEventBus aiEvents,
     IEnumerable<IPortalAgentDirectory> agentDirectories,
     IEnumerable<IPortalListingDirectory> listingDirectories,
+    Softaxis.CRM.Infrastructure.Services.IMetaConversionOutbox metaOutbox,
     ILogger<LeadIntakeService> logger) : ILeadIntakeService, IPortalOwnerResolver
 {
     public async Task<IntakeResult> IngestAsync(CanonicalLead lead, Guid tenantId, Integration? integration, CancellationToken ct, LeadOwner? owner = null)
@@ -173,6 +174,10 @@ public sealed class LeadIntakeService(
         provenance.SetRaw(lead.RawJson);
         StampTenant(provenance, tenantId);
         db.LeadSources.Add(provenance);
+
+        // A lead that arrived from a Meta ad is the first stage Meta wants to hear about. Queued in the
+        // same save as the lead, so the lead cannot exist without its event.
+        await metaOutbox.OnLeadCreatedAsync(newLead, provenance, ct);
 
         await db.SaveChangesAsync(ct);
 

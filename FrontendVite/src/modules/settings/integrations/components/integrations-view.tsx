@@ -6,13 +6,14 @@ import type { TFunction } from "i18next";
 import {
   Link2, Link2Off, AlertCircle, RefreshCw, Search, X, Loader2, Copy, Check, CheckCircle2,
   KeyRound, Trash2, ShieldCheck, History, FileWarning, SlidersHorizontal, Plug, UploadCloud, DownloadCloud,
-  ChevronDown, Inbox,
+  ChevronDown, Inbox, TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatDate } from "@/lib/utils";
 import { PropertyFinderTab } from "./property-finder-tab";
+import { MetaConversionsTab } from "./meta-conversions-tab";
 import { useAssignableByTeam, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
 import { useAuthStore } from "@/store/auth.store";
 import {
@@ -321,7 +322,7 @@ function ProviderCard({ item, index, canEdit, connecting, onConnect, onConfigure
 /** Portals that authenticate their Pull API with a single per-account key. */
 const PULL_KEY_PORTALS = ["bayut", "dubizzle"];
 
-type Tab = "overview" | "setup" | "inbound" | "mapping" | "dedupe" | "routing" | "history" | "inboxlog" | "errors" | "propertyfinder" | "portal";
+type Tab = "overview" | "setup" | "inbound" | "mapping" | "dedupe" | "routing" | "history" | "inboxlog" | "errors" | "propertyfinder" | "portal" | "leadquality";
 
 function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
   integrationId: string; canEdit: boolean; onClose: () => void; onManageMeta: (id: string) => void;
@@ -346,6 +347,8 @@ function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
     // the same integration row that holds the inbound key their push deliveries use.
     { id: "portal", label: t("integrations.tab.portal"), icon: KeyRound,
       show: PULL_KEY_PORTALS.includes(integration?.providerKey ?? "") },
+    // Meta only: report which leads turned out good, so its ads find more like them.
+    { id: "leadquality", label: "Lead quality", icon: TrendingUp, show: isMeta },
     { id: "setup",    label: t("integrations.tab.setup"),    icon: Plug,              show: isInbound },
     { id: "inbound",  label: t("integrations.tab.inbound"),  icon: KeyRound,          show: isInbound },
     { id: "mapping",  label: t("integrations.tab.mapping"),  icon: SlidersHorizontal, show: true },
@@ -409,6 +412,7 @@ function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
             <div className="flex-1 overflow-y-auto p-5">
               {tab === "propertyfinder" && <PropertyFinderTab integration={integration} />}
               {tab === "portal"   && <PortalPullKeyTab integration={integration} canEdit={canEdit} />}
+              {tab === "leadquality" && <MetaConversionsTab integration={integration} canEdit={canEdit} />}
               {tab === "overview" && <OverviewTab integration={integration} isMeta={isMeta} onManageMeta={() => onManageMeta(integration.id)} />}
               {tab === "setup"    && <ProviderSetup integration={integration} />}
               {tab === "inbound"  && <InboundTab integration={integration} canEdit={canEdit} />}

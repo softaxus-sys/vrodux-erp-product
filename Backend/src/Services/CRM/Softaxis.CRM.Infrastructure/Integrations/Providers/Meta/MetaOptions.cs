@@ -16,6 +16,12 @@ public sealed class MetaOptions
     public string GraphVersion { get; set; } = "v21.0";
 
     /// <summary>
+    /// Graph API version used to send lead-stage events (Conversions API). Kept apart from
+    /// <see cref="GraphVersion"/> so the lead-retrieval calls are not changed by it.
+    /// </summary>
+    public string ConversionsGraphVersion { get; set; } = "v26.0";
+
+    /// <summary>
     /// OAuth scopes requested for Lead Ads retrieval + page management.
     /// pages_manage_ads is required to read a page's leadgen_forms; leads_retrieval to
     /// download the lead data; pages_manage_metadata to subscribe the page to webhooks.

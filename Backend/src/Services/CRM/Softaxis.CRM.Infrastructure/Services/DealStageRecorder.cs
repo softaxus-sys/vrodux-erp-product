@@ -20,7 +20,7 @@ public interface IDealStageRecorder
     Task RecordMoveAsync(Deal deal, string previousStage, CancellationToken ct);
 }
 
-internal sealed class DealStageRecorder(CrmDbContext db, ICurrentUser user) : IDealStageRecorder
+internal sealed class DealStageRecorder(CrmDbContext db, ICurrentUser user, IMetaConversionOutbox metaOutbox) : IDealStageRecorder
 {
     public void RecordCreated(Deal deal) =>
         db.DealStageHistory.Add(new DealStageHistory(
@@ -45,5 +45,9 @@ internal sealed class DealStageRecorder(CrmDbContext db, ICurrentUser user) : ID
         db.DealStageHistory.Add(new DealStageHistory(
             deal.Id, previousStage, deal.Stage, deal.Probability, deal.Value,
             days, user.Id, user.Username));
+
+        // An opportunity that grew out of a Meta lead reports its progress (and, once won, its value) back
+        // against that lead. Callers set the closed value before this, so a won deal carries what it closed at.
+        await metaOutbox.OnDealStageAsync(deal, deal.Stage, DateTime.UtcNow, ct);
     }
 }

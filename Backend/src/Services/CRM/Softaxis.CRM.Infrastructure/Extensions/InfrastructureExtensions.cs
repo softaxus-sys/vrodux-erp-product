@@ -53,6 +53,8 @@ public static class InfrastructureExtensions
                            Handlers.Notifications.CrmAssignmentNotifier>();
         services.AddScoped<Services.IDealStageRecorder, Services.DealStageRecorder>();
         services.AddScoped<Services.ILeadStatusRecorder, Services.LeadStatusRecorder>();
+        // Lead quality fed back to Meta: stage changes are queued here, sent by MetaConversionSender.
+        services.AddScoped<Services.IMetaConversionOutbox, Services.MetaConversionOutbox>();
 
         // The batched Property Finder import keeps its plan here between slices.
         services.AddMemoryCache();
@@ -102,6 +104,7 @@ public static class InfrastructureExtensions
         services.Configure<MetaOptions>(configuration.GetSection(MetaOptions.Section));
         services.AddHttpClient("meta");
         services.AddSingleton<MetaGraphClient>();
+        services.AddSingleton<MetaConversionsClient>();
         services.AddSingleton<ILeadProvider, MetaLeadProvider>();
 
         // ── Calendly — inbound webhook (invitee.created → lead) ───────────────
@@ -192,6 +195,9 @@ public static class InfrastructureExtensions
         // for good, and nothing would otherwise notice. Dedupe makes overlapping with the webhook
         // harmless — an already-ingested lead simply comes back as a duplicate.
         services.AddHostedService<LeadPollSyncService>();
+
+        // Reports lead stage changes (and won-deal value) back to Meta so its ads learn which leads were good.
+        services.AddHostedService<MetaConversionSender>();
 
         return services;
     }

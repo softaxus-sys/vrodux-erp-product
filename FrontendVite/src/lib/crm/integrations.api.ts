@@ -133,6 +133,56 @@ export interface MetaPage { pageId: string; name: string; enabled: boolean; }
 export interface MetaForm { formId: string; name: string; enabled: boolean; }
 export interface MetaPageSelection { pageId: string; forms: { formId: string; name: string }[]; }
 
+// ── Meta lead quality (Conversions API) ──────────────────────────────────────
+
+export interface MetaConversionStats { pending: number; sent: number; failed: number; skipped: number; sentLast7Days: number; }
+
+export interface MetaConversions {
+  integrationId: string;
+  enabled: boolean;
+  datasetId: string | null;
+  /** Whether a token is stored. The token itself is never sent to the browser. */
+  hasToken: boolean;
+  datasetName: string | null;
+  lastVerifiedAt: string | null;
+  sendDealValue: boolean;
+  defaultCallingCode: string | null;
+  /** Status / stage → event name in force. A blank name means nothing is sent for it. */
+  leadEvents: Record<string, string>;
+  dealEvents: Record<string, string>;
+  defaultLeadEvents: Record<string, string>;
+  defaultDealEvents: Record<string, string>;
+  enabledAt: string | null;
+  lastSentAt: string | null;
+  lastFailureAt: string | null;
+  lastError: string | null;
+  stats: MetaConversionStats;
+  /** Leads from this Meta connection that can be reported on. */
+  metaLeads: number;
+  leadEventSource: string;
+}
+
+export interface SaveMetaConversionsRequest {
+  enabled: boolean;
+  datasetId: string | null;
+  /** Blank keeps the stored token. */
+  accessToken?: string | null;
+  sendDealValue: boolean;
+  defaultCallingCode: string | null;
+  leadEvents: Record<string, string>;
+  dealEvents: Record<string, string>;
+}
+
+export interface MetaConversionEvent {
+  id: string; leadId: string; leadName: string; dealId: string | null; eventName: string; eventTime: string;
+  value: number | null; currency: string | null; status: "pending" | "sent" | "failed" | "skipped";
+  attempts: number; nextAttemptAt: string | null; sentAt: string | null; lastError: string | null;
+}
+
+export interface MetaVerifyResult { ok: boolean; datasetName: string | null; message: string; }
+export interface MetaTestResult { ok: boolean; message: string; }
+export interface MetaCatchUpResult { leadsQueued: number; eventsQueued: number; alreadyTracked: number; outsideWindow: number; }
+
 // ── API ────────────────────────────────────────────────────────────────────
 
 export const integrationsApi = {
@@ -195,5 +245,21 @@ export const integrationsApi = {
       rawApiClient.get<MetaForm[]>(`${BASE}/meta/${id}/forms?pageId=${encodeURIComponent(pageId)}`),
     select:     (id: string, pages: MetaPageSelection[]) =>
       rawApiClient.post<void>(`${BASE}/meta/${id}/select`, { pages }),
+
+    /** Lead quality fed back to Meta so its ads learn which leads were good. */
+    conversions: {
+      get:         (id: string) => rawApiClient.get<MetaConversions>(`${BASE}/meta/${id}/conversions`),
+      save:        (id: string, req: SaveMetaConversionsRequest) =>
+        rawApiClient.put<MetaConversions>(`${BASE}/meta/${id}/conversions`, req),
+      verify:      (id: string) => rawApiClient.post<MetaVerifyResult>(`${BASE}/meta/${id}/conversions/verify`, {}),
+      test:        (id: string, testEventCode: string) =>
+        rawApiClient.post<MetaTestResult>(`${BASE}/meta/${id}/conversions/test`, { testEventCode }),
+      catchUp:     (id: string, days = 7) =>
+        rawApiClient.post<MetaCatchUpResult>(`${BASE}/meta/${id}/conversions/catch-up`, { days }),
+      retryFailed: (id: string) => rawApiClient.post<number>(`${BASE}/meta/${id}/conversions/retry-failed`, {}),
+      events:      (id: string, status?: string) =>
+        rawApiClient.get<MetaConversionEvent[]>(
+          `${BASE}/meta/${id}/conversions/events?take=50${status ? `&status=${status}` : ""}`),
+    },
   },
 };

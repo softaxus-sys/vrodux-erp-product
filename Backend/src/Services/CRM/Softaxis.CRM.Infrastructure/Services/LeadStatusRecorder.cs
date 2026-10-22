@@ -23,7 +23,7 @@ public interface ILeadStatusRecorder
     Task RecordChangeAsync(Lead lead, string previousStatus, CancellationToken ct);
 }
 
-internal sealed class LeadStatusRecorder(CrmDbContext db, ICurrentUser user) : ILeadStatusRecorder
+internal sealed class LeadStatusRecorder(CrmDbContext db, ICurrentUser user, IMetaConversionOutbox metaOutbox) : ILeadStatusRecorder
 {
     public void RecordCreated(Lead lead) =>
         db.LeadStatusHistory.Add(new LeadStatusHistory(
@@ -47,5 +47,9 @@ internal sealed class LeadStatusRecorder(CrmDbContext db, ICurrentUser user) : I
 
         db.LeadStatusHistory.Add(new LeadStatusHistory(
             lead.Id, previousStatus, lead.Status, (int)days, user.Id, user.Username));
+
+        // Tell Meta how this lead is getting on (only does anything for leads that came from a Meta ad
+        // whose tenant has switched this on). Queued here, in the same save as the change itself.
+        await metaOutbox.OnLeadStatusAsync(lead, lead.Status, DateTime.UtcNow, ct);
     }
 }
