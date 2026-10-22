@@ -12,6 +12,7 @@ import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { InvoiceQuotationsPanel } from "./invoice-quotations-panel";
+import { EInvoicePanel } from "./einvoice-panel";
 import type { InvoiceDto as Invoice, VatCategory } from "@/lib/finance/finance.api";
 
 /** Suggests saved customers on the invoice name field and finds an exact (case-insensitive) match. */
@@ -593,6 +594,9 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
 
         {/* Quotations this invoice was raised from. Renders nothing for tenants without Sales. */}
         <InvoiceQuotationsPanel invoiceId={invoice.id} invoiceNumber={invoice.invoiceNumber} />
+
+        {/* UAE e-invoice — only for an issued invoice; a draft is not a tax invoice. */}
+        {invoice.status !== "draft" && invoice.status !== "cancelled" && <EInvoicePanel invoiceId={invoice.id} />}
       </div>
 
       {/* Reset confirmation — states what is reversed, because the ledger changes too. */}
