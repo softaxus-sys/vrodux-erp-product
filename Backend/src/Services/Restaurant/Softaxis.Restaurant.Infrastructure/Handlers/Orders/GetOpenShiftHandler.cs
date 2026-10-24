@@ -10,7 +10,7 @@ internal sealed class GetOpenShiftHandler(RestaurantDbContext db) : IQueryHandle
 {
     public async Task<Result<OpenShiftDto>> Handle(GetOpenShiftQuery query, CancellationToken ct)
     {
-        var sessionId = await PosSessionLedger.FindOpenSessionAsync(db, ct);
+        var sessionId = await PosSessionLedger.FindOpenSessionAsync(db, query.BranchId, ct);
         return Result.Success(new OpenShiftDto(sessionId.HasValue, sessionId));
     }
 }

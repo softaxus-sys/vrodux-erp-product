@@ -385,7 +385,7 @@ export function RecipesView() {
   const currency = useCurrency();
   const { data: recipes, isLoading } = useRecipes();
   const { data: summary } = useRecipeSummary();
-  const { data: menu = [] } = useMenu();
+  const { data: menu = [] } = useMenu(false);
   const [search, setSearch]   = React.useState("");
   const [filter, setFilter]   = React.useState<"all" | "active" | "draft" | "archived">("all");
   const [selected, setSelected] = React.useState<RecipeDto | null>(null);

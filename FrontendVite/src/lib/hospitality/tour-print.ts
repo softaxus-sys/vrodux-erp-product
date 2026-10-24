@@ -1,5 +1,6 @@
 import { formatCurrency } from "@/lib/utils";
 import type { TourBookingDetailDto } from "./tours.api";
+import { detailRows } from "@/modules/hospitality/tours/components/service-details";
 
 // The trip document a customer is sent: itinerary, what is included, travellers, price and the
 // payment schedule. Printed through the browser like every other document (lib/pdf.ts pattern).
@@ -46,7 +47,8 @@ export function printTourDocument(d: TourBookingDetailDto, opts: { companyName: 
   const servicesHtml = services.length === 0 ? "" : `
     <h2>Arrangements</h2>
     <table><thead><tr><th>Service</th><th>Details</th><th>Date</th><th>Ref.</th></tr></thead><tbody>
-    ${services.map(s => `<tr><td>${esc(s.type[0].toUpperCase() + s.type.slice(1))}</td><td>${esc(s.description)}<br><span class="muted">${esc(s.supplierName)}</span></td>
+    ${services.map(s => `<tr><td>${esc(s.type[0].toUpperCase() + s.type.slice(1))}</td><td>${esc(s.description)}<br><span class="muted">${esc(s.supplierName)}</span>
+      ${detailRows(s.type, s.details).map(([k, v]) => `<br><span class="muted">${esc(k)}:</span> ${esc(v)}`).join("")}</td>
       <td>${s.serviceDate ? esc(day(s.serviceDate)) : "—"}${s.endDate && s.endDate !== s.serviceDate ? " – " + esc(day(s.endDate)) : ""}</td>
       <td>${s.status === "confirmed" ? esc(s.confirmationNumber ?? "Confirmed") : "To be confirmed"}</td></tr>`).join("")}
     </tbody></table>`;

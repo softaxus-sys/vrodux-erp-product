@@ -621,6 +621,10 @@ internal sealed class PostingEngine(FinanceDbContext db, ILogger<PostingEngine> 
             "SELECT (SELECT COUNT(*) FROM [purchase].[goods_receipt_notes] WHERE [TenantId] = {0} AND [IsDeleted] = 0 AND [Status] = 'posted') + (SELECT COUNT(*) FROM [purchase].[purchase_returns] WHERE [TenantId] = {0} AND [IsDeleted] = 0 AND [Status] = 'posted') AS [Value]", null),
         ["inventory.movement"] = (
             "SELECT COUNT(*) AS [Value] FROM [inventory].[stock_movements] WHERE [TenantId] = {0} AND [IsDeleted] = 0 AND [MovementType] IN ('Adjustment','WriteOff')", null),
+        ["tours.payment"] = (
+            "SELECT COUNT(*) AS [Value] FROM [hospitality].[TourPayments] WHERE [TenantId] = {0} AND [IsVoided] = 0", null),
+        ["tours.trip"] = (
+            "SELECT COUNT(*) AS [Value] FROM [hospitality].[TourBookings] WHERE [TenantId] = {0} AND [IsDeleted] = 0 AND [Status] = 'completed'", null),
         ["hospitality.booking"] = (
             "SELECT COUNT(*) AS [Value] FROM [hospitality].[Bookings] WHERE [TenantId] = {0} AND [IsDeleted] = 0 AND [PaidAmount] > 0", null),
     };

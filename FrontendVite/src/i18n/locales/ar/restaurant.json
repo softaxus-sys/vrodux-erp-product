@@ -36,8 +36,25 @@
       "tip": "إضافة إكرامية"
     }
   },
+  "shift": {
+    "close": "إغلاق الوردية",
+    "openBillsTitle": "لا تزال {{count}} فواتير مفتوحة في هذه الوردية",
+    "openBillsBody": "يمكنك إغلاق الوردية. تنتقل الفواتير المفتوحة إلى الوردية التالية في هذا الفرع وتُحتسب فيها عند دفعها.",
+    "keepOpen": "إبقاء الوردية مفتوحة",
+    "closeAnyway": "إغلاق الوردية"
+  },
   "branch": {
-    "allBranches": "جميع الفروع"
+    "allBranches": "جميع الفروع",
+    "chooseTitle": "في أي فرع توجد نقطة البيع هذه؟",
+    "chooseBody": "الطلبات والطاولات وتذاكر المطبخ والوردية النقدية على هذه الشاشة ستتبع الفرع الذي تختاره.",
+    "lockedToShift": "ورديتك مفتوحة في {{name}}. أغلق الوردية للعمل في فرع آخر.",
+    "menuPrices": "أسعار الفرع",
+    "menuPricesHint": "اترك السعر فارغًا لاستخدام سعر القائمة. ألغِ التحديد لإيقاف بيع الصنف في هذا الفرع.",
+    "pickBranch": "اختر فرعًا",
+    "soldHere": "يُباع هنا",
+    "notSoldHere": "لا يُباع في هذا الفرع",
+    "branchPrice": "سعر الفرع",
+    "menuPrice": "سعر القائمة"
   },
   "pay": {
     "title": "الفاتورة والدفع",
@@ -1014,7 +1031,32 @@
       "counterOrders": "سفري وتوصيل — مفتوحة",
       "noTables": "لا توجد طاولات بعد",
       "noTablesHint": "أضف أول طاولة لبدء استقبال الطلبات.",
-      "itemCount": "{{count}} أصناف"
+      "itemCount": "{{count}} أصناف",
+      "tapToSeat": "اضغط لإجلاس الضيوف",
+      "reservedHint": "محجوزة لحجز",
+      "cleaningHint": "قيد التنظيف",
+      "occupancy": "نسبة الإشغال",
+      "guestsSeated": "الضيوف الجالسون",
+      "ofSeats": "من {{n}} مقعد",
+      "onTables": "على الطاولات",
+      "openBills_zero": "{{count}} فاتورة مفتوحة",
+      "openBills_one": "فاتورة مفتوحة واحدة",
+      "openBills_two": "فاتورتان مفتوحتان",
+      "openBills_few": "{{count}} فواتير مفتوحة",
+      "openBills_many": "{{count}} فاتورة مفتوحة",
+      "openBills_other": "{{count}} فاتورة مفتوحة",
+      "avgStay": "متوسط مدة الجلوس",
+      "longStays_zero": "{{count}} طاولة تجاوزت 90 دقيقة",
+      "longStays_one": "طاولة واحدة تجاوزت 90 دقيقة",
+      "longStays_two": "طاولتان تجاوزتا 90 دقيقة",
+      "longStays_few": "{{count}} طاولات تجاوزت 90 دقيقة",
+      "longStays_many": "{{count}} طاولة تجاوزت 90 دقيقة",
+      "longStays_other": "{{count}} طاولة تجاوزت 90 دقيقة",
+      "allOnTime": "لا جلسات طويلة",
+      "readyToServe": "جاهز للتقديم",
+      "pickUp": "استلم من المطبخ",
+      "nothingWaiting": "لا شيء بالانتظار",
+      "noMatch": "لا توجد طاولات مطابقة لهذه الفلاتر."
     },
     "receiptView": {
       "heading": "الإيصال",
@@ -1053,5 +1095,41 @@
       "willEarn_other": "تكسب {{count}} نقطة عند الدفع."
     },
     "noOpenTill": "لا يوجد صندوق مفتوح. اطلب من الكاشير فتح وردية قبل أخذ الطلبات."
+  },
+  "platform": {
+    "state": {
+      "new": "بانتظار قبولك",
+      "accepted": "تم القبول",
+      "rejected": "مرفوض",
+      "cancelled": "ألغته Foodpanda"
+    },
+    "readyIn": "جاهز خلال",
+    "minutes_zero": "{{count}} دقيقة",
+    "minutes_one": "دقيقة واحدة",
+    "minutes_two": "دقيقتان",
+    "minutes_few": "{{count}} دقائق",
+    "minutes_many": "{{count}} دقيقة",
+    "minutes_other": "{{count}} دقيقة",
+    "accept": "قبول الطلب",
+    "reject": "رفض",
+    "back": "رجوع",
+    "confirmReject": "رفض الطلب",
+    "accepted": "تم قبول الطلب وإرساله إلى المطبخ.",
+    "rejected": "تم رفض الطلب وإبلاغ Foodpanda.",
+    "handOver": "تم التسليم للسائق",
+    "handedOver": "تم التسليم. سُدّدت الفاتورة عبر Foodpanda.",
+    "handOverHint": "اضغط عندما يستلم سائق Foodpanda الطلب. تدفع Foodpanda للمطعم، لذا تُغلق الفاتورة كمدفوعة عبر Foodpanda.",
+    "reason": {
+      "TOO_BUSY": "مشغول جداً",
+      "ITEM_UNAVAILABLE": "صنف غير متوفر",
+      "CLOSED": "المطعم مغلق",
+      "OUTSIDE_DELIVERY_AREA": "خارج منطقة التوصيل",
+      "ADDRESS_INCOMPLETE_MISSTATED": "العنوان غير مكتمل",
+      "TECHNICAL_PROBLEM": "مشكلة تقنية"
+    },
+    "fbrFee": "رسوم نقطة البيع لدى FBR",
+    "fbrInvoiceNo": "رقم فاتورة FBR",
+    "fbrVerify": "تحقق من هذه الفاتورة عبر تطبيق FBR Tax Asaan.",
+    "fbrPending": "فاتورة FBR: قيد الانتظار — تُرسل تلقائياً عند الاتصال بـ FBR."
   }
 }

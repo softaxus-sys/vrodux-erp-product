@@ -26,7 +26,7 @@ internal sealed class GetOrdersHandler(RestaurantDbContext db, IBranchAccessGuar
 
         // Payments intentionally not included here (matches the pre-migration behaviour) — the list
         // view never showed a payment breakdown, only GetOrderById does.
-        var accessible = await branchAccess.GetAccessibleBranchIdsAsync(ct);
+        var accessible = await branchAccess.ResolveReadScopeAsync(query.BranchId, ct);
         var q = BranchScope.Apply(db.Orders.AsNoTracking()
             .Where(x => !x.IsDeleted), accessible);
 

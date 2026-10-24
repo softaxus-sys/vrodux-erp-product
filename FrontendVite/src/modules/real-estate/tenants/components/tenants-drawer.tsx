@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { getTenantCurrency } from "@/hooks/use-currency";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   X, User, Mail, Phone, Building2, FileText,
@@ -133,7 +134,7 @@ function OverviewTab({ tenant }: { tenant: Tenant }) {
               >
                 {tenant.outstandingBalance > 0
                   ? formatCurrency(tenant.outstandingBalance, currency)
-                  : "AED 0"}
+                  : `${getTenantCurrency()} 0`}
               </span>
             }
           />

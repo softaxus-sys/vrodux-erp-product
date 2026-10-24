@@ -1,3 +1,4 @@
+import { getTenantCurrency } from "@/hooks/use-currency";
 import * as React from "react";
 import { X, Upload, Loader2, CheckCircle2, AlertTriangle, Download, FileSpreadsheet } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -209,7 +210,7 @@ export function ProductImportDialog({ open, onClose }: { open: boolean; onClose:
 
 // ── Label printing ───────────────────────────────────────────────────────────────
 
-export function printProductLabels(products: ProductSummaryDto[], currency = "AED") {
+export function printProductLabels(products: ProductSummaryDto[], currency = getTenantCurrency()) {
   if (products.length === 0) { toast.error(i18n.t("bulkTools.toast.noProducts", { ns: "inventory" })); return; }
   const win = window.open("", "_blank", "width=900,height=700");
   if (!win) { toast.error(i18n.t("bulkTools.toast.popupBlocked", { ns: "inventory" })); return; }

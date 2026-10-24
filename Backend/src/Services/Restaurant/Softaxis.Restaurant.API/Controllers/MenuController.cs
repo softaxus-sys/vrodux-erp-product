@@ -22,8 +22,8 @@ public sealed class MenuController(ISender sender) : RestaurantControllerBase
     /// <summary>GET /api/restaurant/menu</summary>
     [HttpGet]
     [RequirePermission("restaurant.menu.view")]
-    public async Task<IActionResult> GetAll(CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetMenuQuery(), ct));
+    public async Task<IActionResult> GetAll([FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetMenuQuery(branchId), ct));
 
     /// <summary>GET /api/restaurant/menu/items?categoryId=</summary>
     [HttpGet("items")]
@@ -32,6 +32,20 @@ public sealed class MenuController(ISender sender) : RestaurantControllerBase
         OkOrError(await sender.Send(new GetMenuItemsQuery(categoryId), ct));
 
     /// <summary>PATCH /api/restaurant/menu/items/{id}/availability</summary>
+    /// <summary>GET /api/restaurant/menu/branch-settings?branchId= — the branch's own prices and "not sold here" items.</summary>
+    [HttpGet("branch-settings")]
+    [RequirePermission("restaurant.menu.view")]
+    public async Task<IActionResult> GetBranchSettings([FromQuery] Guid branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetMenuBranchSettingsQuery(branchId), ct));
+
+    /// <summary>PUT /api/restaurant/menu/items/{id}/branches/{branchId} — set or clear one branch's price/availability.</summary>
+    [HttpPut("items/{id:guid}/branches/{branchId:guid}")]
+    [RequirePermission("restaurant.menu.edit")]
+    public async Task<IActionResult> SetBranchSetting(Guid id, Guid branchId, [FromBody] BranchSettingReq req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new SetMenuItemBranchSettingCommand(id, branchId, req.PriceOverride, req.IsAvailable), ct));
+
+    public sealed record BranchSettingReq(decimal? PriceOverride, bool IsAvailable);
+
     [HttpPatch("items/{id:guid}/availability")]
     [RequirePermission("restaurant.menu.edit")]
     public async Task<IActionResult> SetAvailability(Guid id, [FromBody] SetAvailabilityReq req, CancellationToken ct) =>

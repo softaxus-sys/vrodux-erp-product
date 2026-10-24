@@ -1,3 +1,4 @@
+using Softaxis.Restaurant.Infrastructure.Common;
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Multitenancy;
@@ -6,27 +7,35 @@ using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using Softaxis.Restaurant.Application.PublicOrdering.Commands;
 using Softaxis.Restaurant.Application.PublicOrdering.Dtos;
 using Softaxis.Restaurant.Application.PublicOrdering.Queries;
+using Softaxis.Restaurant.Application.Abstractions;
 using Softaxis.Restaurant.Domain.Entities;
 using Softaxis.Restaurant.Infrastructure.Persistence;
 
 namespace Softaxis.Restaurant.Infrastructure.Handlers.PublicOrdering;
 
 /// <summary>Shared helper — resolves a Table by its public QrCode (no ambient tenant exists yet for an
-/// anonymous request, hence IgnoreQueryFilters) and adopts that table's tenant as the ambient one for
-/// the rest of the request, so every subsequent EF operation (reads, inserts, StampTenantId) behaves
-/// exactly like an authenticated request. Mirrors the CRM RawLeadInboxProcessor / Careers pattern.</summary>
+/// anonymous request, hence IgnoreQueryFilters), then <see cref="Enter"/> adopts that table's tenant as the
+/// ambient one for the rest of the request, so every later EF operation (reads, inserts, StampTenantId)
+/// behaves like an authenticated request.
+///
+/// <para>
+/// <b>Two calls, on purpose.</b> <c>TenantAmbient</c> is an AsyncLocal: a value set inside an <c>async</c>
+/// method is gone when that method returns. The earlier single async helper set it and lost it, so QR orders
+/// were saved with no workspace and the public menu read ran with no workspace filter. <see cref="Enter"/> is
+/// a plain method, so the value it sets stays with the caller.
+/// </para></summary>
 internal static class PublicOrderingTenantResolver
 {
-    public static async Task<Table?> ResolveTableAndSetAmbientAsync(RestaurantDbContext db, string qrCode, CancellationToken ct)
+    public static Task<Table?> FindTableAsync(RestaurantDbContext db, string qrCode, CancellationToken ct) =>
+        db.Tables.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.QrCode == qrCode && !x.IsDeleted, ct);
+
+    /// <summary>Sets the table's workspace as the ambient tenant. False when the table has none.</summary>
+    public static bool Enter(RestaurantDbContext db, Table table)
     {
-        var table = await db.Tables.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.QrCode == qrCode && !x.IsDeleted, ct);
-        if (table is null) return null;
-
         var tenantId = db.Entry(table).Property<Guid?>(TenantIsolation.Column).CurrentValue;
-        if (tenantId is null) return null;
-
+        if (tenantId is null) return false;
         TenantAmbient.Set(tenantId, isSuperAdmin: false, isResolved: true);
-        return table;
+        return true;
     }
 }
 
@@ -34,7 +43,8 @@ internal sealed class GetPublicMenuHandler(RestaurantDbContext db) : IQueryHandl
 {
     public async Task<Result<PublicMenuDto>> Handle(GetPublicMenuQuery query, CancellationToken ct)
     {
-        var table = await PublicOrderingTenantResolver.ResolveTableAndSetAmbientAsync(db, query.QrCode, ct);
+        var table = await PublicOrderingTenantResolver.FindTableAsync(db, query.QrCode, ct);
+        if (table is not null && !PublicOrderingTenantResolver.Enter(db, table)) table = null;
         if (table is null) return Result.Failure<PublicMenuDto>(Error.Custom("Table.NotFound", "Invalid QR code."));
 
         var categories = await db.MenuCategories.AsNoTracking()
@@ -54,18 +64,30 @@ internal sealed class GetPublicMenuHandler(RestaurantDbContext db) : IQueryHandl
     }
 }
 
-internal sealed class PlacePublicOrderHandler(RestaurantDbContext db) : ICommandHandler<PlacePublicOrderCommand, PublicOrderPlacedDto>
+internal sealed class PlacePublicOrderHandler(RestaurantDbContext db, Softaxis.POS.Infrastructure.Persistence.POSDbContext posDb, LocalBranchGuard localBranch, OrderRelay relay) : ICommandHandler<PlacePublicOrderCommand, PublicOrderPlacedDto>
 {
     public async Task<Result<PublicOrderPlacedDto>> Handle(PlacePublicOrderCommand cmd, CancellationToken ct)
     {
-        var table = await PublicOrderingTenantResolver.ResolveTableAndSetAmbientAsync(db, cmd.QrCode, ct);
+        var table = await PublicOrderingTenantResolver.FindTableAsync(db, cmd.QrCode, ct);
+        if (table is not null && !PublicOrderingTenantResolver.Enter(db, table)) table = null;
         if (table is null) return Result.Failure<PublicOrderPlacedDto>(Error.Custom("Table.NotFound", "Invalid QR code."));
-        if (table.Status == "occupied")
+
+        // QR / kiosk orders reach the cloud only. For a branch on its own server the bill is written there:
+        // the order is checked here (so the guest hears about a bad item at once), then relayed to the branch.
+        // The cloud's copy of the table status is not live for such a branch, so "occupied" is the branch's call.
+        var relayed = await localBranch.IsLocalAsync(table.BranchId, ct);
+        if (relayed && !relay.BranchOnline(table.BranchId!.Value))
+            return Result.Failure<PublicOrderPlacedDto>(Error.Custom("PublicOrder.Conflict",
+                "This restaurant is not taking table orders online right now - please ask staff."));
+
+        if (!relayed && table.Status == "occupied")
             return Result.Failure<PublicOrderPlacedDto>(Error.Custom("PublicOrder.Conflict",
                 "This table already has an active order — please ask staff for assistance."));
 
         var channel = cmd.Channel == "kiosk" ? "kiosk" : "qr_table";
-        var order = new Order(table.Id, table.TableNumber, "Guest", 1, "dine_in", cmd.Notes, orderChannel: channel);
+        var order = new Order(table.Id, table.TableNumber, "Guest", 1, "dine_in", cmd.Notes, branchId: table.BranchId, orderChannel: channel);
+        // Replaying an order the cloud relayed: keep the id the guest was given.
+        if (RelayContext.OrderId is { } relayId) order.UseRelayedId(relayId);
 
         // No structured-modifier support in the guest-facing flow yet (v1 scope cut, flagged) —
         // free-text Modifiers only, same field OrderItemFactory snapshots for staff-entered lines.
@@ -78,7 +100,16 @@ internal sealed class PlacePublicOrderHandler(RestaurantDbContext db) : ICommand
 
             order.Items.Add(new OrderItem(order.Id, menuItem.Id, menuItem.Name, li.Quantity, menuItem.Price, li.Modifiers));
         }
-        order.Recalculate();
+        var tax = await TaxProfileResolver.ResolveAsync(db, posDb, table.BranchId, ct);
+        order.ApplyTax(tax.Rate, tax.Label, tax.ServiceFee, tax.ReportToFbr);
+
+        if (relayed)
+        {
+            // Nothing is written to the bill tables here; the branch creates the bill from this row.
+            relay.Queue(order.Id, table.BranchId!.Value, RelayedOrder.QrOrder, cmd);
+            await db.SaveChangesAsync(ct);
+            return Result.Success(new PublicOrderPlacedDto(order.Id, "Sent to the restaurant", order.Total));
+        }
 
         db.Orders.Add(order);
         table.Occupy(order.Id, "Guest (QR)");

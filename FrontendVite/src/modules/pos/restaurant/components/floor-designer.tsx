@@ -17,6 +17,7 @@ import { Can, useCan } from "@/components/auth/can";
 import { useRestaurantRealtime } from "@/hooks/restaurant/use-restaurant-realtime";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { BranchSwitcher } from "./branch-switcher";
 
 const AREA_TYPES: DiningAreaType[] = ["indoor", "outdoor", "vip", "bar", "rooftop"];
 
@@ -140,6 +141,7 @@ export function FloorDesignerView() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground flex items-center gap-2"><LayoutGrid className="w-5 h-5" /> {t("floorDesigner.title")}</h1>
+          <BranchSwitcher />
           <p className="text-sm text-muted-foreground">{t("floorDesigner.subtitle")}</p>
         </div>
         {dirty && (

@@ -58,6 +58,15 @@ public sealed class Branch
     public string  Currency   { get; private set; } = "PKR";
     public string  Timezone   { get; private set; } = "Asia/Karachi (UTC+5)";
     public string? OpenedDate { get; private set; }                // ISO date string
+
+    /// <summary>
+    /// Where this branch's live data is written: <c>cloud</c> (devices talk to erp.vrodux.com, as always) or
+    /// <c>local</c> (the branch has its own server; the cloud keeps a synced copy and refuses direct
+    /// operational writes for it). Changed deliberately, at a quiet time. docs/branch-server-design.md §7.
+    /// </summary>
+    public string ServerMode { get; private set; } = "cloud";
+
+    public void SetServerMode(string mode) { ServerMode = mode; UpdatedAt = DateTime.UtcNow; }
     public DateTime  CreatedAt { get; private set; }
     public DateTime? UpdatedAt { get; private set; }
     public bool      IsDeleted { get; private set; }

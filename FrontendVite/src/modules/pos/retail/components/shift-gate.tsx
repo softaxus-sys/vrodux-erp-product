@@ -211,7 +211,7 @@ export function useOptionalShift(): ShiftContextValue | null {
 
 // ─── Open Shift Screen ────────────────────────────────────────────────────────
 
-function OpenShiftScreen({ onOpened }: { onOpened: (s: POSSessionSummaryDto) => void }) {
+function OpenShiftScreen({ onOpened, branchId }: { onOpened: (s: POSSessionSummaryDto) => void; branchId?: string | null }) {
   const { user, tenant, logout } = useAuthStore();
   const openMutation = useOpenSession();
   const navigate     = useNavigate();
@@ -232,8 +232,8 @@ function OpenShiftScreen({ onOpened }: { onOpened: (s: POSSessionSummaryDto) => 
 
   const handleOpen = async () => {
     try {
-      const s = await openMutation.mutateAsync({ registerId, openingCash, notes: notes || null });
-      onOpened({ id: s.id, registerId: s.registerId, status: s.status, openedAt: s.openedAt, totalTransactions: 0, netSales: 0 });
+      const s = await openMutation.mutateAsync({ registerId, openingCash, notes: notes || null, branchId: branchId ?? null });
+      onOpened({ id: s.id, registerId: s.registerId, status: s.status, openedAt: s.openedAt, totalTransactions: 0, netSales: 0, branchId: s.branchId ?? null });
     } catch { /* toast in hook */ }
   };
 
@@ -780,9 +780,11 @@ function CloseShiftPanel({
 
 interface ShiftGateProps {
   children: React.ReactNode;
+  /** The branch a newly opened shift belongs to (restaurant multi-branch). Retail leaves it unset. */
+  branchId?: string | null;
 }
 
-export function ShiftGate({ children }: ShiftGateProps) {
+export function ShiftGate({ children, branchId }: ShiftGateProps) {
   const { hasRawPermission } = useAuthStore();
   const { data: activeSessions, isLoading } = useActiveSessions();
 
@@ -831,6 +833,7 @@ export function ShiftGate({ children }: ShiftGateProps) {
   if (!session) {
     return (
       <OpenShiftScreen
+        branchId={branchId}
         onOpened={(newSession) => setSession(newSession)}
       />
     );

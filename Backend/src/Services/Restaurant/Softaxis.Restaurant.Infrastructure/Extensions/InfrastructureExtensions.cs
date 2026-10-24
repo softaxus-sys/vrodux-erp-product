@@ -1,3 +1,4 @@
+using Softaxis.Restaurant.Infrastructure.Common;
 using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using FluentValidation;
 using MediatR;
@@ -34,6 +35,8 @@ public static class InfrastructureExtensions
 
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+            cfg.AddOpenBehavior(typeof(OrderBranchBehavior<,>));
+            cfg.AddOpenBehavior(typeof(BranchQueryBehavior<,>));
         });
 
         // ── FluentValidation — register all validators from Application ───────
@@ -56,6 +59,12 @@ public static class InfrastructureExtensions
 
         // ── Branch scoping (Epic 9) ──────────────────────────────────────────
         services.AddScoped<IBranchAccessGuard, BranchAccessGuard>();
+        services.AddScoped<LocalBranchGuard>();
+        services.AddScoped<OrderRelay>();
+        // Applies head-office instructions on a branch server; does nothing in any other mode.
+        services.AddHostedService<Handlers.BranchInstructions.BranchInstructionExecutor>();
+        services.AddHostedService<Handlers.BranchInstructions.RelayExecutor>();
+        services.AddHostedService<Handlers.BranchInstructions.PlatformActionExecutor>();
 
         // ── Secret encryption (Epic 9 — SMS/WhatsApp provider credentials) ──
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
@@ -66,6 +75,14 @@ public static class InfrastructureExtensions
         services.AddScoped<TwilioNotificationProvider>();
         services.AddScoped<ISmsProvider>(sp => sp.GetRequiredService<TwilioNotificationProvider>());
         services.AddScoped<IWhatsAppProvider>(sp => sp.GetRequiredService<TwilioNotificationProvider>());
+
+        // ── Pakistan FBR invoice reporting ──
+        services.AddScoped<Fbr.FbrReporter>();
+        services.AddHostedService<Fbr.FbrRetryService>();
+
+        // ── Online ordering platforms (Foodpanda) ──
+        services.AddHttpClient("foodpanda");
+        services.AddScoped<Platforms.FoodpandaClient>();
 
         return services;
     }

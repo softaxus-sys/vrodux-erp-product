@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateWarehouse } from "@/hooks/inventory/use-warehouses";
+import { useBranches } from "@/hooks/identity/use-branches";
 
 const WAREHOUSE_TYPES = ["General", "Cold Storage", "Hazardous", "Bonded", "Free Zone", "Distribution Center"];
 const EMIRATES        = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain"];
@@ -26,13 +27,16 @@ export function AddWarehouseForm({ open, onClose }: AddWarehouseFormProps) {
   const [capacity, setCapacity]       = React.useState("");
   const [zones, setZones]             = React.useState("");
   const [notes, setNotes]             = React.useState("");
+  // A branch's warehouse is where that branch's recipe ingredients are taken from.
+  const [branchId, setBranchId]       = React.useState("");
+  const { data: branches = [] }       = useBranches();
 
   const createWarehouse = useCreateWarehouse();
 
   const isValid = name.trim() && code.trim();
 
   const reset = () => {
-    setName(""); setCode(""); setType("General"); setManager(""); setPhone(""); setEmail("");
+    setBranchId(""); setName(""); setCode(""); setType("General"); setManager(""); setPhone(""); setEmail("");
     setAddress(""); setEmirate("Dubai"); setTotalArea(""); setCapacity(""); setZones(""); setNotes("");
   };
 
@@ -49,6 +53,7 @@ export function AddWarehouseForm({ open, onClose }: AddWarehouseFormProps) {
         contactPerson: manager.trim() || null,
         phone:         phone.trim() || null,
         isActive:      true,
+        branchId:      branchId || null,
       },
       { onSuccess: () => { reset(); onClose(); } },
     );
@@ -108,6 +113,16 @@ export function AddWarehouseForm({ open, onClose }: AddWarehouseFormProps) {
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Warehouse Code *</label>
                     <Input value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="WH-DXB-01" className="h-9 text-sm font-mono" />
                   </div>
+                  {branches.length > 0 && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Branch</label>
+                      <select value={branchId} onChange={e => setBranchId(e.target.value)}
+                        className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm">
+                        <option value="">Not tied to a branch</option>
+                        {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      </select>
+                    </div>
+                  )}
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Manager</label>
                     <Input value={manager} onChange={e => setManager(e.target.value)} placeholder="Warehouse manager…" className="h-9 text-sm" />

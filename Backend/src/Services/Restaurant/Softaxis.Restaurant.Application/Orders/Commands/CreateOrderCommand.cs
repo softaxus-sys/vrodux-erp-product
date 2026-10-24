@@ -20,8 +20,13 @@ public sealed record CreateOrderCommand(
     IReadOnlyList<OrderLineInput> Items,
     Guid? BranchId = null,
     Guid? SessionId = null,
-    Guid? CustomerId = null
+    Guid? CustomerId = null,
+    /// <summary>Set only by the offline upload, never bound from a request.</summary>
+    OfflineOrderContext? Offline = null
 ) : ICommand<OrderDto>;
+
+/// <summary>An order taken while the till was offline: its till-side id and when it was taken.</summary>
+public sealed record OfflineOrderContext(string ClientRef, DateTime OccurredAtUtc);
 
 public sealed class CreateOrderValidator : AbstractValidator<CreateOrderCommand>
 {

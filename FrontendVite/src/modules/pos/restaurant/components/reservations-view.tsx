@@ -11,6 +11,7 @@ import {
 } from "@/hooks/restaurant/use-restaurant";
 import type { Reservation, ReservationStatus } from "@/lib/restaurant/restaurant.api";
 import { Can, useCan } from "@/components/auth/can";
+import { BranchSwitcher } from "./branch-switcher";
 
 const TODAY = new Date().toISOString().split("T")[0];
 
@@ -51,6 +52,7 @@ export function ReservationsView() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground flex items-center gap-2"><CalendarClock className="w-5 h-5" /> {t("reservations.title")}</h1>
+          <BranchSwitcher />
           <p className="text-sm text-muted-foreground">{t("reservations.description")}</p>
         </div>
         <div className="flex gap-2">

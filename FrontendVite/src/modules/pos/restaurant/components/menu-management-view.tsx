@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   Plus, X, Trash2, Pencil, Loader2, UtensilsCrossed, Layers, Sliders, ChefHat, AlertTriangle,
-  Search, Minus, Clock, Check, FileSpreadsheet,
+  Search, Minus, Clock, Check, FileSpreadsheet, Building2,
 } from "lucide-react";
 import { LeftDrawer } from "@/components/ui/left-drawer";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -17,6 +17,8 @@ import {
   useItemModifierGroups, useAssignItemModifierGroups, useAddItemImages,
 } from "@/hooks/restaurant/use-restaurant";
 import { ImportMenuModal } from "./import-menu-modal";
+import { BranchPricesTab } from "./branch-prices-tab";
+import { useCurrentBranch } from "@/hooks/restaurant/use-current-branch";
 import { DishPhoto, DishPhotosEditor, coverOf, type NewPhoto } from "./dish-photos";
 import { useRecipes } from "@/hooks/recipe/use-recipe";
 import type { MenuCategory, MenuItem, ModifierGroup } from "@/lib/restaurant/restaurant.api";
@@ -26,7 +28,7 @@ import type { MenuCategory, MenuItem, ModifierGroup } from "@/lib/restaurant/res
  * staff will tap — so what you build here is recognisably what they will see.
  */
 
-type Tab = "menu" | "modifiers";
+type Tab = "menu" | "modifiers" | "branches";
 type Station = { id: string; name: string; displayName: string | null };
 
 // Same order and palette as the till, so a category keeps its colour on both screens.
@@ -110,9 +112,12 @@ function DeleteButton({ label, message, pending, onConfirm }: { label: string; m
 export function MenuManagementView() {
   const { t } = useTranslation("restaurant");
   const [tab, setTab] = React.useState<Tab>("menu");
+  const hasBranches = useCurrentBranch().options.length > 0;
   const tabs = [
     { id: "menu" as const, icon: Layers, label: t("menuMgmt.tabMenu") },
     { id: "modifiers" as const, icon: Sliders, label: t("menuMgmt.tabModifiers") },
+    // Only a group with branches has anything to price per branch.
+    ...(hasBranches ? [{ id: "branches" as const, icon: Building2, label: t("branch.menuPrices") }] : []),
   ];
   return (
     <div className="flex flex-col h-full bg-muted/20">
@@ -130,7 +135,7 @@ export function MenuManagementView() {
           ))}
         </div>
       </div>
-      {tab === "menu" ? <MenuTab /> : <ModifierGroupsTab />}
+      {tab === "menu" ? <MenuTab /> : tab === "branches" ? <BranchPricesTab /> : <ModifierGroupsTab />}
     </div>
   );
 }
@@ -139,7 +144,7 @@ export function MenuManagementView() {
 
 function MenuTab() {
   const { t } = useTranslation("restaurant");
-  const { data: categories = [], isLoading } = useMenu();
+  const { data: categories = [], isLoading } = useMenu(false);
   const { data: summary } = useMenuSummary();
   const { data: stations = [] } = useKitchenStations();
   const { data: recipes = [] } = useRecipes();

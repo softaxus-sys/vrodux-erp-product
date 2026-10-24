@@ -294,7 +294,7 @@ public sealed class TourTraveller
 /// </summary>
 public sealed class TourService
 {
-    public static readonly string[] Types = ["hotel", "flight", "transfer", "visa", "activity", "guide", "insurance", "other"];
+    public static readonly string[] Types = ["hotel", "flight", "car", "transfer", "rail", "cruise", "bus", "visa", "activity", "guide", "insurance", "other"];
     public static readonly string[] ServiceStatuses = ["pending", "requested", "confirmed", "cancelled"];
 
     private TourService() { }
@@ -315,8 +315,24 @@ public sealed class TourService
     public decimal  SellPrice          { get; private set; }
     public string   Status             { get; private set; } = "pending";
     public string?  Notes              { get; private set; }
+    /// <summary>
+    /// Type-specific booking details as name/value pairs — for a flight: airline, flight number,
+    /// from, to, departs, arrives, class, baggage; for a hotel: check-in, check-out, room type,
+    /// rooms, meal plan; for a car: vehicle, pick-up and drop-off place and time. Kept as pairs so
+    /// a new kind of service needs no schema change.
+    /// </summary>
+    public Dictionary<string, string> Details { get; private set; } = new();
     public DateTime CreatedAt          { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt          { get; private set; } = DateTime.UtcNow;
+
+    public void SetDetails(IDictionary<string, string>? details)
+    {
+        Details = (details ?? new Dictionary<string, string>())
+            .Where(kv => !string.IsNullOrWhiteSpace(kv.Key) && !string.IsNullOrWhiteSpace(kv.Value))
+            .Take(40)
+            .ToDictionary(kv => kv.Key.Trim()[..Math.Min(kv.Key.Trim().Length, 60)], kv => kv.Value.Trim()[..Math.Min(kv.Value.Trim().Length, 500)]);
+        UpdatedAt = DateTime.UtcNow;
+    }
 
     public decimal SupplierBalance => Status == "cancelled" ? 0 : Math.Max(0, Cost - SupplierPaid);
 

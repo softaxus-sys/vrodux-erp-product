@@ -8,7 +8,7 @@ const BASE = `${getApiBaseUrl()}/api/hospitality/tours`;
 
 export type TourBookingStatus = "enquiry" | "confirmed" | "completed" | "cancelled";
 export type DepartureStatus = "open" | "closed" | "cancelled" | "completed";
-export type ServiceType = "hotel" | "flight" | "transfer" | "visa" | "activity" | "guide" | "insurance" | "other";
+export type ServiceType = "hotel" | "flight" | "car" | "transfer" | "rail" | "cruise" | "bus" | "visa" | "activity" | "guide" | "insurance" | "other";
 export type ServiceStatus = "pending" | "requested" | "confirmed" | "cancelled";
 export type InstalmentStatus = "paid" | "partial" | "overdue" | "due" | "upcoming";
 
@@ -47,6 +47,8 @@ export interface TourServiceDto {
   id: string; type: ServiceType; supplierName: string; description: string; serviceDate: string | null; endDate: string | null;
   confirmationNumber: string | null; cost: number | null; supplierPaid: number | null; supplierBalance: number | null;
   isExtra: boolean; sellPrice: number; status: ServiceStatus; notes: string | null;
+  /** Type-specific details (flight number, check-in, pick-up place…) as name/value pairs. */
+  details: Record<string, string>;
 }
 
 export interface TourInstalmentDto { id: string; label: string; dueDate: string; amount: number; paid: number; status: InstalmentStatus }
@@ -106,7 +108,7 @@ export interface UpdateTourBookingRequest {
 export interface TourServiceRequest {
   type: ServiceType; supplierName: string; description: string; serviceDate?: string | null; endDate?: string | null;
   confirmationNumber?: string | null; cost: number; supplierPaid: number; isExtra: boolean; sellPrice: number;
-  status: ServiceStatus; notes?: string | null;
+  status: ServiceStatus; notes?: string | null; details?: Record<string, string>;
 }
 export interface InstalmentInput { label: string; dueDate: string; amount: number }
 export interface TourPaymentRequest { amount: number; method: string; reference?: string | null; paidOn?: string | null }

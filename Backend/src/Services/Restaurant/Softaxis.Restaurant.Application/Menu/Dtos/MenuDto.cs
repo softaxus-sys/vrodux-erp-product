@@ -15,7 +15,15 @@ public sealed record MenuItemDto(
     Guid? KitchenStationId,
     bool IsOnlineOrderable,
     /// <summary>Photo metadata only, cover first — the bytes come from the image endpoint.</summary>
-    IReadOnlyList<MenuItemImageDto>? Images = null);
+    IReadOnlyList<MenuItemImageDto>? Images = null,
+    /// <summary>Set only when the menu was read for one branch that sells the item at a different
+    /// price: the shared menu price (Price is then the branch price).</summary>
+    decimal? BasePrice = null,
+    /// <summary>False when the branch the menu was read for does not sell this item.</summary>
+    bool SoldHere = true);
+
+/// <summary>One branch's exception to the shared menu for one item.</summary>
+public sealed record MenuItemBranchSettingDto(Guid MenuItemId, Guid BranchId, decimal? PriceOverride, bool IsAvailable);
 
 public sealed record MenuItemImageDto(Guid Id, bool IsPrimary, int SortOrder, string? FileName);
 

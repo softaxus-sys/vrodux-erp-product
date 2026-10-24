@@ -14,7 +14,7 @@ internal sealed class GetReservationsHandler(RestaurantDbContext db, IBranchAcce
 {
     public async Task<Result<IReadOnlyList<ReservationDto>>> Handle(GetReservationsQuery query, CancellationToken ct)
     {
-        var accessible = await branchAccess.GetAccessibleBranchIdsAsync(ct);
+        var accessible = await branchAccess.ResolveReadScopeAsync(query.BranchId, ct);
         var q = BranchScope.Apply(db.Reservations.AsNoTracking().Where(x => !x.IsDeleted), accessible);
         if (!string.IsNullOrEmpty(query.Date)) q = q.Where(x => x.ReservationDate == query.Date);
 

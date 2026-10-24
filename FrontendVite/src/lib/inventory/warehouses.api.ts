@@ -11,6 +11,8 @@ export interface UpsertWarehouseRequest {
   contactPerson?: string | null;
   phone?:        string | null;
   isActive?:     boolean;
+  /** Omit to keep the current branch on update; null = not tied to a branch. */
+  branchId?:     string | null;
 }
 
 export const warehousesApi = {

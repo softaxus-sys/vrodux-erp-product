@@ -165,6 +165,10 @@ services:
       # Softaxis's own tenant id — every agent-side support ticket check fails closed until this
       # is set (see ISupportAccessGuard). Set once Softaxis's own tenant has been created.
       Support__OperatorTenantId: "${SUPPORT_OPERATOR_TENANT_ID:-}"
+      # Branch servers (docs/branch-server-runbook.md). Empty = off. "Cloud" makes this the head office that
+      # branch servers sync with; PublicBaseUrl is the address put in connection codes.
+      BranchSync__Mode: "${BRANCH_SYNC_MODE:-}"
+      BranchSync__PublicBaseUrl: "${BRANCH_SYNC_PUBLIC_URL:-}"
       Jwt__Secret: "${JWT_SECRET}"
       # Private key that SIGNS on-premises licence keys. Cloud only — never ship it in an
       # on-prem build. Blank = licence generation refused (validation still works everywhere).

@@ -127,20 +127,21 @@ public sealed class ToursController(ISender sender) : HospitalityControllerBase
         NoContentOrError(await sender.Send(new SaveTourTravellersCommand(id, r.Travellers), ct));
 
     public sealed record ServiceReq(string Type, string SupplierName, string Description, string? ServiceDate, string? EndDate,
-        string? ConfirmationNumber, decimal Cost, decimal SupplierPaid, bool IsExtra, decimal SellPrice, string Status, string? Notes);
+        string? ConfirmationNumber, decimal Cost, decimal SupplierPaid, bool IsExtra, decimal SellPrice, string Status, string? Notes,
+        Dictionary<string, string>? Details = null);
 
     // Supplier bookings carry costs, so writing them needs the cost permission as well as edit.
     [RequirePermission("hospitality.tour-costs.edit")]
     [HttpPost("bookings/{id:guid}/services")]
     public async Task<IActionResult> AddService(Guid id, [FromBody] ServiceReq r, CancellationToken ct) =>
         CreatedOrError(await sender.Send(new UpsertTourServiceCommand(id, null, r.Type, r.SupplierName, r.Description, r.ServiceDate,
-            r.EndDate, r.ConfirmationNumber, r.Cost, r.SupplierPaid, r.IsExtra, r.SellPrice, r.Status, r.Notes), ct));
+            r.EndDate, r.ConfirmationNumber, r.Cost, r.SupplierPaid, r.IsExtra, r.SellPrice, r.Status, r.Notes, r.Details), ct));
 
     [RequirePermission("hospitality.tour-costs.edit")]
     [HttpPut("bookings/{id:guid}/services/{serviceId:guid}")]
     public async Task<IActionResult> UpdateService(Guid id, Guid serviceId, [FromBody] ServiceReq r, CancellationToken ct) =>
         OkOrError(await sender.Send(new UpsertTourServiceCommand(id, serviceId, r.Type, r.SupplierName, r.Description, r.ServiceDate,
-            r.EndDate, r.ConfirmationNumber, r.Cost, r.SupplierPaid, r.IsExtra, r.SellPrice, r.Status, r.Notes), ct));
+            r.EndDate, r.ConfirmationNumber, r.Cost, r.SupplierPaid, r.IsExtra, r.SellPrice, r.Status, r.Notes, r.Details), ct));
 
     [RequirePermission("hospitality.tour-costs.edit")]
     [HttpDelete("bookings/{id:guid}/services/{serviceId:guid}")]

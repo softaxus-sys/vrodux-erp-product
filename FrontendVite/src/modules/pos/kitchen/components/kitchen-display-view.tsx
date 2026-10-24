@@ -9,6 +9,7 @@ import {
 import { useRestaurantRealtime } from "@/hooks/restaurant/use-restaurant-realtime";
 import type { KitchenTicket } from "@/lib/restaurant/restaurant.api";
 import { useCan } from "@/components/auth/can";
+import { BranchSwitcher } from "@/modules/pos/restaurant/components/branch-switcher";
 
 /**
  * The kitchen screen is read from across a hot line, by someone with their hands full: big type,
@@ -168,6 +169,7 @@ export function KitchenDisplayView() {
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <BranchSwitcher />
           {isLoading && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
           <Stat value={cooking.length} label={t("kitchen.cooking")} className="bg-slate-900 text-white dark:bg-slate-800" />
           {lateCount > 0 && <Stat value={lateCount} label={t("kitchen.late")} className="bg-destructive text-white" />}

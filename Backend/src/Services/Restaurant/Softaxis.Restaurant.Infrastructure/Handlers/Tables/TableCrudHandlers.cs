@@ -17,7 +17,7 @@ internal sealed class UpdateTableHandler(RestaurantDbContext db) : ICommandHandl
 
         var tableNumber = cmd.TableNumber.Trim();
         var duplicate = await db.Tables.AnyAsync(
-            x => !x.IsDeleted && x.Id != cmd.Id && x.TableNumber == tableNumber, ct);
+            x => !x.IsDeleted && x.Id != cmd.Id && x.TableNumber == tableNumber && x.BranchId == t.BranchId, ct);
         if (duplicate)
             return Result.Failure<TableDto>(Error.Custom("Table.Duplicate", $"Table '{tableNumber}' already exists."));
 

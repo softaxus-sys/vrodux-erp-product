@@ -57,6 +57,7 @@ Source: "scripts\device-id.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion
 Source: "scripts\device-id.ps1"; Flags: dontcopy
 Source: "scripts\check-sql.ps1"; Flags: dontcopy
 Source: "scripts\check-license.ps1"; Flags: dontcopy
+Source: "scripts\check-branch-code.ps1"; Flags: dontcopy
 ; Desktop app installer (NSIS, built by electron-builder)
 Source: "payload\{#ClientSetup}"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
@@ -79,6 +80,10 @@ var
   KeepPage: TInputOptionWizardPage;
   SqlPage, StorePage, AdminPage: TInputQueryWizardPage;
   LicensePage: TWizardPage;
+  ModePage: TInputOptionWizardPage;
+  BranchPage: TWizardPage;
+  BranchMemo: TNewMemo;
+  BranchInfo: TNewStaticText;
   LicenseMemo: TNewMemo;
   DeviceIdEdit: TNewEdit;
   LicenseInfo: TNewStaticText;
@@ -185,12 +190,20 @@ begin
   KeepPage.Add('Reconfigure from scratch');
   KeepPage.SelectedValueIndex := 0;
 
+  ModePage := CreateInputOptionPage(KeepPage.ID, 'Server type',
+    'How is this server used?',
+    'A branch server keeps the branch trading when the internet is down and syncs with head office in both directions. ' +
+    'Its users, menu and prices come from head office, so no store or administrator is set up here.', True, False);
+  ModePage.Add('A single store - this server is the whole system');
+  ModePage.Add('A branch of a chain - syncs with head office');
+  ModePage.SelectedValueIndex := 0;
+
   SqlDefault := DetectSqlInstance(SqlFound);
   if SqlFound <> '' then
     SqlFound := 'SQL Server found on this computer: ' + SqlFound + '.'
   else
     SqlFound := 'No SQL Server was found on this computer - install SQL Server Express first, or enter a server on the network.';
-  SqlPage := CreateInputQueryPage(KeepPage.ID, 'Database',
+  SqlPage := CreateInputQueryPage(ModePage.ID, 'Database',
     'Where should Vrodux ERP keep its data?',
     SqlFound + ' The database is created if it does not exist.');
   SqlPage.Add('SQL Server instance:', False);
@@ -256,6 +269,30 @@ begin
   LicenseInfo.Height := ScaleY(40);
   LicenseInfo.WordWrap := True;
   LicenseInfo.Caption := 'The key is checked before setup continues: it must be complete, not expired, and issued for this Device ID.';
+
+  BranchPage := CreateCustomPage(LicensePage.ID, 'Head office',
+    'Connect this branch server to head office.');
+  L := TNewStaticText.Create(BranchPage);
+  L.Parent := BranchPage.Surface;
+  L.AutoSize := False; L.WordWrap := True;
+  L.Width := BranchPage.SurfaceWidth; L.Height := ScaleY(44);
+  L.Caption := 'On head office, open Settings > Branch Servers, choose this branch and click "Issue key". ' +
+               'Paste the connection code it shows (it starts with VBR1.) below.';
+  BranchMemo := TNewMemo.Create(BranchPage);
+  BranchMemo.Parent := BranchPage.Surface;
+  BranchMemo.Top := L.Top + L.Height + ScaleY(6);
+  BranchMemo.Width := BranchPage.SurfaceWidth;
+  BranchMemo.Height := ScaleY(90);
+  BranchMemo.ScrollBars := ssVertical;
+  BranchMemo.WordWrap := True;
+  BranchInfo := TNewStaticText.Create(BranchPage);
+  BranchInfo.Parent := BranchPage.Surface;
+  BranchInfo.Top := BranchMemo.Top + BranchMemo.Height + ScaleY(8);
+  BranchInfo.Width := BranchPage.SurfaceWidth;
+  BranchInfo.AutoSize := False; BranchInfo.WordWrap := True;
+  BranchInfo.Height := ScaleY(56);
+  BranchInfo.Caption := 'The code is checked with head office before setup continues. A branch server is covered by ' +
+                        'the chain''s subscription, so no licence key is needed here.';
 end;
 
 function Reconfigure: Boolean;
@@ -263,12 +300,22 @@ begin
   Result := (not ExistingConfig) or (KeepPage.SelectedValueIndex = 1);
 end;
 
+function IsBranchServer: Boolean;
+begin
+  Result := ModePage.SelectedValueIndex = 1;
+end;
+
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
   if PageID = KeepPage.ID then Result := not ExistingConfig
-  else if (PageID = SqlPage.ID) or (PageID = StorePage.ID) or (PageID = AdminPage.ID) or (PageID = LicensePage.ID) then
-    Result := not Reconfigure;
+  else if (PageID = ModePage.ID) or (PageID = SqlPage.ID) then
+    Result := not Reconfigure
+  { A branch server gets its workspace, users and subscription from head office. }
+  else if (PageID = StorePage.ID) or (PageID = AdminPage.ID) or (PageID = LicensePage.ID) then
+    Result := (not Reconfigure) or IsBranchServer
+  else if PageID = BranchPage.ID then
+    Result := (not Reconfigure) or (not IsBranchServer);
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -318,6 +365,30 @@ begin
       Result := False;
     end else
       LicenseInfo.Caption := Msg;
+  end
+  else if CurPageID = BranchPage.ID then begin
+    if Trim(BranchMemo.Text) = '' then begin
+      MsgBox('Paste the connection code from head office (Settings > Branch Servers > Issue key).', mbError, MB_OK);
+      Result := False; Exit;
+    end;
+    ExtractTemporaryFile('check-branch-code.ps1');
+    SaveStringToFile(ExpandConstant('{tmp}\branchcode.txt'), BranchMemo.Text, False);
+    OutF := ExpandConstant('{tmp}\branchinfo.txt');
+    DeleteFile(OutF);
+    WizardForm.NextButton.Enabled := False;
+    Exec('powershell.exe', PS('-File ' + Q(ExpandConstant('{tmp}\check-branch-code.ps1')) +
+         ' -CodeFile ' + Q(ExpandConstant('{tmp}\branchcode.txt')) + ' -OutFile ' + Q(OutF)),
+         '', SW_HIDE, ewWaitUntilTerminated, RC);
+    WizardForm.NextButton.Enabled := True;
+    Msg := ReadAll(OutF);
+    if RC = 1 then begin
+      MsgBox(Msg, mbError, MB_OK); Result := False;
+    end else if RC <> 0 then begin
+      { Valid code, head office unreachable: allowed - a branch is often installed before its line is live. }
+      Result := MsgBox(Msg + #13#10#13#10 + 'Continue anyway? The branch server will connect when head office can be reached.',
+                       mbConfirmation, MB_YESNO) = IDYES;
+    end else
+      BranchInfo.Caption := Msg;
   end
   else if CurPageID = AdminPage.ID then begin
     if (Pos('@', AdminPage.Values[0]) = 0) then begin
@@ -383,7 +454,7 @@ begin
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
-var Srv, Tools, Exe, Lic, ValuesFile, SqlSvc: String; RC_Dummy: Integer;
+var Srv, Tools, Exe, Lic, BranchCodeValue, ValuesFile, SqlSvc: String; RC_Dummy: Integer;
 begin
   if CurStep <> ssPostInstall then Exit;
   Srv   := ExpandConstant('{app}\server');
@@ -394,6 +465,12 @@ begin
   if Reconfigure then begin
     Lic := LicenseMemo.Text;
     StringChangeEx(Lic, #13, '', True); StringChangeEx(Lic, #10, '', True); StringChangeEx(Lic, ' ', '', True);
+    BranchCodeValue := '';
+    if IsBranchServer then begin
+      Lic := '';
+      BranchCodeValue := BranchMemo.Text;
+      StringChangeEx(BranchCodeValue, #13, '', True); StringChangeEx(BranchCodeValue, #10, '', True); StringChangeEx(BranchCodeValue, ' ', '', True);
+    end;
     { Wizard values go through a temp file, never the command line: passwords and names can
       contain quotes/symbols that break PowerShell argument parsing. Deleted right after. }
     ValuesFile := ExpandConstant('{tmp}\site-values.txt');
@@ -409,6 +486,7 @@ begin
       'AdminLastName=' + Trim(AdminPage.Values[2]),
       'AdminPassword=' + AdminPage.Values[3],
       'LicenseKey=' + Lic,
+      'BranchCode=' + BranchCodeValue,
       'FrontendUrl=http://' + GetComputerNameString + ':{#ServerPort}',
       'ServerPort={#ServerPort}'], False);
     RunStep('Writing configuration...', 'powershell.exe',

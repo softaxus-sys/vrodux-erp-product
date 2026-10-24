@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { getTenantCurrency } from "@/hooks/use-currency";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -180,7 +181,7 @@ export function AddTenantForm({ open, onClose }: AddTenantFormProps) {
                     <Input value={passportNo} onChange={e => setPassportNo(e.target.value)} placeholder="A12345678" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Monthly Income (AED)</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Monthly Income ({getTenantCurrency()})</label>
                     <Input type="number" min={0} step={1000} value={monthlyIncome} onChange={e => setMonthlyIncome(e.target.value)} placeholder="0" className="h-9 text-sm text-right" />
                   </div>
                   <div className="space-y-1.5">

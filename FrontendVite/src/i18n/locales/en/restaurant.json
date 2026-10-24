@@ -36,8 +36,25 @@
       "tip": "Add Tip"
     }
   },
+  "shift": {
+    "close": "Close Shift",
+    "openBillsTitle": "{{count}} bills are still open on this shift",
+    "openBillsBody": "You can still close the shift. Open bills carry over to the next shift opened at this branch and are counted in that shift when they are paid.",
+    "keepOpen": "Keep shift open",
+    "closeAnyway": "Close shift"
+  },
   "branch": {
-    "allBranches": "All Branches"
+    "allBranches": "All Branches",
+    "chooseTitle": "Which branch is this till at?",
+    "chooseBody": "Orders, tables, kitchen tickets and the cash shift on this screen will belong to the branch you pick.",
+    "lockedToShift": "Your shift is open at {{name}}. Close the shift to work at another branch.",
+    "menuPrices": "Branch prices",
+    "menuPricesHint": "Leave the price blank to use the menu price. Untick to stop selling the item at this branch.",
+    "pickBranch": "Pick a branch",
+    "soldHere": "Sold here",
+    "notSoldHere": "Not sold at this branch",
+    "branchPrice": "Branch price",
+    "menuPrice": "Menu price"
   },
   "pay": {
     "title": "Bill & Payment",
@@ -1006,7 +1023,24 @@
       "counterOrders": "Takeaway & delivery — open",
       "noTables": "No tables yet",
       "noTablesHint": "Add your first table to start taking orders.",
-      "itemCount": "{{count}} items"
+      "itemCount": "{{count}} items",
+      "tapToSeat": "Tap to seat guests",
+      "reservedHint": "Held for a booking",
+      "cleaningHint": "Being cleared",
+      "occupancy": "Occupancy",
+      "guestsSeated": "Guests seated",
+      "ofSeats": "of {{n}} seats",
+      "onTables": "On the tables",
+      "openBills_one": "{{count}} open bill",
+      "openBills_other": "{{count}} open bills",
+      "avgStay": "Average stay",
+      "longStays_one": "{{count}} table over 90 min",
+      "longStays_other": "{{count}} tables over 90 min",
+      "allOnTime": "No long stays",
+      "readyToServe": "Ready to serve",
+      "pickUp": "Pick up from the kitchen",
+      "nothingWaiting": "Nothing waiting",
+      "noMatch": "No tables match these filters."
     },
     "receiptView": {
       "heading": "Receipt",
@@ -1045,5 +1079,37 @@
       "willEarn_other": "Earns {{count}} points when paid."
     },
     "noOpenTill": "No till is open. Ask the cashier to open a shift before taking orders."
+  },
+  "platform": {
+    "state": {
+      "new": "Waiting for you to accept",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled by Foodpanda"
+    },
+    "readyIn": "Ready in",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "accept": "Accept order",
+    "reject": "Reject",
+    "back": "Back",
+    "confirmReject": "Reject order",
+    "accepted": "Order accepted — sent to the kitchen.",
+    "rejected": "Order rejected. Foodpanda has been told.",
+    "handOver": "Handed to rider",
+    "handedOver": "Handed over. The bill is settled to Foodpanda.",
+    "handOverHint": "Press when the Foodpanda rider collects the food. Foodpanda pays the restaurant, so the bill is closed as paid by Foodpanda.",
+    "reason": {
+      "TOO_BUSY": "Too busy",
+      "ITEM_UNAVAILABLE": "Item not available",
+      "CLOSED": "Restaurant closed",
+      "OUTSIDE_DELIVERY_AREA": "Outside delivery area",
+      "ADDRESS_INCOMPLETE_MISSTATED": "Address incomplete",
+      "TECHNICAL_PROBLEM": "Technical problem"
+    },
+    "fbrFee": "FBR POS fee",
+    "fbrInvoiceNo": "FBR Invoice No.",
+    "fbrVerify": "Verify this invoice in the FBR Tax Asaan app.",
+    "fbrPending": "FBR invoice: pending — sent automatically when FBR is reachable."
   }
 }

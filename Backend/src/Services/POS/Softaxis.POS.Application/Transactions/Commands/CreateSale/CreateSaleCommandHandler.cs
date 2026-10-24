@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Application.Sync;
 using Microsoft.Extensions.Options;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
@@ -205,6 +206,8 @@ public sealed class CreateSaleCommandHandler(
         DateTime? creditDueOn = null;
         if (creditAmount > 0)
         {
+            if (BranchServerMode.IsBranch)
+                return Result.Failure<POSTransactionDto>(BranchServerMode.BalanceRefusal("Selling on credit (house account)"));
             if (cmd.Offline is not null)
                 return Result.Failure<POSTransactionDto>(Error.Custom("Credit.Conflict",
                     "A sale on credit needs a connection: the credit limit can only be checked online."));
@@ -228,6 +231,8 @@ public sealed class CreateSaleCommandHandler(
         var walletAmount = payments.Where(p => p.Method == Domain.Enums.PaymentMethod.StoreCredit).Sum(p => p.Amount);
         if (walletAmount > 0)
         {
+            if (BranchServerMode.IsBranch)
+                return Result.Failure<POSTransactionDto>(BranchServerMode.BalanceRefusal("Paying with store credit"));
             if (cmd.Offline is not null)
                 return Result.Failure<POSTransactionDto>(Error.Custom("Wallet.Conflict",
                     "Store credit needs a connection: the balance can only be checked online."));
@@ -262,7 +267,8 @@ public sealed class CreateSaleCommandHandler(
         session.RecordTransaction(transaction.TotalAmount, isRefund: false);
 
         // ── Customer loyalty: earn 1 point per 100 spent ─────────────────────
-        if (customer is not null)
+        // Not on a branch server: the customer record and its points belong to head office (BranchServerMode).
+        if (customer is not null && !BranchServerMode.IsBranch)
         {
             customer.RecordPurchase(transaction.TotalAmount);
             customer.AddLoyaltyPoints(Math.Floor(transaction.TotalAmount / 100));
@@ -350,6 +356,8 @@ public sealed class CreateSaleCommandHandler(
             }
             case "loyalty":
             {
+                if (BranchServerMode.IsBranch)
+                    return Result.Failure<(decimal, string, string?)>(BranchServerMode.BalanceRefusal("Paying with loyalty points"));
                 if (customer is null)
                     return Result.Failure<(decimal, string, string?)>(Error.Custom("Discount.NoCustomer",
                         "A customer must be selected to redeem loyalty points."));

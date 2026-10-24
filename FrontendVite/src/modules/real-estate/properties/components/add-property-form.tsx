@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { getTenantCurrency } from "@/hooks/use-currency";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -236,11 +237,11 @@ export function AddPropertyForm({ open, onClose, editing }: AddPropertyFormProps
                     <Input value={propertyManager} onChange={e => setPropertyManager(e.target.value)} placeholder="Manager name…" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Purchase Price (AED)</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Purchase Price ({getTenantCurrency()})</label>
                     <Input type="number" min={0} step={10000} value={purchasePrice} onChange={e => setPurchasePrice(e.target.value)} placeholder="0" className="h-9 text-sm text-right" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Current Value (AED)</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Current Value ({getTenantCurrency()})</label>
                     <Input type="number" min={0} step={10000} value={currentValue} onChange={e => setCurrentValue(e.target.value)} placeholder="0" className="h-9 text-sm text-right" />
                   </div>
                 </div>

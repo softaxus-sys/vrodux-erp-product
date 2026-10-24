@@ -16,6 +16,10 @@ public sealed class UpdateBranchCommandHandler(
 {
     public async Task<Result<BranchDto>> Handle(UpdateBranchCommand cmd, CancellationToken ct)
     {
+        // Branch reads stay open (every branch switcher needs them); changes need the settings permission.
+        if (!currentUser.IsSuperAdmin && !currentUser.HasPermission("settings.branches.edit"))
+            return Result.Failure<BranchDto>(Error.Custom("Branch.Forbidden", "Missing permission: settings.branches.edit"));
+
         // Tenants only ever see their own branches; a super-admin sees the global/legacy rows.
         Guid? tenantScope = currentUser.IsSuperAdmin ? null : tenantContext.TenantId;
         var branch = await branchRepo.GetByIdAsync(cmd.Id, ct);

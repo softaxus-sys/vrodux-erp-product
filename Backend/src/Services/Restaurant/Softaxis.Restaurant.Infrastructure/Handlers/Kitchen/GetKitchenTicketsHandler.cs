@@ -3,17 +3,21 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Restaurant.Application.Kitchen.Dtos;
 using Softaxis.Restaurant.Application.Kitchen.Queries;
+using Softaxis.Restaurant.Application.Abstractions;
+using Softaxis.Restaurant.Infrastructure.Common;
 using Softaxis.Restaurant.Infrastructure.Persistence;
 
 namespace Softaxis.Restaurant.Infrastructure.Handlers.Kitchen;
 
-internal sealed class GetKitchenTicketsHandler(RestaurantDbContext db)
+internal sealed class GetKitchenTicketsHandler(RestaurantDbContext db, IBranchAccessGuard branchAccess)
     : IQueryHandler<GetKitchenTicketsQuery, IReadOnlyList<KitchenTicketDto>>
 {
     public async Task<Result<IReadOnlyList<KitchenTicketDto>>> Handle(GetKitchenTicketsQuery query, CancellationToken ct)
     {
-        var orders = await db.Orders.AsNoTracking().Include(x => x.Items)
-            .Where(x => !x.IsDeleted && (x.Status == "sent" || x.Status == "ready"))
+        var scope = await branchAccess.ResolveReadScopeAsync(query.BranchId, ct);
+        var orders = await BranchScope.Apply(db.Orders.AsNoTracking()
+                .Where(x => !x.IsDeleted && (x.Status == "sent" || x.Status == "ready")), scope)
+            .Include(x => x.Items)
             .OrderBy(x => x.CreatedAt).ToListAsync(ct);
 
         var menuItemIds = orders.SelectMany(o => o.Items).Where(i => !i.IsDeleted).Select(i => i.MenuItemId).Distinct().ToList();

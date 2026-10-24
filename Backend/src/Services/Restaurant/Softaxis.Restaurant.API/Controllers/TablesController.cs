@@ -14,14 +14,14 @@ public sealed class TablesController(ISender sender) : RestaurantControllerBase
     /// <summary>GET /api/restaurant/tables/summary</summary>
     [HttpGet("summary")]
     [RequirePermission("restaurant.tables.view")]
-    public async Task<IActionResult> GetSummary(CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetTablesSummaryQuery(), ct));
+    public async Task<IActionResult> GetSummary([FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetTablesSummaryQuery(branchId), ct));
 
     /// <summary>GET /api/restaurant/tables</summary>
     [HttpGet]
     [RequirePermission("restaurant.tables.view")]
-    public async Task<IActionResult> GetAll(CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetTablesQuery(), ct));
+    public async Task<IActionResult> GetAll([FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetTablesQuery(branchId), ct));
 
     /// <summary>POST /api/restaurant/tables</summary>
     [HttpPost]

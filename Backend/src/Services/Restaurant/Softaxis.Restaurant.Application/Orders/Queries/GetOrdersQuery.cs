@@ -20,4 +20,5 @@ namespace Softaxis.Restaurant.Application.Orders.Queries;
 public sealed record GetOrdersQuery(
     string? Status,
     int Page     = 1,
-    int PageSize = 30) : IQuery<PagedResult<OrderDto>>;
+    int PageSize = 30,
+    Guid? BranchId = null) : IQuery<PagedResult<OrderDto>>;

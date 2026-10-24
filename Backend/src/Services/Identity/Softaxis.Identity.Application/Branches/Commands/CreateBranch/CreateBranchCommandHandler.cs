@@ -16,6 +16,10 @@ public sealed class CreateBranchCommandHandler(
 {
     public async Task<Result<BranchDto>> Handle(CreateBranchCommand cmd, CancellationToken ct)
     {
+        // Branch reads stay open (every branch switcher needs them); changes need the settings permission.
+        if (!currentUser.IsSuperAdmin && !currentUser.HasPermission("settings.branches.create"))
+            return Result.Failure<BranchDto>(Error.Custom("Branch.Forbidden", "Missing permission: settings.branches.create"));
+
         if (string.IsNullOrWhiteSpace(cmd.Name))
             return Result.Failure<BranchDto>(Error.Custom("Validation.Failed", "Branch name is required."));
         if (string.IsNullOrWhiteSpace(cmd.Code))

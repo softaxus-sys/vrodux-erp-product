@@ -52,7 +52,7 @@ public sealed class CreateTenantCommandHandler(
                         !string.IsNullOrWhiteSpace(cmd.AdminUsername) ||
                         !string.IsNullOrWhiteSpace(cmd.AdminPassword);
         // Captured so the welcome/activation email is sent AFTER the tenant + user are committed.
-        string? inviteEmail = null, inviteName = null, inviteToken = null;
+        string? inviteEmail = null, inviteName = null, inviteToken = null, verificationToken = null;
 
         if (wantAdmin)
         {
@@ -89,7 +89,9 @@ public sealed class CreateTenantCommandHandler(
                 return Result.Failure<TenantDto>(userResult.Error);
 
             var adminUser = userResult.Value;
-            adminUser.VerifyEmail();          // pre-verified — the activation link only needs to set a password
+            // NOT pre-verified: the owner cannot sign in until the address is confirmed. In invite
+            // mode the set-password link confirms it (ResetPassword → ConfirmEmailViaPasswordReset);
+            // when the super admin chose the password, a verification link is mailed instead.
             adminUser.SetTenant(tenant.Id);   // bind to the new tenant
 
             // Provision this tenant's own role set (Administrator + per-module Managers).
@@ -102,6 +104,12 @@ public sealed class CreateTenantCommandHandler(
                 var raw = jwtService.GenerateRefreshTokenRaw();
                 adminUser.SetPasswordResetToken(jwtService.HashToken(raw), DateTime.UtcNow.AddDays(7));
                 inviteToken = raw;
+            }
+            else
+            {
+                var raw = jwtService.GenerateRefreshTokenRaw();
+                adminUser.SetEmailVerificationToken(jwtService.HashToken(raw), DateTime.UtcNow.AddHours(48));
+                verificationToken = raw;
             }
             inviteEmail = adminUser.Email.Value;
             inviteName  = adminUser.FullName;
@@ -117,8 +125,11 @@ public sealed class CreateTenantCommandHandler(
         {
             try
             {
-                await emailService.SendTenantInviteEmailAsync(
-                    inviteEmail, inviteName ?? inviteEmail, tenant.Name, inviteToken, ct);
+                if (verificationToken is not null)
+                    await emailService.SendEmailVerificationAsync(inviteEmail, inviteName ?? inviteEmail, verificationToken, ct);
+                else
+                    await emailService.SendTenantInviteEmailAsync(
+                        inviteEmail, inviteName ?? inviteEmail, tenant.Name, inviteToken, ct);
             }
             catch { /* logged by the email service */ }
         }

@@ -1076,6 +1076,9 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("CashVariance")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -1158,6 +1161,8 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
                     b.HasIndex("CashierId");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("BranchId", "Status");
 
                     b.HasIndex("RegisterId", "Status");
 

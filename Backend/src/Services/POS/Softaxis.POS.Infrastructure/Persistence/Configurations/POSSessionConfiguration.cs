@@ -34,5 +34,6 @@ public sealed class POSSessionConfiguration : IEntityTypeConfiguration<POSSessio
 
         builder.HasIndex(s => s.CashierId);
         builder.HasIndex(s => new { s.RegisterId, s.Status });
+        builder.HasIndex(s => new { s.BranchId, s.Status });
     }
 }

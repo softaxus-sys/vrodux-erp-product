@@ -134,7 +134,9 @@ public static class ModuleRoleCatalogue
 
                 new($"{label} Staff",
                     $"Day-to-day {label} work — can view and record, but not void, discount or refund.",
-                    (m, a) => (InModule(m, "restaurant") && !PrivilegedActions.Contains(a))
+                    // Tax, FBR and Foodpanda settings are a manager's decision.
+                    (m, a) => (InModule(m, "restaurant") && !PrivilegedActions.Contains(a)
+                               && !(m is "restaurant.tax" or "restaurant.integrations" && a == "edit"))
                               || (m is "pos.sessions" or "pos.customers" && a is "view" or "create")),
 
                 // Named apart from the POS "Cashier", which a tenant with retail tills also gets.

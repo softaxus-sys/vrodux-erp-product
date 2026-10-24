@@ -4,6 +4,12 @@ import { useAuthStore } from "@/store/auth.store";
 import { getApiBaseUrl } from "@/lib/desktop";
 const BASE = `${getApiBaseUrl()}/api/restaurant`;
 
+/** Appends ?branchId= (or &branchId=) when a branch is selected; "All Branches" sends nothing. */
+function withBranch(url: string, branchId?: string | null): string {
+  if (!branchId) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}branchId=${encodeURIComponent(branchId)}`;
+}
+
 /** GET a binary resource with the bearer token and return an object URL — dish photos sit behind
  * a permission check, so their URL cannot simply be put in an <img src>. */
 async function fetchBlobUrl(url: string): Promise<string> {
@@ -161,6 +167,18 @@ export interface MenuItem {
   isOnlineOrderable: boolean;
   /** Cover first. Absent on the response of a create/update, which does not reload photos. */
   images?: MenuItemImage[] | null;
+  /** Only when the menu was read for a branch that sells this at its own price: the shared price. */
+  basePrice?: number | null;
+  /** False when the branch the menu was read for does not sell this item. */
+  soldHere?: boolean;
+}
+
+/** One branch's exception to the shared menu for one item. */
+export interface MenuItemBranchSetting {
+  menuItemId: string;
+  branchId: string;
+  priceOverride: number | null;
+  isAvailable: boolean;
 }
 
 export interface ImportMenuRow {
@@ -297,6 +315,20 @@ export interface RestaurantOrder {
   parentOrderId: string | null;
   splits: OrderSplitSummaryDto[];
   customerId: string | null;
+  /** Percent this bill is taxed at, and the name printed for it ("GST", "VAT"). */
+  taxRate?: number;
+  taxLabel?: string;
+  /** FBR's per-invoice POS fee; 0 when the bill is not reported to FBR. */
+  serviceFee?: number;
+  /** "pending" | "sending" | "sent" | "failed"; null when not reported to FBR. */
+  fbrStatus?: string | null;
+  fbrInvoiceNumber?: string | null;
+  fbrError?: string | null;
+  /** "foodpanda" for orders from an ordering platform. */
+  externalSource?: string | null;
+  externalOrderCode?: string | null;
+  /** "new" | "accepted" | "rejected" | "cancelled". */
+  externalStatus?: string | null;
 }
 
 export interface PagedOrders {
@@ -429,8 +461,8 @@ export interface SendReceiptResult { success: boolean; channel: "email" | "whats
 
 export const restaurantApi = {
   // Tables
-  getTables:       (): Promise<RestaurantTable[]> => rawApiClient.get(`${BASE}/tables`),
-  getTablesSummary:(): Promise<TablesSummary>     => rawApiClient.get(`${BASE}/tables/summary`),
+  getTables:       (branchId?: string | null): Promise<RestaurantTable[]> => rawApiClient.get(withBranch(`${BASE}/tables`, branchId)),
+  getTablesSummary:(branchId?: string | null): Promise<TablesSummary> => rawApiClient.get(withBranch(`${BASE}/tables/summary`, branchId)),
   createTable:     (p: { tableNumber: string; section: string; capacity: number; branchId?: string | null; diningAreaId?: string | null }): Promise<RestaurantTable> =>
     rawApiClient.post(`${BASE}/tables`, p),
   updateTable:     (id: string, p: { tableNumber: string; section: string; capacity: number; diningAreaId?: string | null }): Promise<RestaurantTable> =>
@@ -447,8 +479,8 @@ export const restaurantApi = {
   unmergeTable:    (id: string): Promise<RestaurantTable> => rawApiClient.post(`${BASE}/tables/${id}/unmerge`),
 
   // Floors / Dining Areas
-  getFloors:       (): Promise<Floor[]> => rawApiClient.get(`${BASE}/floors`),
-  getFloorLayout:  (): Promise<FloorLayout[]> => rawApiClient.get(`${BASE}/floors/layout`),
+  getFloors:       (branchId?: string | null): Promise<Floor[]> => rawApiClient.get(withBranch(`${BASE}/floors`, branchId)),
+  getFloorLayout:  (branchId?: string | null): Promise<FloorLayout[]> => rawApiClient.get(withBranch(`${BASE}/floors/layout`, branchId)),
   createFloor:     (p: { name: string; sortOrder: number; branchId?: string | null }): Promise<Floor> =>
     rawApiClient.post(`${BASE}/floors`, p),
   updateFloor:     (id: string, p: { name: string; sortOrder: number }): Promise<Floor> =>
@@ -463,10 +495,10 @@ export const restaurantApi = {
     rawApiClient.delete(`${BASE}/floors/${floorId}/dining-areas/${id}`),
 
   // Waitlist
-  getWaitlist:        (status?: string): Promise<WaitlistEntry[]> =>
-    rawApiClient.get(`${BASE}/waitlist${status ? `?status=${status}` : ""}`),
-  getWaitlistSummary: (): Promise<WaitlistSummary> => rawApiClient.get(`${BASE}/waitlist/summary`),
-  addToWaitlist:      (p: { guestName: string; guestPhone: string; partySize: number; quotedWaitMinutes: number; notes?: string | null }): Promise<WaitlistEntry> =>
+  getWaitlist:        (status?: string, branchId?: string | null): Promise<WaitlistEntry[]> =>
+    rawApiClient.get(withBranch(`${BASE}/waitlist${status ? `?status=${status}` : ""}`, branchId)),
+  getWaitlistSummary: (branchId?: string | null): Promise<WaitlistSummary> => rawApiClient.get(withBranch(`${BASE}/waitlist/summary`, branchId)),
+  addToWaitlist:      (p: { guestName: string; guestPhone: string; partySize: number; quotedWaitMinutes: number; notes?: string | null; branchId?: string | null }): Promise<WaitlistEntry> =>
     rawApiClient.post(`${BASE}/waitlist`, p),
   seatWaitlistEntry:  (id: string, tableId: string): Promise<WaitlistEntry> =>
     rawApiClient.patch(`${BASE}/waitlist/${id}/seat`, { tableId }),
@@ -474,10 +506,10 @@ export const restaurantApi = {
   noShowWaitlistEntry:(id: string): Promise<WaitlistEntry> => rawApiClient.patch(`${BASE}/waitlist/${id}/no-show`),
 
   // Reservations
-  getReservations:       (date?: string): Promise<Reservation[]> =>
-    rawApiClient.get(`${BASE}/reservations${date ? `?date=${date}` : ""}`),
-  getReservationsSummary:(): Promise<ReservationsSummary> => rawApiClient.get(`${BASE}/reservations/summary`),
-  createReservation:     (p: { guestName: string; guestPhone: string; guestEmail?: string | null; covers: number; reservationDate: string; reservationTime: string; specialRequests?: string | null; tableId?: string | null; arrivalWindowStart?: string | null; arrivalWindowEnd?: string | null }): Promise<{ id: string; reservationNumber: string; status: string }> =>
+  getReservations:       (date?: string, branchId?: string | null): Promise<Reservation[]> =>
+    rawApiClient.get(withBranch(`${BASE}/reservations${date ? `?date=${date}` : ""}`, branchId)),
+  getReservationsSummary:(branchId?: string | null): Promise<ReservationsSummary> => rawApiClient.get(withBranch(`${BASE}/reservations/summary`, branchId)),
+  createReservation:     (p: { guestName: string; guestPhone: string; guestEmail?: string | null; covers: number; reservationDate: string; reservationTime: string; specialRequests?: string | null; tableId?: string | null; arrivalWindowStart?: string | null; arrivalWindowEnd?: string | null; branchId?: string | null }): Promise<{ id: string; reservationNumber: string; status: string }> =>
     rawApiClient.post(`${BASE}/reservations`, p),
   seatReservation:       (id: string): Promise<{ id: string; status: string }> => rawApiClient.patch(`${BASE}/reservations/${id}/seat`),
   cancelReservation:     (id: string): Promise<{ id: string; status: string }> => rawApiClient.patch(`${BASE}/reservations/${id}/cancel`),
@@ -487,7 +519,11 @@ export const restaurantApi = {
     rawApiClient.put(`${BASE}/reservations/rules`, p),
 
   // Menu
-  getMenu:         (): Promise<MenuCategory[]> => rawApiClient.get(`${BASE}/menu`),
+  getMenu:         (branchId?: string | null): Promise<MenuCategory[]> => rawApiClient.get(withBranch(`${BASE}/menu`, branchId)),
+  getMenuBranchSettings: (branchId: string): Promise<MenuItemBranchSetting[]> =>
+    rawApiClient.get(`${BASE}/menu/branch-settings?branchId=${branchId}`),
+  setMenuItemBranchSetting: (itemId: string, branchId: string, body: { priceOverride: number | null; isAvailable: boolean }): Promise<MenuItemBranchSetting> =>
+    rawApiClient.put(`${BASE}/menu/items/${itemId}/branches/${branchId}`, body),
   getMenuItems:    (): Promise<MenuItem[]>     => rawApiClient.get(`${BASE}/menu/items`),
   getMenuSummary:  (): Promise<MenuSummary>    => rawApiClient.get(`${BASE}/menu/summary`),
   setItemAvailability: (id: string, isAvailable: boolean): Promise<{ id: string; isAvailable: boolean }> =>
@@ -532,14 +568,15 @@ export const restaurantApi = {
   // Orders
   /** Pass status "open" for everything still live — that is what the floor plan needs, and it is
    *  bounded by table count rather than by every order the restaurant has ever taken. */
-  getOrders: (p: { status?: string; page?: number; pageSize?: number } = {}): Promise<PagedOrders> => {
+  getOrders: (p: { status?: string; page?: number; pageSize?: number; branchId?: string | null } = {}): Promise<PagedOrders> => {
     const qs = new URLSearchParams();
     qs.set("page", String(p.page ?? 1));
     qs.set("pageSize", String(p.pageSize ?? 30));
     if (p.status) qs.set("status", p.status);
+    if (p.branchId) qs.set("branchId", p.branchId);
     return rawApiClient.get(`${BASE}/orders?${qs}`);
   },
-  getOrdersSummary: (): Promise<OrdersSummary> => rawApiClient.get(`${BASE}/orders/summary`),
+  getOrdersSummary: (branchId?: string | null): Promise<OrdersSummary> => rawApiClient.get(withBranch(`${BASE}/orders/summary`, branchId)),
   getOrder:         (id: string): Promise<RestaurantOrder> => rawApiClient.get(`${BASE}/orders/${id}`),
   createOrder:      (p: { tableId: string | null; waiter: string; covers: number; orderType: string; notes?: string | null; items: OrderLineInput[]; branchId?: string | null; sessionId?: string | null; customerId?: string | null }): Promise<RestaurantOrder> =>
     rawApiClient.post(`${BASE}/orders`, p),
@@ -555,7 +592,7 @@ export const restaurantApi = {
     rawApiClient.patch(`${BASE}/orders/${id}/discount`, p),
   /** Spend the linked customer's loyalty points on this bill; 0 takes them back off. */
   /** Whether a till shift is open for floor staff (who run no till of their own) to order under. */
-  getOpenShift:     (): Promise<{ isOpen: boolean; sessionId: string | null }> => rawApiClient.get(`${BASE}/orders/open-shift`),
+  getOpenShift:     (branchId?: string | null): Promise<{ isOpen: boolean; sessionId: string | null }> => rawApiClient.get(withBranch(`${BASE}/orders/open-shift`, branchId)),
   redeemLoyalty:    (id: string, points: number): Promise<RestaurantOrder> =>
     rawApiClient.post(`${BASE}/orders/${id}/loyalty`, { points }),
   removeDiscount:   (id: string, reason: string): Promise<RestaurantOrder> =>
@@ -582,9 +619,9 @@ export const restaurantApi = {
     rawApiClient.post(`${BASE}/orders/${id}/combo-items`, p),
 
   // Kitchen
-  getKitchenTickets: (stationId?: string): Promise<KitchenTicket[]> =>
-    rawApiClient.get(`${BASE}/kitchen/tickets${stationId ? `?stationId=${stationId}` : ""}`),
-  getKitchenSummary: (): Promise<KitchenSummary>  => rawApiClient.get(`${BASE}/kitchen/summary`),
+  getKitchenTickets: (stationId?: string, branchId?: string | null): Promise<KitchenTicket[]> =>
+    rawApiClient.get(withBranch(`${BASE}/kitchen/tickets${stationId ? `?stationId=${stationId}` : ""}`, branchId)),
+  getKitchenSummary: (branchId?: string | null): Promise<KitchenSummary> => rawApiClient.get(withBranch(`${BASE}/kitchen/summary`, branchId)),
   markOrderReady:    (id: string) => rawApiClient.patch(`${BASE}/kitchen/orders/${id}/ready`),
   updateItemStatus:  (id: string, status: string) => rawApiClient.patch(`${BASE}/kitchen/items/${id}/status`, { status }),
 
@@ -630,8 +667,8 @@ export const restaurantApi = {
   deleteDeliveryZone:(id: string): Promise<void> => rawApiClient.delete(`${BASE}/delivery-zones/${id}`),
 
   // Drivers
-  getDrivers:   (activeOnly?: boolean): Promise<Driver[]> =>
-    rawApiClient.get(`${BASE}/drivers${activeOnly ? "?activeOnly=true" : ""}`),
+  getDrivers:   (activeOnly?: boolean, branchId?: string | null): Promise<Driver[]> =>
+    rawApiClient.get(withBranch(`${BASE}/drivers${activeOnly ? "?activeOnly=true" : ""}`, branchId)),
   createDriver: (p: { name: string; phone: string; vehicleInfo?: string | null; linkedUserId?: string | null; branchId?: string | null }): Promise<Driver> =>
     rawApiClient.post(`${BASE}/drivers`, p),
   updateDriver: (id: string, p: { name: string; phone: string; vehicleInfo?: string | null; isActive: boolean; linkedUserId?: string | null }): Promise<Driver> =>
@@ -640,9 +677,9 @@ export const restaurantApi = {
 
   // Delivery orders
   getDeliveryProviders:(): Promise<DeliveryProvider[]> => rawApiClient.get(`${BASE}/delivery/providers`),
-  getDeliverySummary:  (): Promise<DeliverySummary> => rawApiClient.get(`${BASE}/delivery/summary`),
-  getDeliveryOrders:   (status?: string): Promise<DeliveryOrder[]> =>
-    rawApiClient.get(`${BASE}/delivery${status ? `?status=${status}` : ""}`),
+  getDeliverySummary:  (branchId?: string | null): Promise<DeliverySummary> => rawApiClient.get(withBranch(`${BASE}/delivery/summary`, branchId)),
+  getDeliveryOrders:   (status?: string, branchId?: string | null): Promise<DeliveryOrder[]> =>
+    rawApiClient.get(withBranch(`${BASE}/delivery${status ? `?status=${status}` : ""}`, branchId)),
   getDeliveryOrder:    (id: string): Promise<DeliveryOrder> => rawApiClient.get(`${BASE}/delivery/${id}`),
   createDeliveryOrder: (p: { orderId: string; address: string; phone: string; deliveryZoneId?: string | null; providerKey?: string }): Promise<DeliveryOrder> =>
     rawApiClient.post(`${BASE}/delivery`, p),

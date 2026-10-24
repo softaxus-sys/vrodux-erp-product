@@ -47,9 +47,20 @@ internal static class RecipeDeductionSupport
             return; // no recipe linked to this menu item yet — nothing to deduct, not an error
         }
 
+        // A branch's order uses the branch's own store; an unbranched order (single location, or
+        // a branch with no warehouse yet) falls back to the product's group-wide stock.
+        var branchId = await restaurantDb.Orders.AsNoTracking()
+            .Where(o => o.Id == item.OrderId).Select(o => o.BranchId).FirstOrDefaultAsync(ct);
+        Guid? warehouseId = branchId is Guid b
+            ? await inventoryDb.Warehouses.AsNoTracking()
+                .Where(w => w.BranchId == b && w.IsActive && !w.IsDeleted)
+                .OrderByDescending(w => w.IsDefault).ThenBy(w => w.CreatedAt)
+                .Select(w => (Guid?)w.Id).FirstOrDefaultAsync(ct)
+            : null;
+
         var result = await RecipeStockService.DeductAsync(
             recipeDb, inventoryDb, recipe.Id, item.Quantity,
-            reference: orderNumber, notes: null, ct);
+            reference: orderNumber, notes: null, ct, warehouseId);
 
         if (result.IsFailure)
         {
@@ -62,9 +73,24 @@ internal static class RecipeDeductionSupport
 
         if (result.Value.AnyIngredientDepleted)
         {
-            var menuItem = await restaurantDb.MenuItems.FirstOrDefaultAsync(m => m.Id == item.MenuItemId && !m.IsDeleted, ct);
-            if (menuItem is not null && menuItem.IsAvailable)
-                menuItem.SetAvailability(false);
+            if (branchId is Guid br && warehouseId is not null)
+            {
+                // Out of stock at THIS branch only — other branches keep selling it.
+                var setting = await restaurantDb.MenuItemBranchSettings
+                    .FirstOrDefaultAsync(s => s.MenuItemId == item.MenuItemId && s.BranchId == br, ct);
+                if (setting is null)
+                {
+                    setting = new MenuItemBranchSetting(item.MenuItemId, br);
+                    restaurantDb.MenuItemBranchSettings.Add(setting);
+                }
+                if (setting.IsAvailable) setting.Set(setting.PriceOverride, false);
+            }
+            else
+            {
+                var menuItem = await restaurantDb.MenuItems.FirstOrDefaultAsync(m => m.Id == item.MenuItemId && !m.IsDeleted, ct);
+                if (menuItem is not null && menuItem.IsAvailable)
+                    menuItem.SetAvailability(false);
+            }
         }
 
         await restaurantDb.SaveChangesAsync(ct);

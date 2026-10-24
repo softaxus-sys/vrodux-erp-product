@@ -1,6 +1,7 @@
 import { rawApiClient } from "@/lib/api-client";
 
 import { getApiBaseUrl } from "@/lib/desktop";
+import { getTenantCurrency } from "@/hooks/use-currency";
 const BASE = `${getApiBaseUrl()}/api/hr`;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -637,7 +638,7 @@ function mapEmployee(raw: any): EmployeeDto {
     joinDate:          raw.joiningDate ?? raw.joinDate ?? undefined,
     endDate:           raw.terminationDate ?? raw.endDate,
     basicSalary:       raw.basicSalary ?? 0,
-    currency:          raw.currency  ?? "AED",
+    currency:          raw.currency  ?? getTenantCurrency(),
     bankAccount:       raw.bankAccount,
     iban:              raw.iban,
     emiratesId:        raw.emiratesId,

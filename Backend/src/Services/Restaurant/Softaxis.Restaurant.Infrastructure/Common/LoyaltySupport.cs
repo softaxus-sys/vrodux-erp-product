@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Application.Sync;
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.POS.Infrastructure.Persistence;
@@ -28,6 +29,7 @@ internal static class LoyaltySupport
 
     public static async Task<Result> RedeemAsync(POSDbContext posDb, Guid customerId, decimal points, CancellationToken ct)
     {
+        if (BranchServerMode.IsBranch) return Result.Failure(BranchServerMode.BalanceRefusal("Paying with loyalty points"));
         var customer = await posDb.Customers.FirstOrDefaultAsync(c => c.Id == customerId, ct);
         if (customer is null) return Result.Failure(Error.NotFoundById("Customer", customerId));
         var redeemed = customer.RedeemLoyaltyPoints(points);
@@ -65,6 +67,8 @@ internal static class LoyaltySupport
     /// </summary>
     public static async Task EarnIfJustPaidAsync(POSDbContext posDb, bool wasPaid, Result<OrderDto> result, CancellationToken ct)
     {
+        // Points are a head-office balance; a branch server does not change them (see BranchServerMode).
+        if (BranchServerMode.IsBranch) return;
         if (wasPaid || result.IsFailure || result.Value.Status != "paid" || result.Value.CustomerId is not { } customerId) return;
         try { await GiveAsync(posDb, customerId, Math.Floor(result.Value.Total / SpendPerPoint), ct); }
         catch { /* see summary */ }

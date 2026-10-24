@@ -14,6 +14,10 @@ public sealed class DeleteBranchCommandHandler(
 {
     public async Task<Result> Handle(DeleteBranchCommand cmd, CancellationToken ct)
     {
+        // Branch reads stay open (every branch switcher needs them); changes need the settings permission.
+        if (!currentUser.IsSuperAdmin && !currentUser.HasPermission("settings.branches.delete"))
+            return Result.Failure(Error.Custom("Branch.Forbidden", "Missing permission: settings.branches.delete"));
+
         // Tenants only ever act on their own branches; NotFound so another tenant's row never leaks.
         Guid? tenantScope = currentUser.IsSuperAdmin ? null : tenantContext.TenantId;
 

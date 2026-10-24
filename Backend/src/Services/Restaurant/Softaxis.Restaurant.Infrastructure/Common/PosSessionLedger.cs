@@ -57,20 +57,40 @@ internal static class PosSessionLedger
     /// The till shift a floor order should ride on when the person taking it has no shift of their
     /// own — a waiter works under the cashier's shift. Newest open shift in this workspace, or null.
     /// </summary>
-    public static async Task<Guid?> FindOpenSessionAsync(RestaurantDbContext db, CancellationToken ct)
+    /// <para>Branch-aware: an order for a branch rides only on that branch's shift, so one branch's
+    /// sales never land in another branch's Z-report. An unbranched shift is deliberately NOT a
+    /// fallback — old shifts are often left open for days, and would silently collect every branch's
+    /// orders. A single-location tenant (no branch on the order) uses unbranched shifts as before.</para>
+    public static async Task<Guid?> FindOpenSessionAsync(RestaurantDbContext db, Guid? branchId, CancellationToken ct)
     {
         int bypass = TenantAmbient.BypassFilter ? 1 : 0;
         Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
+        int hasBranch = branchId.HasValue ? 1 : 0;
+        Guid branch = branchId ?? Guid.Empty;
 
         var row = await db.Database
             .SqlQuery<SessionRow>($"""
                 SELECT TOP 1 Id, CashierId, Status
                 FROM [pos].[pos_sessions]
                 WHERE Status = {OpenStatus} AND IsDeleted = 0 AND ({bypass} = 1 OR TenantId = {tenant})
+                  AND (({hasBranch} = 0 AND BranchId IS NULL) OR ({hasBranch} = 1 AND BranchId = {branch}))
                 ORDER BY OpenedAt DESC
                 """)
             .FirstOrDefaultAsync(ct);
         return row?.Id;
+    }
+
+    /// <summary>The branch a shift belongs to; null when unbranched or not found.</summary>
+    public static async Task<Guid?> GetSessionBranchAsync(RestaurantDbContext db, Guid sessionId, CancellationToken ct)
+    {
+        int bypass = TenantAmbient.BypassFilter ? 1 : 0;
+        Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
+        return await db.Database
+            .SqlQuery<Guid?>($"""
+                SELECT TOP 1 BranchId AS Value FROM [pos].[pos_sessions]
+                WHERE Id = {sessionId} AND ({bypass} = 1 OR TenantId = {tenant})
+                """)
+            .FirstOrDefaultAsync(ct);
     }
 
     public sealed class ShiftRow

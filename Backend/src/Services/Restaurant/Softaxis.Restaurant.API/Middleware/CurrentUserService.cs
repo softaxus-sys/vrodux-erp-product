@@ -16,6 +16,7 @@ public sealed class CurrentUserService(IHttpContextAccessor accessor) : ICurrent
     {
         get
         {
+            if (InstructionIdentity.Active is { } acting) return acting.Id;
             var val = Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
                    ?? Principal?.FindFirstValue("sub");
             return Guid.TryParse(val, out var id) ? id : null;
@@ -24,7 +25,7 @@ public sealed class CurrentUserService(IHttpContextAccessor accessor) : ICurrent
 
     // JwtTokenService emits the username under a plain "username" claim — never ClaimTypes.Name
     // or "preferred_username" (neither is ever set), so those always resolved null.
-    public string? Username => Principal?.FindFirstValue("username");
+    public string? Username => InstructionIdentity.Active?.Name ?? Principal?.FindFirstValue("username");
 
     public string? Email => Principal?.FindFirstValue(ClaimTypes.Email)
                          ?? Principal?.FindFirstValue("email");
@@ -32,5 +33,6 @@ public sealed class CurrentUserService(IHttpContextAccessor accessor) : ICurrent
     public bool IsSuperAdmin => Principal?.FindFirstValue("is_super_admin") == "true";
 
     public bool HasPermission(string permissionKey) =>
+        InstructionIdentity.Active is not null ||   // authorised at head office when the instruction was created
         Principal?.FindAll("permission").Any(c => c.Value == permissionKey) == true;
 }

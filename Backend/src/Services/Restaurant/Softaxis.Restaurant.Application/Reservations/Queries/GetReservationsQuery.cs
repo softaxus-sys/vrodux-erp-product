@@ -4,4 +4,4 @@ using Softaxis.Restaurant.Application.Reservations.Dtos;
 namespace Softaxis.Restaurant.Application.Reservations.Queries;
 
 /// <summary>GET /api/restaurant/reservations?date=yyyy-MM-dd</summary>
-public sealed record GetReservationsQuery(string? Date) : IQuery<IReadOnlyList<ReservationDto>>;
+public sealed record GetReservationsQuery(string? Date, Guid? BranchId = null) : IQuery<IReadOnlyList<ReservationDto>>;

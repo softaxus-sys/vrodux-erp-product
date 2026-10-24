@@ -91,7 +91,8 @@ public sealed record WarehouseDto(
     bool      IsDefault,
     int       MovementCount,
     DateTime  CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    Guid?     BranchId = null);
 
 public sealed record StockMovementDto(
     Guid      Id,

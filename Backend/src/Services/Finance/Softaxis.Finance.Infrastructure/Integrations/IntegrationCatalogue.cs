@@ -175,6 +175,17 @@ internal static class IntegrationCatalogue
             "Each payment against a booking is collected once: cash or bank is debited and revenue credited. A deposit taken before the stay is treated as revenue here, not as a liability — change the account in the mapping if your accountant wants advance deposits held until check-in. Payments recorded before individual payments were kept are not posted.",
             [Dr("cash", "Cash received", "1001"), Dr("bank", "Card, cheque or transfer received", "1010"), Cr("revenue", "Room revenue and guest payments", "4001")]),
 
+        new("tours.payment", "hospitality", "Tour customer payments", IntegrationKind.Queue,
+            "Payment taken on a tour booking",
+            "Each payment is collected once and credited to the customer account. Deposits taken before the trip therefore sit as a credit on the customer until the trip is posted, which debits the customer with the full price. A payment voided after posting is flagged for a person.",
+            [Dr("cash", "Cash received", "1001"), Dr("bank", "Card, cheque or transfer received", "1010"), Cr("customer", "Customer account (deposits and balances)", "1200")]),
+
+        new("tours.trip", "hospitality", "Completed tours (revenue and supplier cost)", IntegrationKind.Queue,
+            "Tour booking marked completed",
+            "Recognises the sale when the trip is done: the customer is debited with the full price, revenue and tax are credited. The supplier cost of every service not cancelled is expensed against accounts payable, which Finance payment vouchers then clear when suppliers are paid.",
+            [Dr("customer", "Customer account", "1200"), Cr("revenue", "Tour revenue", "4002"), Cr("tax", "Sales tax collected", "2200"),
+             Dr("cost", "Cost of tours sold", "5400"), Cr("payable", "Accounts payable (suppliers)", "2001")]),
+
         new("construction.project", "construction", "Construction contracts", IntegrationKind.None,
             "Progress billed or contractor paid",
             "Nothing to post: Construction records a contract's total value and a project's budget, but no progress bills, client invoices or contractor payments. Bill the client with a Finance invoice and pay contractors with a payment voucher or purchase invoice — those post to the ledger.",

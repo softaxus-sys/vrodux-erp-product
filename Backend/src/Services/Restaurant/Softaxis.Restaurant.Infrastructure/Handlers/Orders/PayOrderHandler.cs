@@ -16,7 +16,8 @@ namespace Softaxis.Restaurant.Infrastructure.Handlers.Orders;
 /// `ExecuteSqlAsync` here specifically to dodge a concurrency bug; now that there's a real concurrency
 /// token, the conflict is handled properly via retry instead of avoided.
 /// </summary>
-internal sealed class PayOrderHandler(RestaurantDbContext db, POSDbContext posDb, IRestaurantRealtimeNotifier realtime)
+internal sealed class PayOrderHandler(RestaurantDbContext db, POSDbContext posDb, IRestaurantRealtimeNotifier realtime,
+    Fbr.FbrReporter fbr)
     : ICommandHandler<PayOrderCommand, OrderDto>
 {
     public async Task<Result<OrderDto>> Handle(PayOrderCommand cmd, CancellationToken ct)
@@ -24,11 +25,18 @@ internal sealed class PayOrderHandler(RestaurantDbContext db, POSDbContext posDb
         var wasPaid = await db.Orders.AsNoTracking().AnyAsync(x => x.Id == cmd.OrderId && x.Status == "paid", ct);
         var result = await PayAsync(cmd, ct);
         await LoyaltySupport.EarnIfJustPaidAsync(posDb, wasPaid, result, ct);
-        return result;
+        return await Fbr.FbrAfterPayment.ReportIfDueAsync(fbr, result, ct);
     }
 
     private async Task<Result<OrderDto>> PayAsync(PayOrderCommand cmd, CancellationToken ct)
     {
+        // A second "pay" on a settled bill (double tap, two devices, a retried upload) used to record
+        // the whole bill again. Refused before any wallet is charged.
+        var settled = await db.Orders.AsNoTracking()
+            .AnyAsync(x => x.Id == cmd.OrderId && !x.IsDeleted && x.Status == "paid", ct);
+        if (settled)
+            return Result.Failure<OrderDto>(Error.Custom("Order.Conflict", "This bill is already paid."));
+
         // Wallet/house-account charge, if applicable — see CustomerPaymentSupport for why this must
         // run exactly once, outside the retry loop below, before any Order row is mutated. The charged
         // amount is reused (not recomputed) inside the retry loop so the wallet debit and the recorded
@@ -61,6 +69,8 @@ internal sealed class PayOrderHandler(RestaurantDbContext db, POSDbContext posDb
                     "This order was split — pay its individual splits instead."));
             if (o.Status == "held")
                 return Result.Failure<OrderDto>(Error.Custom("Order.Conflict", "Recall this order before paying it."));
+            if (o.Status == "paid")
+                return Result.Failure<OrderDto>(Error.Custom("Order.Conflict", "This bill is already paid."));
 
             var sessionCheck = await OrderPaymentSupport.EnsureSessionStillOpenAsync(db, o, ct);
             if (sessionCheck.IsFailure)

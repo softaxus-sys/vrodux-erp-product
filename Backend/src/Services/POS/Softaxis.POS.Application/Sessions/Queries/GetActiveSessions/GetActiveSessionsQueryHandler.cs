@@ -25,7 +25,7 @@ public sealed class GetActiveSessionsQueryHandler(
 
         var dtos = paged.Items.Select(s => new POSSessionSummaryDto(
             s.Id, s.RegisterId, s.Status.ToString(),
-            s.OpenedAt, s.TotalTransactions, s.NetSales)).ToList();
+            s.OpenedAt, s.TotalTransactions, s.NetSales, s.BranchId)).ToList();
 
         return Result.Success<IReadOnlyList<POSSessionSummaryDto>>(dtos);
     }

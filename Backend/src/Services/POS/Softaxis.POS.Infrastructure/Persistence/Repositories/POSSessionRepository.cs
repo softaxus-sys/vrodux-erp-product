@@ -16,9 +16,9 @@ public sealed class POSSessionRepository(POSDbContext db) : IPOSSessionRepositor
     public Task<POSSession?> GetByClientRefAsync(string clientRef, CancellationToken ct = default) =>
         db.Sessions.FirstOrDefaultAsync(s => s.ClientRef == clientRef, ct);
 
-    public Task<POSSession?> GetActiveByRegisterAsync(string registerId, CancellationToken ct = default) =>
+    public Task<POSSession?> GetActiveByRegisterAsync(string registerId, Guid? branchId, CancellationToken ct = default) =>
         db.Sessions.FirstOrDefaultAsync(s =>
-            s.RegisterId == registerId &&
+            s.RegisterId == registerId && s.BranchId == branchId &&
             (s.Status == SessionStatus.Open || s.Status == SessionStatus.Suspended), ct);
 
     public Task<POSSession?> GetActiveByUserAsync(Guid cashierId, CancellationToken ct = default) =>

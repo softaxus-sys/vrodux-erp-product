@@ -1,3 +1,4 @@
+using Softaxis.Restaurant.Application.Abstractions;
 using FluentValidation;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.Restaurant.Application.Orders.Dtos;
@@ -14,7 +15,7 @@ public sealed record AddOrderPaymentCommand(
     string Method,
     decimal Amount,
     string? Reference
-) : ICommand<OrderDto>;
+) : IOrderScopedCommand, ICommand<OrderDto>;
 
 public sealed class AddOrderPaymentValidator : AbstractValidator<AddOrderPaymentCommand>
 {

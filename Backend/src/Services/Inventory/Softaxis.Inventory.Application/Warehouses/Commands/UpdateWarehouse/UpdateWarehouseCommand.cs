@@ -9,5 +9,6 @@ public sealed record UpdateWarehouseCommand(
     string? Address,
     string? ContactPerson,
     string? Phone,
-    bool    IsActive
+    bool    IsActive,
+    Guid?   BranchId = null
 ) : ICommand;

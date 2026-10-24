@@ -6,7 +6,8 @@ namespace Softaxis.POS.Application.Sessions.Commands.OpenSession;
 
 public sealed record OpenSessionCommand(
     string  RegisterId,
-    decimal OpeningCash) : ICommand<POSSessionDto>;
+    decimal OpeningCash,
+    Guid?   BranchId = null) : ICommand<POSSessionDto>;
 
 public sealed class OpenSessionCommandValidator : AbstractValidator<OpenSessionCommand>
 {

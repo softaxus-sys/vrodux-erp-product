@@ -1,10 +1,11 @@
+using Softaxis.Restaurant.Application.Abstractions;
 using FluentValidation;
 using Softaxis.BuildingBlocks.Application.CQRS;
 
 namespace Softaxis.Restaurant.Application.Orders.Commands;
 
 /// <summary>POST /api/restaurant/orders/{id}/send-receipt</summary>
-public sealed record SendReceiptCommand(Guid OrderId, string Channel, string RecipientAddress) : ICommand<SendReceiptResultDto>;
+public sealed record SendReceiptCommand(Guid OrderId, string Channel, string RecipientAddress) : IOrderScopedCommand, ICommand<SendReceiptResultDto>;
 
 public sealed record SendReceiptResultDto(bool Success, string Channel, string RecipientAddress);
 

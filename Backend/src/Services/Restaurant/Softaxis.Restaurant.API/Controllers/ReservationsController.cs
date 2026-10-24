@@ -14,14 +14,14 @@ public sealed class ReservationsController(ISender sender) : RestaurantControlle
     /// <summary>GET /api/restaurant/reservations/summary</summary>
     [HttpGet("summary")]
     [RequirePermission("restaurant.reservations.view")]
-    public async Task<IActionResult> GetSummary(CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetReservationsSummaryQuery(), ct));
+    public async Task<IActionResult> GetSummary([FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetReservationsSummaryQuery(branchId), ct));
 
     /// <summary>GET /api/restaurant/reservations?date=yyyy-MM-dd</summary>
     [HttpGet]
     [RequirePermission("restaurant.reservations.view")]
-    public async Task<IActionResult> GetAll([FromQuery] string? date, CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetReservationsQuery(date), ct));
+    public async Task<IActionResult> GetAll([FromQuery] string? date, [FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetReservationsQuery(date, branchId), ct));
 
     /// <summary>POST /api/restaurant/reservations</summary>
     [HttpPost]

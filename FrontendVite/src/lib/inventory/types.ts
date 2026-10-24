@@ -12,6 +12,7 @@ export interface ProductCategoryDto {
   productCount: number;
   createdAt: string;
   updatedAt: string | null;
+  branchId?: string | null;
 }
 
 export interface BrandDto {
@@ -125,6 +126,8 @@ export interface WarehouseDto {
   movementCount: number;
   createdAt: string;
   updatedAt: string | null;
+  /** The branch this warehouse stocks; null = not tied to a branch. */
+  branchId?: string | null;
 }
 
 export interface StockMovementDto {

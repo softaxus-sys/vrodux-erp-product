@@ -1,3 +1,4 @@
+using Softaxis.Restaurant.Application.Abstractions;
 using FluentValidation;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.Restaurant.Application.Orders.Dtos;
@@ -6,7 +7,7 @@ namespace Softaxis.Restaurant.Application.Orders.Commands;
 
 /// <summary>PATCH /api/restaurant/orders/{id}/cancel — voids the whole order, audited
 /// (reason required, who voided it logged). Replaces the old bare status flip.</summary>
-public sealed record VoidOrderCommand(Guid OrderId, string Reason) : ICommand<OrderDto>;
+public sealed record VoidOrderCommand(Guid OrderId, string Reason) : IOrderScopedCommand, ICommand<OrderDto>;
 
 public sealed class VoidOrderValidator : AbstractValidator<VoidOrderCommand>
 {

@@ -211,6 +211,56 @@ internal static class PostingSources
             CancelledFrom: "FROM [hospitality].[BookingPayments] p JOIN [hospitality].[Bookings] b ON b.[Id] = p.[BookingId]",
             CancelledWhere: "(b.[IsDeleted] = 1 OR b.[Status] = 'cancelled')"),
 
+        // Travel agency: money received from the customer.
+        new("tours.payment",
+            IdExpr: "p.[Id]",
+            Select: $"""
+                p.[Id], CAST(b.[BookingNumber] + '/' + UPPER(LEFT(CAST(p.[Id] AS varchar(36)), 4)) AS nvarchar(100)) AS [Number],
+                CAST(LEFT(p.[PaidOn], 10) AS varchar(10)) AS [Date],
+                CAST(LEFT(b.[CustomerName] + N' — ' + b.[Title], 200) AS nvarchar(200)) AS [Description],
+                p.[Amount] AS A1,
+                {Kind("LOWER(p.[Method]) = 'cash'", "LOWER(p.[Method]) IN ('card', 'bank_transfer', 'cheque', 'online')")} AS A2,
+                {Zero("A3", "A4", "A5", "A6", "A7")}
+                """,
+            FromWhere: """
+                FROM [hospitality].[TourPayments] p
+                JOIN [hospitality].[TourBookings] b ON b.[Id] = p.[TourBookingId]
+                WHERE p.[TenantId] = {0} AND p.[IsVoided] = 0 AND p.[Amount] > 0
+                  AND LEFT(p.[PaidOn], 10) >= {1}
+                """,
+            OrderBy: "p.[CreatedAt]",
+            Amounts: r => new() { [r.A2 == 1 ? "cash" : "bank"] = r.A1, ["customer"] = r.A1 },
+            Check: r => r.A2 == 0 ? "How the customer paid was not recorded as cash or a bank method, so it is not known where the money went." : null,
+            CancelledFrom: "FROM [hospitality].[TourPayments] p",
+            CancelledWhere: "p.[IsVoided] = 1"),
+
+        // Travel agency: the trip itself, once completed. A1 total, A2 tax, A3 supplier cost.
+        new("tours.trip",
+            IdExpr: "b.[Id]",
+            Select: """
+                b.[Id], b.[BookingNumber] AS [Number], CAST(b.[EndDate] AS varchar(10)) AS [Date],
+                CAST(LEFT(b.[CustomerName] + N' — ' + b.[Title], 200) AS nvarchar(200)) AS [Description],
+                b.[TotalAmount] AS A1, b.[TaxAmount] AS A2, b.[CostAmount] AS A3,
+                CAST(0 AS decimal(18,2)) AS A4, CAST(0 AS decimal(18,2)) AS A5, CAST(0 AS decimal(18,2)) AS A6, CAST(0 AS decimal(18,2)) AS A7
+                """,
+            FromWhere: """
+                FROM [hospitality].[TourBookings] b
+                WHERE b.[TenantId] = {0} AND b.[IsDeleted] = 0 AND b.[Status] = 'completed'
+                  AND (b.[TotalAmount] > 0 OR b.[CostAmount] > 0)
+                  AND b.[EndDate] >= {1}
+                """,
+            OrderBy: "b.[EndDate]",
+            Amounts: r => new()
+            {
+                ["customer"] = r.A1, ["revenue"] = r.A1 - r.A2, ["tax"] = r.A2,
+                ["cost"] = r.A3, ["payable"] = r.A3,
+            },
+            Check: r =>
+                r.A2 > r.A1 ? $"Tax {r.A2:0.00} is more than the trip total ({r.A1:0.00})." :
+                r.A1 < 0 || r.A3 < 0 ? "The trip has a negative amount." : null,
+            CancelledFrom: "FROM [hospitality].[TourBookings] b",
+            CancelledWhere: "(b.[IsDeleted] = 1 OR b.[Status] <> 'completed')"),
+
         new("pos.refund",
             IdExpr: "t.[Id]",
             Select: $"""

@@ -3,6 +3,26 @@ import { sessionsApi } from "@/lib/pos/sessions.api";
 import type { POSSessionDto, POSSessionSummaryDto } from "@/lib/pos/types";
 import { usePosOffline } from "@/contexts/pos-offline-context";
 import { toast } from "sonner";
+import { useAuthStore } from "@/store/auth.store";
+import { useRestaurantOffline, isNetworkError } from "@/contexts/restaurant-offline-context";
+
+/** Asks the server for the open shift and remembers the answer; offline, returns the last answer. */
+async function rememberedSessions(userId: string, offline: boolean, markUnreachable: () => void): Promise<POSSessionSummaryDto[]> {
+  const key = `vrodux:restaurant-shift:${userId}`;
+  const cached = (): POSSessionSummaryDto[] => {
+    try { return JSON.parse(localStorage.getItem(key) ?? "[]") as POSSessionSummaryDto[]; } catch { return []; }
+  };
+  if (offline) return cached();
+  try {
+    const live = await sessionsApi.getActive();
+    try { localStorage.setItem(key, JSON.stringify(live)); } catch { /* private mode */ }
+    return live;
+  } catch (e) {
+    if (!isNetworkError(e)) throw e;
+    markUnreachable();
+    return cached();
+  }
+}
 
 // ── Query keys ────────────────────────────────────────────────────────────────
 
@@ -20,11 +40,17 @@ export const sessionKeys = {
 
 export function useActiveSessions() {
   const off = usePosOffline();
+  // Restaurant till: the shift stays the shift when the server drops out — the last answer is kept
+  // and used until the server can be asked again, so the till does not lock itself mid-service.
+  const restaurant = useRestaurantOffline();
+  const userId = useAuthStore(s => s.user?.id ?? "anon");
   return useQuery<POSSessionSummaryDto[]>({
-    queryKey:        off ? [...sessionKeys.active(), "offline"] : sessionKeys.active(),
+    queryKey:        off ? [...sessionKeys.active(), "offline"] : [...sessionKeys.active(), restaurant?.offline ? "restaurant-offline" : "live"],
     queryFn:         off
       ? async () => { const s = await off.engine.getOpenSession(); return s ? [off.engine.toSessionSummary(s)] : []; }
-      : sessionsApi.getActive,
+      : restaurant
+        ? () => rememberedSessions(userId, restaurant.offline, restaurant.markUnreachable)
+        : sessionsApi.getActive,
     staleTime:       0,          // always fetch fresh — session state is critical
     refetchInterval: off ? false : 30_000, // poll for multi-terminal awareness (live mode only)
   });
@@ -49,6 +75,7 @@ export function useOpenSession() {
       registerId: string;
       openingCash: number;
       notes?: string | null;
+      branchId?: string | null;
     }) => off
       ? off.engine.openSession(payload.registerId, payload.openingCash, payload.notes ?? null)
       : sessionsApi.open(payload),

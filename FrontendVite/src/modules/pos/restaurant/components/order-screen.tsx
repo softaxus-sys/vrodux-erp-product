@@ -18,12 +18,14 @@ import {
   useCancelOrder, useSetItemAvailability, useApplyOrderDiscount, useRemoveOrderDiscount,
   useRefundOrder, useSplitOrder, useHoldOrder, useRecallOrder, useCombos, useAddCombo,
   useFireNextCourse, useSendReceipt, useSetTableStatus, useTransferOrderTable, useSetOrderWaiter,
-  useDeliveryOrders, useDrivers, useAssignDriverToDelivery, useCreateDeliveryOrder, useDeliveryZones,
+  useDeliveryOrders, useDrivers, useAssignDriverToDelivery, useCreateDeliveryOrder, useDeliveryZones, useCurrentTax,
 } from "@/hooks/restaurant/use-restaurant";
 import { useRecipes } from "@/hooks/recipe/use-recipe";
 import { useUsers } from "@/hooks/identity/use-users";
 import { useCurrentBranch } from "@/hooks/restaurant/use-current-branch";
 import { useHardware } from "@/contexts/hardware-context";
+import { useRestaurantOffline } from "@/contexts/restaurant-offline-context";
+import { buildKitchenTicket } from "@/lib/restaurant/kitchen-ticket-escpos";
 import { buildEscPosReceipt } from "@/lib/pos/receipt-escpos";
 import { vouchersApi } from "@/lib/pos/vouchers.api";
 import { useAuthStore } from "@/store/auth.store";
@@ -35,6 +37,7 @@ import type {
 import { RestaurantPayDialog } from "./restaurant-pay-dialog";
 import { OrderReceiptModal } from "./order-receipt";
 import { OrderCustomer } from "./order-customer";
+import { PlatformOrderPanel } from "./platform-order-panel";
 import { useOrderStatusLabel } from "./order-status-label";
 import { DishPhoto, coverOf } from "./dish-photos";
 import { ReasonModal, RefundModal, SplitBillModal, ComboPickerModal, SendReceiptModal, PersonSheet } from "./order-dialogs";
@@ -414,6 +417,7 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
   const sessionId = useOptionalShift()?.sessionId;
   const { branchId } = useCurrentBranch();
   const { data: menu = [], isLoading: menuLoading } = useMenu();
+  useCurrentTax();   // keeps this branch's tax on the till for bills taken offline
   const { data: combos = [] } = useCombos(true);
   const { openDrawer, printRaw, printerStatus } = useHardware();
 
@@ -436,6 +440,7 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
   const addItems    = useAddItems();
   const voidItem    = useVoidItem();
   const sendKitchen = useSendToKitchen();
+  const offlineTill = useRestaurantOffline();
   const serveOrder  = useServeOrder();
   const cancelOrder = useCancelOrder();
   const setAvail    = useSetItemAvailability();
@@ -485,7 +490,8 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
   const saving = createOrder.isPending || addItems.isPending || sendKitchen.isPending || createDelivery.isPending || assignRider.isPending;
 
   const categoryIndex = React.useMemo(() => new Map(menu.map((c, i) => [c.id, i])), [menu]);
-  const allItems = React.useMemo(() => menu.flatMap(c => c.items.map(i => ({ ...i, categoryId: c.id }))), [menu]);
+  // Items this branch does not sell never reach the till.
+  const allItems = React.useMemo(() => menu.flatMap(c => c.items.filter(i => i.soldHere !== false).map(i => ({ ...i, categoryId: c.id }))), [menu]);
   const shownItems = React.useMemo(() => {
     const q = search.trim().toLowerCase();
     // Searching looks across the whole menu — nobody should need to know which category a dish is in.
@@ -525,8 +531,15 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
 
   /** Saves any new items, and optionally fires the order to the kitchen in the same tap. */
   const submit = async (send: boolean) => {
+    // Kept before the pending list is cleared: these are what the kitchen ticket lists.
+    const ticketLines = pending.map(p => ({
+      name: p.menuItem.name, quantity: p.quantity, note: p.note.trim() || null,
+      options: (p.menuItem.modifierGroups ?? []).flatMap(g => g.modifiers)
+        .filter(m => p.selectedModifierIds.includes(m.id)).map(m => m.name),
+    }));
     try {
       let id = order?.id;
+      let number = order?.orderNumber ?? "";
       let created: RestaurantOrder | null = null;
       if (pending.length) {
         if (!order) {
@@ -536,6 +549,7 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
             orderType: table ? "dine_in" : startingDelivery ? "delivery" : "takeaway", notes: null, items: lines(), sessionId, branchId,
           });
           id = created.id;
+          number = created.orderNumber;
           if (startingDelivery) {
             const leg = await createDelivery.mutateAsync({
               orderId: created.id, address: dlv.address.trim(), phone: dlv.phone.trim(), deliveryZoneId: dlv.zoneId || null,
@@ -548,7 +562,16 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
         }
         setPending([]);
       }
-      if (send && id) await sendKitchen.mutateAsync(id);
+      if (send && id) {
+        await sendKitchen.mutateAsync(id);
+        // Offline the kitchen screen never sees this order — print the kitchen its copy.
+        if (offlineTill?.offline && printerStatus === "ready" && ticketLines.length > 0) {
+          await printRaw(buildKitchenTicket({
+            orderNumber: number, table: table?.tableNumber ?? t("posView.screen.takeaway", { defaultValue: "Takeaway" }),
+            waiter, lines: ticketLines, offline: true,
+          })).catch(() => {});
+        }
+      }
       if (created) onOrderCreated?.(created);
       // A waiter's next move after firing a table is another table; a counter order is paid next.
       if (send && table) onBack();
@@ -562,12 +585,13 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
     if (printerStatus === "ready") {
       const esc = buildEscPosReceipt({
         companyName: tenant?.name ?? "Restaurant", txnNumber: paid.orderNumber, cashierName: paid.waiter,
-        currency, taxLabel: "VAT",
-        cart: paid.items.map(i => ({ productId: i.menuItemId, name: i.itemName, quantity: i.quantity, price: i.unitPrice, taxRate: 5, total: i.lineTotal })),
+        currency, taxLabel: paid.taxLabel && paid.taxLabel !== "Tax" ? paid.taxLabel : "Tax",
+        cart: paid.items.map(i => ({ productId: i.menuItemId, name: i.itemName, quantity: i.quantity, price: i.unitPrice, taxRate: paid.taxRate ?? 5, total: i.lineTotal })),
         subtotal: paid.subTotal, discountAmount: paid.discountAmount, taxAmount: paid.taxAmount, total: paid.total,
         paymentMethod: paid.payments.length > 1 ? "Split" : (paid.payments[0]?.method ?? "Cash"),
         payments: paid.payments.map(p => ({ method: p.method, amount: p.amount })),
         tendered: 0, openDrawer: cash,
+        serviceFee: paid.serviceFee, fbrStatus: paid.fbrStatus, fbrInvoiceNumber: paid.fbrInvoiceNumber,
       });
       await printRaw(esc).catch(() => {});
     }
@@ -909,6 +933,7 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
 
         {/* Totals + the next step */}
         <div className="p-4 border-t-2 border-border shrink-0 space-y-3">
+          {order?.externalSource && <PlatformOrderPanel order={order} />}
           {order && order.status !== "split" && (
             <div className="space-y-1">
               <div className="flex justify-between text-base font-semibold text-muted-foreground">
@@ -920,8 +945,13 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
                 </div>
               )}
               <div className="flex justify-between text-base font-semibold text-muted-foreground">
-                <span>{t("posView.drawer.vat")}</span><span className="tabular-nums text-foreground">{formatCurrency(order.taxAmount, currency)}</span>
+                <span>{order.taxLabel && order.taxLabel !== "Tax" ? order.taxLabel : t("posView.drawer.vat")}{order.taxRate != null && ` (${order.taxRate}%)`}</span><span className="tabular-nums text-foreground">{formatCurrency(order.taxAmount, currency)}</span>
               </div>
+              {(order.serviceFee ?? 0) > 0 && (
+                <div className="flex justify-between text-base font-semibold text-muted-foreground">
+                  <span>{t("platform.fbrFee")}</span><span className="tabular-nums text-foreground">{formatCurrency(order.serviceFee!, currency)}</span>
+                </div>
+              )}
               {order.amountPaid > 0 && order.status !== "paid" && (
                 <div className="flex justify-between text-base font-bold text-primary">
                   <span>{t("posView.drawer.paidSoFar")}</span><span className="tabular-nums">{formatCurrency(order.amountPaid, currency)}</span>
@@ -957,8 +987,8 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
             </div>
           )}
 
-          {/* One obvious next step */}
-          <div className="flex gap-2">
+          {/* One obvious next step — a platform order is answered and handed over from its own panel. */}
+          <div className={cn("flex gap-2", order?.externalSource && "hidden")}>
             {pending.length > 0 ? (
               <>
                 <button disabled={saving || !dlvReady} onClick={() => submit(false)} className={cn(bigBtn, "w-28 border-2 border-border text-base")}>

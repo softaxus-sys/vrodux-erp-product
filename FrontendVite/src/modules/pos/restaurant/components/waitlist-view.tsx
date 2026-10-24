@@ -11,6 +11,7 @@ import {
 } from "@/hooks/restaurant/use-restaurant";
 import type { WaitlistEntry, WaitlistStatus } from "@/lib/restaurant/restaurant.api";
 import { Can } from "@/components/auth/can";
+import { BranchSwitcher } from "./branch-switcher";
 
 /** Filter values are the API/enum values; labels come from i18n (waitlist.filters.*). */
 const STATUS_FILTERS: (WaitlistStatus | "all")[] = ["waiting", "seated", "no_show", "cancelled", "all"];
@@ -46,6 +47,7 @@ export function WaitlistView() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground flex items-center gap-2"><Clock className="w-5 h-5" /> {t("waitlist.title")}</h1>
+          <BranchSwitcher />
           <p className="text-sm text-muted-foreground">{t("waitlist.description")}</p>
         </div>
         <Can permission="restaurant.tables.create">

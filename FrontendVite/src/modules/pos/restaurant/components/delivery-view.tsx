@@ -1,3 +1,4 @@
+import { getTenantCurrency } from "@/hooks/use-currency";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { Can, useCan } from "@/components/auth/can";
 import { toast } from "sonner";
 import { useUsers } from "@/hooks/identity/use-users";
 import { RiderDeliveries } from "./rider-deliveries";
+import { BranchSwitcher } from "./branch-switcher";
 
 /** Ids double as translation keys (delivery.tabs.*). */
 const TABS = ["board", "zones", "drivers"] as const;
@@ -49,7 +51,10 @@ export function DeliveryView() {
   return (
     <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-foreground flex items-center gap-2"><Truck className="w-5 h-5" /> {t("delivery.title")}</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2"><Truck className="w-5 h-5" /> {t("delivery.title")}</h1>
+          <BranchSwitcher />
+        </div>
         <p className="text-sm text-muted-foreground">{t("delivery.description")}</p>
       </div>
 
@@ -78,7 +83,7 @@ function DeliveryBoardTab() {
   const { data: drivers = [] } = useDrivers(true);
   const assignDriver = useAssignDriverToDelivery();
   const changeStatus = useChangeDeliveryStatus();
-  const currency = useAuthStore(s => s.tenant?.currency) || "AED";
+  const currency = useAuthStore(s => s.tenant?.currency) || getTenantCurrency();
   const canEdit = useCan("restaurant.delivery.edit");
 
   return (
@@ -174,7 +179,7 @@ function ZonesTab() {
   const update = useUpdateDeliveryZone();
   const del = useDeleteDeliveryZone();
   const [editing, setEditing] = React.useState<DeliveryZone | "new" | null>(null);
-  const currency = useAuthStore(s => s.tenant?.currency) || "AED";
+  const currency = useAuthStore(s => s.tenant?.currency) || getTenantCurrency();
   const canEdit = useCan("restaurant.delivery.edit");
 
   return (

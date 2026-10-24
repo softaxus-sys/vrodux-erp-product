@@ -8,6 +8,7 @@ import {
 import { cn, formatCurrency, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useOptionalShift } from "@/modules/pos/retail/components/shift-gate";
+import { BranchSwitcher } from "./branch-switcher";
 import {
   useOwnerDashboard, useBranchDashboard, useKitchenDashboard, useCashierDashboard, useInventoryDashboard,
 } from "@/hooks/restaurant/use-restaurant-reports";
@@ -55,11 +56,14 @@ export function DashboardsView() {
 
   return (
     <div className="p-6 space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <LayoutDashboard className="w-5 h-5 text-primary" /> {t("dashboards.title")}
-        </h1>
-        <p className="text-sm text-muted-foreground">{t("dashboards.description")}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <LayoutDashboard className="w-5 h-5 text-primary" /> {t("dashboards.title")}
+          </h1>
+          <p className="text-sm text-muted-foreground">{t("dashboards.description")}</p>
+        </div>
+        <BranchSwitcher />
       </div>
 
       <div className="flex gap-2 border-b border-border pb-2 overflow-x-auto scrollbar-none">

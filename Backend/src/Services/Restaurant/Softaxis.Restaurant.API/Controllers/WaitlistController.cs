@@ -17,14 +17,14 @@ public sealed class WaitlistController(ISender sender) : RestaurantControllerBas
     /// <summary>GET /api/restaurant/waitlist/summary</summary>
     [HttpGet("summary")]
     [RequirePermission("restaurant.tables.view")]
-    public async Task<IActionResult> GetSummary(CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetWaitlistSummaryQuery(), ct));
+    public async Task<IActionResult> GetSummary([FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetWaitlistSummaryQuery(branchId), ct));
 
     /// <summary>GET /api/restaurant/waitlist?status=</summary>
     [HttpGet]
     [RequirePermission("restaurant.tables.view")]
-    public async Task<IActionResult> GetAll([FromQuery] string? status, CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetWaitlistQuery(status), ct));
+    public async Task<IActionResult> GetAll([FromQuery] string? status, [FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetWaitlistQuery(status, branchId), ct));
 
     /// <summary>POST /api/restaurant/waitlist</summary>
     [HttpPost]

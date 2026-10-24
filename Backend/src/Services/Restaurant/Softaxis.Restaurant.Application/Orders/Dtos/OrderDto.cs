@@ -91,7 +91,16 @@ public sealed record OrderDto(
     IReadOnlyList<OrderRefundDto> Refunds,
     Guid? ParentOrderId,
     IReadOnlyList<OrderSplitSummaryDto> Splits,
-    Guid? CustomerId);
+    Guid? CustomerId,
+    decimal TaxRate = 0,
+    string TaxLabel = "Tax",
+    decimal ServiceFee = 0,
+    string? FbrStatus = null,
+    string? FbrInvoiceNumber = null,
+    string? FbrError = null,
+    string? ExternalSource = null,
+    string? ExternalOrderCode = null,
+    string? ExternalStatus = null);
 
 public sealed record OrdersSummaryDto(
     int Total,
@@ -113,7 +122,10 @@ public sealed record OrderStatusDto(Guid Id, string Status);
 
 public sealed record OrderLineInput(
     Guid MenuItemId, int Quantity, string? Modifiers, IReadOnlyList<Guid>? SelectedModifierIds = null,
-    int? CourseNumber = null);
+    int? CourseNumber = null,
+    /// <summary>The price the till charged while offline. Only honoured on offline upload (the
+    /// controllers never map it), so a client cannot set its own price on a normal order.</summary>
+    decimal? OfflineUnitPrice = null);
 
 /// <summary>One bucket in a bill split — the existing OrderItem ids that should move onto this
 /// group's new child order. Every non-deleted item on the order must appear in exactly one group.</summary>

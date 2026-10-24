@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { getTenantCurrency } from "@/hooks/use-currency";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -190,7 +191,7 @@ export function BudgetingView() {
   const exportPdfReport = () => exportPdf({
     title: "Budget Overview",
     subtitle: `${budgets.length} of ${totalCount} budgets (page ${page})`,
-    columns: ["Name","Period","Status","Budgeted (AED)","Actual (AED)","Variance (AED)","Lines"],
+    columns: ["Name","Period","Status",`Budgeted (${getTenantCurrency()})`,`Actual (${getTenantCurrency()})`,`Variance (${getTenantCurrency()})`,"Lines"],
     rows: budgets.map(b => [b.name, b.period, b.status, b.totalBudgeted, b.totalActual, b.variance, b.lineCount]),
   });
   const { data: budgetingSummary } = useBudgetingSummary();

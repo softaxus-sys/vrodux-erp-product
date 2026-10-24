@@ -36,7 +36,9 @@ public sealed class RestaurantConfigurations :
     IEntityTypeConfiguration<DigitalReceiptLog>,
     IEntityTypeConfiguration<UserBranch>,
     IEntityTypeConfiguration<NotificationProviderConfig>,
-    IEntityTypeConfiguration<DeviceRegistration>
+    IEntityTypeConfiguration<DeviceRegistration>,
+    IEntityTypeConfiguration<MenuItemBranchSetting>,
+    IEntityTypeConfiguration<OfflineOp>
 {
     public void Configure(EntityTypeBuilder<Table> b)
     {
@@ -188,6 +190,7 @@ public sealed class RestaurantConfigurations :
         b.ToTable("Orders");
         b.HasKey(x => x.Id);
         b.Property(x => x.OrderNumber).HasMaxLength(50).IsRequired();
+        b.Property(x => x.ClientRef).HasMaxLength(64);
         b.Property(x => x.TableNumber).HasMaxLength(20).IsRequired();
         b.Property(x => x.Waiter).HasMaxLength(200).IsRequired();
         b.Property(x => x.Status).HasMaxLength(30).IsRequired();
@@ -201,6 +204,21 @@ public sealed class RestaurantConfigurations :
         b.Property(x => x.Notes).HasMaxLength(1000);
         b.Property(x => x.AmountPaid).HasPrecision(18, 2);
         b.Property(x => x.TipAmount).HasPrecision(18, 2);
+        // Existing rows get 5 (what they were charged) from the migration itself. No HasDefaultValue:
+        // EF would then store a deliberate 0% as 5%.
+        b.Property(x => x.TaxRate).HasPrecision(5, 2);
+        b.Property(x => x.TaxLabel).HasMaxLength(20).IsRequired().HasDefaultValue("Tax");
+        b.Property(x => x.ServiceFee).HasPrecision(18, 2);
+        b.Property(x => x.FbrStatus).HasMaxLength(20);
+        b.Property(x => x.FbrInvoiceNumber).HasMaxLength(100);
+        b.Property(x => x.FbrError).HasMaxLength(500);
+        b.Property(x => x.ExternalSource).HasMaxLength(30);
+        b.Property(x => x.ExternalOrderId).HasMaxLength(100);
+        b.Property(x => x.ExternalOrderCode).HasMaxLength(50);
+        b.Property(x => x.ExternalToken).HasMaxLength(200);
+        b.Property(x => x.ExternalStatus).HasMaxLength(20);
+        b.HasIndex(x => x.FbrStatus);
+        b.HasIndex(x => new { x.ExternalSource, x.ExternalOrderId });
         b.Property(x => x.RowVersion).IsRowVersion();
         b.HasIndex(x => x.BranchId);
         b.HasIndex(x => x.SessionId);
@@ -382,6 +400,25 @@ public sealed class RestaurantConfigurations :
         b.Property(x => x.Status).HasMaxLength(20).IsRequired();
         b.Property(x => x.ErrorMessage).HasMaxLength(500);
         b.HasIndex(x => x.OrderId);
+    }
+
+    public void Configure(EntityTypeBuilder<OfflineOp> b)
+    {
+        b.ToTable("OfflineOps");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.OpId).HasMaxLength(64).IsRequired();
+        b.Property(x => x.Kind).HasMaxLength(20).IsRequired();
+        b.Property(x => x.Status).HasMaxLength(20).IsRequired();
+        b.Property(x => x.Error).HasMaxLength(1000);
+    }
+
+    public void Configure(EntityTypeBuilder<MenuItemBranchSetting> b)
+    {
+        b.ToTable("MenuItemBranchSettings");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.PriceOverride).HasPrecision(18, 2);
+        b.HasIndex(x => x.BranchId);
+        b.HasIndex(x => new { x.MenuItemId, x.BranchId }).IsUnique();
     }
 
     public void Configure(EntityTypeBuilder<UserBranch> b)

@@ -85,6 +85,26 @@ public sealed class UserRepository(IdentityDbContext db) : IUserRepository
     public Task<int> CountByTenantAsync(Guid tenantId, CancellationToken ct = default) =>
         db.Users.CountAsync(u => u.TenantId == tenantId, ct);
 
+    // "Not activated": the address was never confirmed, or — for owners invited before invites
+    // required verification — the set-password link was never used and they never signed in.
+    public async Task<IReadOnlySet<Guid>> GetTenantIdsAwaitingActivationAsync(CancellationToken ct = default)
+    {
+        var ids = await db.Users
+            .Where(u => u.TenantId != null && !u.IsSuperAdmin)
+            .GroupBy(u => u.TenantId!.Value)
+            .Where(g => !g.Any(u => u.LastLoginAt != null)
+                     && g.Any(u => !u.EmailVerified || u.PasswordResetTokenHash != null))
+            .Select(g => g.Key)
+            .ToListAsync(ct);
+        return ids.ToHashSet();
+    }
+
+    public async Task<IReadOnlyList<User>> GetUnverifiedByTenantAsync(Guid tenantId, CancellationToken ct = default) =>
+        await db.Users
+            .Where(u => u.TenantId == tenantId && !u.IsSuperAdmin
+                     && (!u.EmailVerified || (u.LastLoginAt == null && u.PasswordResetTokenHash != null)))
+            .ToListAsync(ct);
+
     public Task<int> CountSeatsAsync(Guid tenantId, CancellationToken ct = default) =>
         db.Users.CountAsync(u => u.TenantId == tenantId
                               && !u.IsSuperAdmin

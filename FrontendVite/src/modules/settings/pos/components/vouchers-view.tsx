@@ -1,3 +1,4 @@
+import { getTenantCurrency } from "@/hooks/use-currency";
 import { parseApiDate } from "@/lib/utils";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
@@ -102,7 +103,7 @@ function VoucherDialog({ open, onClose, editing }: VoucherDialogProps) {
               <div className="flex rounded-lg border border-border overflow-hidden h-9">
                 <button type="button" onClick={() => setValueType(1)}
                   className={`flex-1 flex items-center justify-center gap-1 text-xs font-semibold transition-colors ${valueType === 1 ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground"}`}>
-                  <Percent className="w-3 h-3" /> %
+                  <Percent className="w-3 h-3" /> {t("vouchers.percentage", { defaultValue: "Percentage" })}
                 </button>
                 <button type="button" onClick={() => setValueType(2)}
                   className={`flex-1 flex items-center justify-center gap-1 text-xs font-semibold transition-colors ${valueType === 2 ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground"}`}>
@@ -322,7 +323,7 @@ export function VouchersView() {
   const deleteVoucher = useDeleteVoucher();
   const { tenant }  = useAuthStore();
   const companyName = tenant?.branding?.companyName ?? "Vrodux";
-  const currency    = tenant?.currency ?? "AED";
+  const currency    = tenant?.currency ?? getTenantCurrency();
 
   const [preview, setPreview]   = React.useState<VoucherDto | null>(null);
   const [printing, setPrinting] = React.useState(false);

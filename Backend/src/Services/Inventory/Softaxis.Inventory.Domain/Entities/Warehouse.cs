@@ -25,6 +25,10 @@ public sealed class Warehouse
     public string?  Phone         { get; private set; }
     public bool     IsActive      { get; private set; }
     public bool     IsDefault     { get; private set; }
+
+    /// <summary>The branch (Identity) this warehouse stocks; null = not tied to a branch. A restaurant
+    /// branch takes its recipe ingredients from its own warehouse.</summary>
+    public Guid?    BranchId      { get; private set; }
     public DateTime  CreatedAt    { get; private set; }
     public DateTime? UpdatedAt    { get; private set; }
     public bool      IsDeleted    { get; private set; }
@@ -43,5 +47,6 @@ public sealed class Warehouse
     }
 
     public void SetDefault() { IsDefault = true; UpdatedAt = DateTime.UtcNow; }
+    public void SetBranch(Guid? branchId) { BranchId = branchId; UpdatedAt = DateTime.UtcNow; }
     public void Delete()     { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 }

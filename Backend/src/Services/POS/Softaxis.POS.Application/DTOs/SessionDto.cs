@@ -15,7 +15,8 @@ public sealed record POSSessionDto(
     decimal  TotalSales,
     decimal  TotalRefunds,
     decimal  NetSales,
-    string?  Notes);
+    string?  Notes,
+    Guid?    BranchId = null);
 
 public sealed record POSSessionSummaryDto(
     Guid     Id,
@@ -23,4 +24,5 @@ public sealed record POSSessionSummaryDto(
     string   Status,
     DateTime OpenedAt,
     int      TotalTransactions,
-    decimal  NetSales);
+    decimal  NetSales,
+    Guid?    BranchId = null);

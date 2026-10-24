@@ -1280,6 +1280,10 @@ namespace Softaxis.Hospitality.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<string>("Details")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("EndDate")
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");

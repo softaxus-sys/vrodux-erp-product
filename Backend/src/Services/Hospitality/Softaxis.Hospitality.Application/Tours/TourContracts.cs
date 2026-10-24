@@ -35,7 +35,8 @@ public sealed record TourTravellerDto(Guid Id, string FullName, string Type, str
 
 public sealed record TourServiceDto(Guid Id, string Type, string SupplierName, string Description,
     string? ServiceDate, string? EndDate, string? ConfirmationNumber, decimal? Cost, decimal? SupplierPaid,
-    decimal? SupplierBalance, bool IsExtra, decimal SellPrice, string Status, string? Notes);
+    decimal? SupplierBalance, bool IsExtra, decimal SellPrice, string Status, string? Notes,
+    IReadOnlyDictionary<string, string> Details);
 
 /// <summary>Status: paid | partial | overdue | due (today) | upcoming.</summary>
 public sealed record TourInstalmentDto(Guid Id, string Label, string DueDate, decimal Amount, decimal Paid, string Status);
@@ -216,7 +217,8 @@ public sealed class SaveTourTravellersValidator : AbstractValidator<SaveTourTrav
 public sealed record UpsertTourServiceCommand(
     Guid BookingId, Guid? Id, string Type, string SupplierName, string Description,
     string? ServiceDate, string? EndDate, string? ConfirmationNumber,
-    decimal Cost, decimal SupplierPaid, bool IsExtra, decimal SellPrice, string Status, string? Notes) : ICommand<TourServiceDto>;
+    decimal Cost, decimal SupplierPaid, bool IsExtra, decimal SellPrice, string Status, string? Notes,
+    IReadOnlyDictionary<string, string>? Details = null) : ICommand<TourServiceDto>;
 
 public sealed class UpsertTourServiceValidator : AbstractValidator<UpsertTourServiceCommand>
 {

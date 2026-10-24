@@ -15,7 +15,7 @@ internal sealed class GetReservationsSummaryHandler(RestaurantDbContext db, IBra
     public async Task<Result<ReservationsSummaryDto>> Handle(GetReservationsSummaryQuery query, CancellationToken ct)
     {
         var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
-        var accessible = await branchAccess.GetAccessibleBranchIdsAsync(ct);
+        var accessible = await branchAccess.ResolveReadScopeAsync(query.BranchId, ct);
         var all = await BranchScope.Apply(db.Reservations.AsNoTracking().Where(x => !x.IsDeleted), accessible)
             .Select(x => new { x.Status, x.ReservationDate, x.Covers }).ToListAsync(ct);
 

@@ -1,3 +1,4 @@
+import { getTenantCurrency } from "@/hooks/use-currency";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
@@ -934,7 +935,7 @@ export function AccountingView() {
   const exportPdfReport = () => exportPdf({
     title: "Chart of Accounts",
     subtitle: `${accounts.length} accounts`,
-    columns: ["Account #","Name","Type","Balance (AED)","Active","Description"],
+    columns: ["Account #","Name","Type",`Balance (${getTenantCurrency()})`,"Active","Description"],
     rows: accounts.map(a => [a.accountNumber, a.name, a.accountType, a.balance, a.isActive ? "Yes" : "No", a.description ?? ""]),
   });
   const { data: accountingSummary } = useAccountingSummary();

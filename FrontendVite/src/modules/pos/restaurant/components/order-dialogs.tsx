@@ -317,7 +317,7 @@ export function NewDeliveryOrderModal({ currency, onClose }: { currency: string;
   const [zoneId, setZoneId] = React.useState("");
   const [cart, setCart] = React.useState<{ menuItemId: string; name: string; price: number; quantity: number }[]>([]);
 
-  const allItems = React.useMemo(() => menu.flatMap(c => c.items), [menu]);
+  const allItems = React.useMemo(() => menu.flatMap(c => c.items.filter(i => i.soldHere !== false)), [menu]);
   const addItem = (mi: MenuItem) => setCart(prev => {
     const ex = prev.find(l => l.menuItemId === mi.id);
     if (ex) return prev.map(l => l.menuItemId === mi.id ? { ...l, quantity: l.quantity + 1 } : l);

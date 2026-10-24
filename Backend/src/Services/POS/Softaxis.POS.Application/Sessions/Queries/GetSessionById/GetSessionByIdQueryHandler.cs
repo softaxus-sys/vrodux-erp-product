@@ -18,6 +18,6 @@ public sealed class GetSessionByIdQueryHandler(IPOSSessionRepository sessionRepo
             session.Id, session.CashierId, session.RegisterId, session.Status.ToString(),
             session.OpenedAt, session.ClosedAt, session.OpeningCash, session.ClosingCash,
             session.ExpectedCash, session.CashVariance, session.TotalTransactions,
-            session.TotalSales, session.TotalRefunds, session.NetSales, session.Notes));
+            session.TotalSales, session.TotalRefunds, session.NetSales, session.Notes, session.BranchId));
     }
 }

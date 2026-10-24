@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Trans, useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -16,6 +16,8 @@ import { PropertyFinderTab } from "./property-finder-tab";
 import { MetaConversionsTab } from "./meta-conversions-tab";
 import { useAssignableByTeam, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
 import { useAuthStore } from "@/store/auth.store";
+import { TaxSettingsView } from "@/modules/pos/restaurant/components/tax-settings-view";
+import { OrderingPlatformsSection } from "@/modules/settings/integrations/components/ordering-platforms-section";
 import {
   useProviderCatalog, useIntegration, useIntegrationSyncLogs, useIntegrationInbox,
   useCreateIntegration, useUpdateIntegrationConfig, useDisconnectIntegration,
@@ -81,8 +83,22 @@ export function IntegrationsView() {
   const navigate = useNavigate();
   const { hasRawPermission } = useAuthStore();
   const canEdit = hasRawPermission("settings.integrations.edit");
+  // Someone here only for the restaurant's ordering platforms never loads the CRM lead-source catalog.
+  const canSeeLeadSources = hasRawPermission("settings.integrations.view");
+  const { hasModuleAccess } = useAuthStore();
+  const hasRestaurant = hasModuleAccess("restaurant");
+  const canSeeTax = hasRestaurant && hasRawPermission("restaurant.tax.view");
+  const canSeePlatforms = hasRestaurant && hasRawPermission("restaurant.integrations.view");
+  const tabs = [
+    canSeeTax && { id: "tax", label: "Tax & compliance" },
+    canSeePlatforms && { id: "platforms", label: "Ordering platforms" },
+    canSeeLeadSources && { id: "leads", label: "Lead sources" },
+  ].filter(Boolean) as { id: string; label: string }[];
+  const [searchParams, setSearchParams] = useSearchParams();
+  const wanted = searchParams.get("tab");
+  const tab = tabs.find(x => x.id === wanted)?.id ?? tabs[0]?.id;
 
-  const { data: catalog = [], isLoading } = useProviderCatalog();
+  const { data: catalog = [], isLoading } = useProviderCatalog(canSeeLeadSources);
   const createIntegration = useCreateIntegration();
   const startOAuth = useStartMetaOAuth();
 
@@ -167,6 +183,23 @@ export function IntegrationsView() {
         </div>
       </div>
 
+      {tabs.length > 1 && (
+        <div className="flex gap-1 border-b border-border overflow-x-auto" role="tablist">
+          {tabs.map(x => (
+            <button key={x.id} role="tab" aria-selected={tab === x.id}
+              onClick={() => setSearchParams(p => { p.set("tab", x.id); return p; }, { replace: true })}
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
+                tab === x.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+              {x.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === "tax" && <TaxSettingsView />}
+      {tab === "platforms" && <OrderingPlatformsSection />}
+
+      {tab === "leads" && canSeeLeadSources && <>
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
@@ -213,6 +246,7 @@ export function IntegrationsView() {
           ))}
         </div>
       )}
+      </>}
 
       <AnimatePresence>
         {configureId && (

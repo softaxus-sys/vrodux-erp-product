@@ -23,12 +23,25 @@ internal sealed class GetMenuHandler(RestaurantDbContext db)
         static IReadOnlyList<ModifierGroupDto> GroupsFor(Dictionary<Guid, List<ModifierGroupDto>> map, Guid itemId) =>
             map.TryGetValue(itemId, out var g) ? g : [];
 
+        // Read for one branch: that branch's prices, and which items it does not sell.
+        var branchSettings = query.BranchId is Guid b
+            ? await db.MenuItemBranchSettings.AsNoTracking().Where(s => s.BranchId == b)
+                .ToDictionaryAsync(s => s.MenuItemId, ct)
+            : [];
+
         var dtos = cats.Select(c => new MenuCategoryDto(
             c.Id, c.Name, c.Description, c.SortOrder, c.IsActive,
-            c.Items.Where(i => !i.IsDeleted).Select(i => new MenuItemDto(
-                i.Id, i.CategoryId, i.Name, i.Description, i.Price,
-                i.PrepTimeMinutes, i.Allergens, i.IsAvailable, GroupsFor(groupsByItem, i.Id), i.KitchenStationId,
-                i.IsOnlineOrderable, imagesByItem.GetValueOrDefault(i.Id) ?? [])).ToList(),
+            c.Items.Where(i => !i.IsDeleted).Select(i =>
+            {
+                var s = branchSettings.GetValueOrDefault(i.Id);
+                var branchPrice = s?.PriceOverride;
+                return new MenuItemDto(
+                    i.Id, i.CategoryId, i.Name, i.Description, branchPrice ?? i.Price,
+                    i.PrepTimeMinutes, i.Allergens, i.IsAvailable, GroupsFor(groupsByItem, i.Id), i.KitchenStationId,
+                    i.IsOnlineOrderable, imagesByItem.GetValueOrDefault(i.Id) ?? [],
+                    BasePrice: branchPrice is null ? null : i.Price,
+                    SoldHere: s?.IsAvailable ?? true);
+            }).ToList(),
             c.KitchenStationId))
             .ToList();
 

@@ -223,7 +223,8 @@
     "confirmDeleteBody": "Voucher \"{{code}}\" will be permanently removed.",
     "printSent": "Voucher \"{{code}}\" sent to printer.",
     "printFailed": "Print failed.",
-    "printerUnreachable": "Could not reach the network printer."
+    "printerUnreachable": "Could not reach the network printer.",
+    "percentage": "Percentage"
   },
   "branches": {
     "title": "Branch Management",
@@ -1074,7 +1075,10 @@
       "leadgen.campaigns": "Campaigns",
       "leadgen.inbox": "Inbox",
       "leadgen.settings": "Targeting & sender settings",
-      "leadgen.reports": "Reports"
+      "leadgen.reports": "Reports",
+      "hospitality.tours": "Tour Packages",
+      "hospitality.tour-bookings": "Tour Bookings",
+      "hospitality.tour-costs": "Tour Costs & Margin"
     }
   },
   "roles": {
@@ -1328,5 +1332,57 @@
     "reseedYes": "Yes, re-send",
     "reseedClearing": "Clearing…",
     "cancel": "Cancel"
+  },
+  "branchServers": {
+    "title": "Branch Servers",
+    "description": "Branches that run their own server keep trading when the internet fails, and sync with head office in both directions. This page shows whether each one is connected and up to date.",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "loading": "Checking branch servers…",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "notCloud": "This server is not set up as the head-office server for branch servers, so there is nothing to show here.",
+    "empty": "No branch runs its own server yet. Switch one below once its server is installed.",
+    "cloudRun": "Branches using head office directly",
+    "cloudRunHint": "Their tills talk to this server. Switch a branch only after its own server is installed and connected.",
+    "useOwnServer": "Use its own server",
+    "backToCloud": "Move back to head office",
+    "toLocalTitle": "Run {{name}} on its own server?",
+    "toCloudTitle": "Move {{name}} back to head office?",
+    "toLocalBody": "From now on its bills are written only at the branch. Head office can see them but not change them, and QR / Foodpanda orders are passed to the branch. Do this after closing the day's shifts.",
+    "toCloudBody": "Its tills must be pointed back at head office. Make sure the branch server has finished uploading first, and close the day's shifts.",
+    "modeSaved": "Saved. Tills follow the new setting within a minute.",
+    "lastSeen": "Last heard from",
+    "lastUpload": "Last upload",
+    "lastDownload": "Last update from head office",
+    "version": "Version",
+    "clock": "Clock difference",
+    "waiting": "Waiting for the branch",
+    "rejected": "Online orders refused today",
+    "state": {
+      "ok": "Healthy",
+      "warning": "Needs attention",
+      "error": "Sync failing",
+      "offline": "Offline",
+      "never": "Never connected",
+      "notConfigured": "No key"
+    },
+    "keyInfo": "Key …{{hint}}, issued {{when}}",
+    "keyRotating": "old key still valid until the branch uses the new one",
+    "keyConfig": "Key set in server configuration",
+    "noKey": "No key issued",
+    "issueKey": "Issue key",
+    "rotateKey": "New key",
+    "revoke": "Revoke",
+    "revoked": "Revoked. The branch server stops syncing within a minute.",
+    "revokedButConfig": "Issued keys revoked. This branch also has a key in server configuration, which must be removed there.",
+    "copied": "Copied.",
+    "copyFailed": "Could not copy - select the text and copy it.",
+    "issuedTitle": "Connection code for {{name}}",
+    "issuedBody": "Paste this into the branch server's setup (choose \"Branch of a chain\"). It contains the head-office address and the branch key. It is shown only now - copy it before closing. If the branch already had a key, that key keeps working until the branch connects with this one, then stops.",
+    "issuedAddress": "Head-office address in this code: {{url}}. If branches reach head office at a different address, set BranchSync:PublicBaseUrl on this server and issue a new key.",
+    "done": "I've copied it",
+    "revokeTitle": "Revoke {{name}}'s keys?",
+    "revokeBody": "The branch server stops syncing straight away. It keeps trading, but nothing reaches head office until a new key is entered there. Use this for a lost, stolen or retired PC."
   }
 }
