@@ -48,7 +48,8 @@ public sealed class BranchKeyStore(string connectionString)
                 );
                 CREATE UNIQUE INDEX UX_sync_branch_keys_hash ON {Qualified}(KeyHash);
                 CREATE INDEX IX_sync_branch_keys_branch ON {Qualified}(BranchId);
-            END
+            END;
+            IF COL_LENGTH('{Qualified}', 'MachineId') IS NULL ALTER TABLE {Qualified} ADD MachineId NVARCHAR(100) NULL;
             """;
         await ExecAsync(sql, ct);
     }
@@ -70,19 +71,27 @@ public sealed class BranchKeyStore(string connectionString)
         return n;
     }
 
-    /// <summary>The credential for a branch id + presented key, or null. Uses the key, revoking older ones on first use.</summary>
-    public async Task<BranchCredential?> AuthenticateAsync(Guid branchId, string rawKey, CancellationToken ct)
+    /// <summary>
+    /// The credential for a branch id + presented key, or null. Uses the key, revoking older ones on first use.
+    /// <para>
+    /// A key works on <b>one PC only</b>: the first machine that uses it is recorded, and any other machine
+    /// presenting the same key is refused. A replacement PC needs a new key. A server that sends no machine id
+    /// (an older build) is accepted only while the key is still unbound.
+    /// </para>
+    /// </summary>
+    public async Task<BranchCredential?> AuthenticateAsync(Guid branchId, string rawKey, string? machineId, CancellationToken ct)
     {
         var hash = Hash(rawKey);
-        var cacheKey = branchId + ":" + hash;
+        machineId = string.IsNullOrWhiteSpace(machineId) ? null : machineId.Trim();
+        var cacheKey = branchId + ":" + hash + ":" + machineId;
         if (_cache.TryGetValue(cacheKey, out var hit) && DateTime.UtcNow - hit.At < CacheFor)
             return hit.Cred;
 
-        BranchCredential? cred = null; Guid keyId = Guid.Empty; DateTime createdAt = default; DateTime? lastUsed = null;
+        BranchCredential? cred = null; Guid keyId = Guid.Empty; DateTime createdAt = default; DateTime? lastUsed = null; string? boundTo = null;
         await using (var conn = await OpenAsync(ct))
         await using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = $"SELECT Id, TenantId, CreatedAt, LastUsedAt FROM {Qualified} WHERE KeyHash = @h AND BranchId = @b AND RevokedAt IS NULL";
+            cmd.CommandText = $"SELECT Id, TenantId, CreatedAt, LastUsedAt, MachineId FROM {Qualified} WHERE KeyHash = @h AND BranchId = @b AND RevokedAt IS NULL";
             cmd.Parameters.Add(P("@h", hash)); cmd.Parameters.Add(P("@b", branchId));
             await using var r = await cmd.ExecuteReaderAsync(ct);
             if (await r.ReadAsync(ct))
@@ -91,7 +100,22 @@ public sealed class BranchKeyStore(string connectionString)
                 cred = new BranchCredential { BranchId = branchId, TenantId = r.GetGuid(1), Key = rawKey };
                 createdAt = r.GetDateTime(2);
                 lastUsed = r.IsDBNull(3) ? null : r.GetDateTime(3);
+                boundTo = r.IsDBNull(4) ? null : r.GetString(4);
             }
+        }
+
+        if (cred is not null)
+        {
+            if (boundTo is null && machineId is not null)
+            {
+                // First use: claim the key for this PC. Conditional, so two PCs racing cannot both win.
+                var claimed = await ExecAsync($"UPDATE {Qualified} SET MachineId = @m WHERE Id = @i AND MachineId IS NULL", ct, P("@m", machineId), P("@i", keyId));
+                if (claimed == 0) boundTo = await ReadMachineAsync(keyId, ct);
+                else boundTo = machineId;
+            }
+            // Bound to a different PC, or bound while this caller identifies no machine: refuse.
+            if (boundTo is not null && !string.Equals(boundTo, machineId, StringComparison.Ordinal))
+                cred = null;
         }
 
         if (cred is not null)
@@ -111,6 +135,15 @@ public sealed class BranchKeyStore(string connectionString)
         }
         _cache[cacheKey] = (cred, keyId, DateTime.UtcNow);
         return cred;
+    }
+
+    private async Task<string?> ReadMachineAsync(Guid keyId, CancellationToken ct)
+    {
+        await using var conn = await OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"SELECT MachineId FROM {Qualified} WHERE Id = @i";
+        cmd.Parameters.Add(P("@i", keyId));
+        return await cmd.ExecuteScalarAsync(ct) as string;
     }
 
     public async Task<IReadOnlyList<BranchKeyInfo>> ListAsync(Guid? tenantId, bool activeOnly, CancellationToken ct)

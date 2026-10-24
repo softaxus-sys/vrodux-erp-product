@@ -121,6 +121,8 @@ public sealed class BranchSyncClient(HttpClient http, IOptions<BranchSyncOptions
         // Every call carries the branch's clock and version, so the cloud can spot drift and mismatches.
         req.Headers.Add("X-Branch-Clock", DateTime.UtcNow.ToString("O"));
         req.Headers.Add("X-Branch-Version", BranchSyncVersion.Current);
+        // Identifies this PC, so head office can refuse the same key on a second machine.
+        req.Headers.Add("X-Branch-Machine", BranchMachineId.Current);
         return req;
     }
 

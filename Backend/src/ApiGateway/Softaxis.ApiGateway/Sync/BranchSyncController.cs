@@ -162,7 +162,7 @@ public sealed class BranchSyncController(
             if (System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(a, b)) return cred;
         }
         // Issued keys are compared by their SHA-256 hash (stored, indexed), so timing reveals nothing about the key.
-        return await keys.AuthenticateAsync(branchId, key, ct);
+        return await keys.AuthenticateAsync(branchId, key, Request.Headers["X-Branch-Machine"].FirstOrDefault(), ct);
     }
 
     private async Task<IReadOnlyList<SyncTable>> TablesAsync(SyncOwner owner, CancellationToken ct)
