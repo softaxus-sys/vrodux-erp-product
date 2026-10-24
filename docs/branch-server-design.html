@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vrodux ERP — Branch Server Design</title>
+<style>
+  @page { size: A4; margin: 0; }
+  :root {
+    --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --soft:#f8fafc;
+    --blue:#2563eb; --blue-soft:#dbeafe; --green:#059669; --green-soft:#d1fae5;
+    --amber:#d97706; --amber-soft:#fef3c7; --red:#dc2626; --red-soft:#fee2e2; --slate:#334155;
+  }
+  * { box-sizing:border-box; }
+  html { font-size:10pt; }
+  body { margin:0; font-family:"Segoe UI",system-ui,sans-serif; color:var(--ink); line-height:1.5; }
+  .page { width:210mm; min-height:297mm; padding:18mm 16mm 20mm; page-break-after:always; position:relative; }
+  .page:last-child { page-break-after:auto; }
+
+  /* cover */
+  .cover { background:linear-gradient(160deg,#0b1220 0%,#14213d 55%,#1d4ed8 140%); color:#fff; padding:0; }
+  .cover .inner { padding:34mm 20mm 20mm; }
+  .cover .tag { display:inline-block; font-size:9pt; letter-spacing:.14em; text-transform:uppercase;
+                border:1px solid rgba(255,255,255,.35); padding:3px 10px; border-radius:99px; color:#bfdbfe; }
+  .cover h1 { font-size:34pt; line-height:1.1; margin:14mm 0 4mm; letter-spacing:-.01em; }
+  .cover p.lead { font-size:13pt; color:#cbd5e1; max-width:140mm; }
+  .cover .meta { position:absolute; left:20mm; bottom:20mm; right:20mm; display:flex; gap:10mm; color:#94a3b8; font-size:9pt; }
+  .cover .meta b { color:#e2e8f0; display:block; font-size:10pt; }
+  .cover svg { position:absolute; right:0; top:120mm; opacity:.9; }
+
+  h2 { font-size:19pt; margin:0 0 2mm; letter-spacing:-.01em; }
+  h2 .n { color:var(--blue); margin-right:6px; }
+  h3 { font-size:12pt; margin:6mm 0 2mm; }
+  .sub { color:var(--muted); margin:0 0 5mm; font-size:10.5pt; }
+  .rule { height:3px; width:36px; background:var(--blue); border-radius:2px; margin:0 0 5mm; }
+  p { margin:0 0 3mm; }
+  ul { margin:0 0 3mm; padding-left:5mm; } li { margin-bottom:1.2mm; }
+
+  .callout { border-radius:8px; padding:3.5mm 4.5mm; margin:4mm 0; font-size:10pt; }
+  .callout.blue { background:var(--blue-soft); border-left:4px solid var(--blue); }
+  .callout.green { background:var(--green-soft); border-left:4px solid var(--green); }
+  .callout.amber { background:var(--amber-soft); border-left:4px solid var(--amber); }
+  .callout.red { background:var(--red-soft); border-left:4px solid var(--red); }
+  .callout b.t { display:block; margin-bottom:1mm; }
+
+  table { width:100%; border-collapse:collapse; font-size:9.3pt; margin:3mm 0 4mm; }
+  th { text-align:left; background:var(--ink); color:#fff; padding:2mm 3mm; font-weight:600; }
+  td { padding:2mm 3mm; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:nth-child(even) td { background:var(--soft); }
+  td.y { color:var(--green); font-weight:700; } td.n { color:var(--red); font-weight:700; } td.p { color:var(--amber); font-weight:700; }
+  .pill { display:inline-block; font-size:8pt; font-weight:700; padding:1px 8px; border-radius:99px; }
+  .pill.g { background:var(--green-soft); color:#065f46; } .pill.b { background:var(--blue-soft); color:#1e40af; }
+  .pill.a { background:var(--amber-soft); color:#92400e; } .pill.r { background:var(--red-soft); color:#991b1b; }
+
+  .fig { margin:3mm 0 5mm; border:1px solid var(--line); border-radius:10px; padding:3mm; background:#fff; }
+  .fig svg { width:100%; height:auto; display:block; }
+  .cap { font-size:8.8pt; color:var(--muted); margin-top:1.5mm; text-align:center; }
+
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:5mm; }
+  .card { border:1px solid var(--line); border-radius:10px; padding:4mm; background:#fff; }
+  .card h4 { margin:0 0 2mm; font-size:11pt; }
+  .card.g { border-top:4px solid var(--green); } .card.b { border-top:4px solid var(--blue); }
+  .card.a { border-top:4px solid var(--amber); }
+
+  .footer { position:absolute; left:16mm; right:16mm; bottom:8mm; font-size:8pt; color:var(--muted);
+            display:flex; justify-content:space-between; border-top:1px solid var(--line); padding-top:2mm; }
+  .cover .footer { display:none; }
+  .num { counter-reset:d; } .num li { list-style:none; position:relative; padding-left:8mm; margin-bottom:2.5mm; }
+  .num li::before { counter-increment:d; content:counter(d); position:absolute; left:0; top:0; width:5.5mm; height:5.5mm;
+                    border-radius:50%; background:var(--blue); color:#fff; font-size:8pt; font-weight:700;
+                    text-align:center; line-height:5.5mm; }
+  .compact table{font-size:8.6pt;margin:2mm 0 3mm} .compact td{padding:1.3mm 3mm} .compact .callout{margin:3mm 0;font-size:9.3pt;padding:3mm 4mm}
+  .compact li{margin-bottom:.6mm} .compact h3{margin:4mm 0 1.5mm} .compact p{margin-bottom:2mm} .compact .card{padding:3mm}
+</style>
+</head>
+<body>
+
+<!-- ───────────────────────── COVER ───────────────────────── -->
+<section class="page cover">
+  <div class="inner">
+    <span class="tag">Design proposal · Not yet built</span>
+    <h1>Branch Server<br>Branches that never stop trading</h1>
+    <p class="lead">A design for a multi-branch restaurant chain that reports to erp.vrodux.com and keeps every branch fully working when the internet goes down.</p>
+  </div>
+  <svg width="420" height="260" viewBox="0 0 420 260" fill="none">
+    <circle cx="300" cy="60" r="150" fill="#ffffff" opacity=".04"/>
+    <circle cx="360" cy="190" r="110" fill="#ffffff" opacity=".05"/>
+    <rect x="150" y="30" width="170" height="54" rx="12" fill="#1e40af" stroke="#93c5fd"/>
+    <text x="235" y="62" fill="#fff" font-size="15" text-anchor="middle" font-family="Segoe UI">erp.vrodux.com</text>
+    <g stroke="#93c5fd" stroke-width="2"><path d="M190 84 V150"/><path d="M280 84 V150"/><path d="M235 84 V150" stroke-dasharray="5 5" stroke="#f87171"/></g>
+    <rect x="140" y="150" width="100" height="50" rx="10" fill="#065f46" stroke="#6ee7b7"/><text x="190" y="180" fill="#fff" font-size="13" text-anchor="middle" font-family="Segoe UI">Branch A</text>
+    <rect x="250" y="150" width="100" height="50" rx="10" fill="#065f46" stroke="#6ee7b7"/><text x="300" y="180" fill="#fff" font-size="13" text-anchor="middle" font-family="Segoe UI">Branch B</text>
+  </svg>
+  <div class="meta">
+    <div><b>Vrodux ERP</b>Restaurant · POS</div>
+    <div><b>Scope</b>Restaurant + POS branches</div>
+    <div><b>Estimate</b>15–21 weeks</div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 1 SUMMARY ───────────────────────── -->
+<section class="page compact">
+  <h2><span class="n">1</span>The goal in one page</h2><div class="rule"></div>
+  <p class="sub">Every branch talks to erp.vrodux.com. When a branch's internet fails, the branch keeps operating, and catches up with head office afterwards.</p>
+
+  <div class="callout blue"><b class="t">The idea</b>
+    Each branch runs a small <b>branch server</b> — the same Vrodux server software we already ship for on-premises customers — on a PC in the branch. Every till, tablet, kitchen screen and printer in that branch uses it over the local network. It syncs with the cloud in both directions, but <b>every kind of data has exactly one owner</b>, so there is nothing to merge.</div>
+
+  <div class="cols">
+    <div class="card g"><h4>Branch owns → flows UP</h4>
+      <ul><li>Orders, items, payments</li><li>Shifts and cash drawers</li><li>Kitchen tickets, voids, refunds</li><li>Stock movements for its warehouse</li><li>FBR invoice status</li></ul></div>
+    <div class="card b"><h4>Head office owns → flows DOWN</h4>
+      <ul><li>Menu, prices, modifiers</li><li>Tax settings, branches, tables</li><li>Users, roles, permissions</li><li>Loyalty rules, payment methods</li><li>The licence</li></ul></div>
+  </div>
+
+  <h3>Three ways to run a branch</h3>
+  <table>
+    <tr><th></th><th>Today: per-till offline</th><th>Standard: branch hub</th><th>Recommended: branch server</th></tr>
+    <tr><td><b>How it works</b></td><td>Each till queues its own actions in the browser</td><td>One local server per branch, synced to the cloud</td><td>Same idea, using our own server software</td></tr>
+    <tr><td><b>Several tills share open bills offline</b></td><td class="n">No</td><td class="y">Yes</td><td class="y">Yes</td></tr>
+    <tr><td><b>Kitchen screen works offline</b></td><td class="n">No (prints ticket from till)</td><td class="y">Yes</td><td class="y">Yes</td></tr>
+    <tr><td><b>Needs hardware in the branch</b></td><td class="y">None</td><td class="p">PC / hub</td><td class="p">PC + UPS</td></tr>
+    <tr><td><b>Status</b></td><td><span class="pill g">Built</span></td><td>Industry norm</td><td><span class="pill a">To build</span></td></tr>
+    <tr><td><b>Effort</b></td><td>—</td><td>—</td><td>15–21 weeks</td></tr>
+  </table>
+
+  <div class="callout green"><b class="t">Cheaper first step (2–3 weeks)</b>
+    Keep today's per-till offline mode, add head-office monitoring of "last synced" per till, and give each branch a 4G backup link and a UPS. Enough for branches with one till.</div>
+  <div class="footer"><span>Vrodux ERP — Branch Server Design</span><span>Page 2</span></div>
+</section>
+
+<!-- ───────────────────────── 2 TOPOLOGY ───────────────────────── -->
+<section class="page">
+  <h2><span class="n">2</span>How it is put together</h2><div class="rule"></div>
+  <p class="sub">The branch initiates every connection to the cloud, so no inbound firewall rules and no public address are needed at the branch.</p>
+
+  <div class="fig">
+  <svg viewBox="0 0 760 440" font-family="Segoe UI, sans-serif">
+    <defs>
+      <marker id="ab" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8z" fill="#2563eb"/></marker>
+      <marker id="ag" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8z" fill="#059669"/></marker>
+      <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8z" fill="#dc2626"/></marker>
+    </defs>
+    <!-- cloud -->
+    <rect x="60" y="10" width="640" height="96" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+    <text x="380" y="40" text-anchor="middle" font-size="17" font-weight="700" fill="#1e3a8a">erp.vrodux.com — Head office (cloud)</text>
+    <text x="380" y="62" text-anchor="middle" font-size="11.5" fill="#1e40af">Menu · prices · users · tax · reports · all branches in one place</text>
+    <text x="380" y="82" text-anchor="middle" font-size="11.5" fill="#1e40af">Foodpanda &amp; QR-ordering receiver · monitoring · cloud write-guard</text>
+    <!-- links -->
+    <g stroke-width="2.2" fill="none">
+      <path d="M127 214 V108" stroke="#059669" marker-end="url(#ag)"/><path d="M143 108 V212" stroke="#2563eb" marker-end="url(#ab)"/>
+      <path d="M372 214 V108" stroke="#059669" marker-end="url(#ag)"/><path d="M388 108 V212" stroke="#2563eb" marker-end="url(#ab)"/>
+      <path d="M617 214 V150" stroke="#dc2626" stroke-dasharray="6 5"/><path d="M633 150 V214" stroke="#dc2626" stroke-dasharray="6 5"/>
+    </g>
+    <circle cx="625" cy="150" r="14" fill="#fee2e2" stroke="#dc2626"/><text x="625" y="155" text-anchor="middle" font-size="15" font-weight="700" fill="#dc2626">✕</text>
+    <text x="625" y="130" text-anchor="middle" font-size="10.5" fill="#991b1b">internet down</text>
+    <text x="123" y="170" text-anchor="end" font-size="10.5" fill="#047857" font-weight="600">UP</text>
+    <text x="148" y="170" font-size="10.5" fill="#1d4ed8" font-weight="600">DOWN</text>
+    <text x="368" y="170" text-anchor="end" font-size="10.5" fill="#047857" font-weight="600">UP</text>
+    <text x="393" y="170" font-size="10.5" fill="#1d4ed8" font-weight="600">DOWN</text>
+
+    <!-- branches -->
+    <g>
+      <rect x="20" y="216" width="230" height="210" rx="12" fill="#f8fafc" stroke="#cbd5e1"/>
+      <text x="135" y="240" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">Branch A <tspan font-weight="400" fill="#64748b">· Local mode</tspan></text>
+      <rect x="45" y="256" width="180" height="56" rx="10" fill="#059669"/>
+      <text x="135" y="280" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">Branch server</text>
+      <text x="135" y="298" text-anchor="middle" font-size="10" fill="#d1fae5">own database · sync agent</text>
+      <path d="M135 312 V338" stroke="#64748b" stroke-width="1.6"/>
+      <g font-size="10.5" text-anchor="middle" fill="#0f172a">
+        <rect x="32" y="338" width="62" height="40" rx="8" fill="#fff" stroke="#94a3b8"/><text x="63" y="362">Till 1</text>
+        <rect x="104" y="338" width="62" height="40" rx="8" fill="#fff" stroke="#94a3b8"/><text x="135" y="362">Till 2</text>
+        <rect x="176" y="338" width="62" height="40" rx="8" fill="#fff" stroke="#94a3b8"/><text x="207" y="362">Kitchen</text>
+        <rect x="68" y="384" width="62" height="32" rx="8" fill="#fff" stroke="#94a3b8"/><text x="99" y="404">Printer</text>
+        <rect x="140" y="384" width="62" height="32" rx="8" fill="#fff" stroke="#94a3b8"/><text x="171" y="404">Tablet</text>
+      </g>
+    </g>
+    <g>
+      <rect x="265" y="216" width="230" height="210" rx="12" fill="#f8fafc" stroke="#cbd5e1"/>
+      <text x="380" y="240" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">Branch B <tspan font-weight="400" fill="#64748b">· Local mode</tspan></text>
+      <rect x="290" y="256" width="180" height="56" rx="10" fill="#059669"/>
+      <text x="380" y="280" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">Branch server</text>
+      <text x="380" y="298" text-anchor="middle" font-size="10" fill="#d1fae5">own database · sync agent</text>
+      <path d="M380 312 V338" stroke="#64748b" stroke-width="1.6"/>
+      <g font-size="10.5" text-anchor="middle" fill="#0f172a">
+        <rect x="277" y="338" width="62" height="40" rx="8" fill="#fff" stroke="#94a3b8"/><text x="308" y="362">Till 1</text>
+        <rect x="349" y="338" width="62" height="40" rx="8" fill="#fff" stroke="#94a3b8"/><text x="380" y="362">Till 2</text>
+        <rect x="421" y="338" width="62" height="40" rx="8" fill="#fff" stroke="#94a3b8"/><text x="452" y="362">Kitchen</text>
+        <rect x="313" y="384" width="62" height="32" rx="8" fill="#fff" stroke="#94a3b8"/><text x="344" y="404">Printer</text>
+        <rect x="385" y="384" width="62" height="32" rx="8" fill="#fff" stroke="#94a3b8"/><text x="416" y="404">Tablet</text>
+      </g>
+    </g>
+    <g>
+      <rect x="510" y="216" width="230" height="210" rx="12" fill="#fff7ed" stroke="#fdba74"/>
+      <text x="625" y="240" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">Branch C <tspan font-weight="400" fill="#b45309">· offline right now</tspan></text>
+      <rect x="535" y="256" width="180" height="56" rx="10" fill="#059669"/>
+      <text x="625" y="280" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">Branch server</text>
+      <text x="625" y="298" text-anchor="middle" font-size="10" fill="#d1fae5">still trading · changes queued</text>
+      <path d="M625 312 V338" stroke="#64748b" stroke-width="1.6"/>
+      <g font-size="10.5" text-anchor="middle" fill="#0f172a">
+        <rect x="522" y="338" width="62" height="40" rx="8" fill="#fff" stroke="#94a3b8"/><text x="553" y="362">Till 1</text>
+        <rect x="594" y="338" width="62" height="40" rx="8" fill="#fff" stroke="#94a3b8"/><text x="625" y="362">Till 2</text>
+        <rect x="666" y="338" width="62" height="40" rx="8" fill="#fff" stroke="#94a3b8"/><text x="697" y="362">Kitchen</text>
+        <rect x="558" y="384" width="62" height="32" rx="8" fill="#fff" stroke="#94a3b8"/><text x="589" y="404">Printer</text>
+        <rect x="630" y="384" width="62" height="32" rx="8" fill="#fff" stroke="#94a3b8"/><text x="661" y="404">Tablet</text>
+      </g>
+    </g>
+  </svg>
+  <div class="cap">Branches A and B are connected; Branch C lost its internet and carries on locally. All devices in a branch use only that branch's server.</div>
+  </div>
+
+  <div class="cols">
+    <div class="card"><h4>Branch modes</h4>
+      <p><span class="pill g">Local</span> Devices use the branch server. The cloud holds a synced copy and refuses direct operational writes for that branch.</p>
+      <p><span class="pill b">Cloud</span> Devices talk to erp.vrodux.com, as today, with the per-till offline queue as a fallback.</p>
+      <p>A chain can mix modes, so branches move over one at a time.</p></div>
+    <div class="card a"><h4>Why one writer matters</h4>
+      <p>If both head office and a branch could edit the same bill, every shared record becomes a conflict to resolve. By making the cloud refuse operational edits for a Local branch, the branch stays the only writer. Head office can still read everything and send <b>instructions</b> (for example "void this order") that the branch applies itself.</p></div>
+  </div>
+  <div class="footer"><span>Vrodux ERP — Branch Server Design</span><span>Page 3</span></div>
+</section>
+
+<!-- ───────────────────────── 3 OUTAGE FLOW ───────────────────────── -->
+<section class="page">
+  <h2><span class="n">3</span>What happens during an outage</h2><div class="rule"></div>
+  <p class="sub">Staff see no difference. Only the catch-up with head office is delayed.</p>
+
+  <div class="fig">
+  <svg viewBox="0 0 760 520" font-family="Segoe UI, sans-serif">
+    <defs>
+      <marker id="b1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8z" fill="#334155"/></marker>
+      <marker id="b2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8z" fill="#059669"/></marker>
+      <marker id="b3" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8z" fill="#2563eb"/></marker>
+    </defs>
+
+    <!-- Phase 1 -->
+    <rect x="8" y="8" width="744" height="152" rx="12" fill="#f0fdf4" stroke="#86efac"/>
+    <circle cx="32" cy="34" r="13" fill="#059669"/><text x="32" y="39" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">1</text>
+    <text x="54" y="39" font-size="14" font-weight="700" fill="#065f46">Normal day — everything connected</text>
+    <g font-size="11.5" text-anchor="middle">
+      <rect x="30" y="64" width="120" height="64" rx="10" fill="#fff" stroke="#94a3b8"/><text x="90" y="92" font-weight="700">Till / kitchen</text><text x="90" y="110" fill="#64748b">take orders, pay</text>
+      <rect x="250" y="64" width="150" height="64" rx="10" fill="#059669"/><text x="325" y="92" font-weight="700" fill="#fff">Branch server</text><text x="325" y="110" fill="#d1fae5">saves instantly</text>
+      <rect x="560" y="64" width="170" height="64" rx="10" fill="#2563eb"/><text x="645" y="92" font-weight="700" fill="#fff">erp.vrodux.com</text><text x="645" y="110" fill="#dbeafe">reports · config</text>
+    </g>
+    <path d="M150 96 H248" stroke="#334155" stroke-width="2" marker-end="url(#b1)"/>
+    <path d="M400 84 H556" stroke="#059669" stroke-width="2.2" marker-end="url(#b2)"/>
+    <path d="M556 112 H404" stroke="#2563eb" stroke-width="2.2" marker-end="url(#b3)"/>
+    <text x="478" y="76" text-anchor="middle" font-size="10.5" fill="#047857">UP: orders, shifts (seconds)</text>
+    <text x="478" y="128" text-anchor="middle" font-size="10.5" fill="#1d4ed8">DOWN: menu, prices, users</text>
+
+    <!-- Phase 2 -->
+    <rect x="8" y="176" width="744" height="164" rx="12" fill="#fff7ed" stroke="#fdba74"/>
+    <circle cx="32" cy="202" r="13" fill="#d97706"/><text x="32" y="207" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">2</text>
+    <text x="54" y="207" font-size="14" font-weight="700" fill="#92400e">Internet goes down — branch carries on</text>
+    <g font-size="11.5" text-anchor="middle">
+      <rect x="30" y="232" width="120" height="64" rx="10" fill="#fff" stroke="#94a3b8"/><text x="90" y="260" font-weight="700">Till / kitchen</text><text x="90" y="278" fill="#64748b">nothing changes</text>
+      <rect x="250" y="232" width="150" height="64" rx="10" fill="#059669"/><text x="325" y="260" font-weight="700" fill="#fff">Branch server</text><text x="325" y="278" fill="#d1fae5">keeps working</text>
+      <rect x="560" y="232" width="170" height="64" rx="10" fill="#e2e8f0" stroke="#94a3b8"/><text x="645" y="260" font-weight="700" fill="#64748b">erp.vrodux.com</text><text x="645" y="278" fill="#94a3b8">unreachable</text>
+    </g>
+    <path d="M150 264 H248" stroke="#334155" stroke-width="2" marker-end="url(#b1)"/>
+    <path d="M404 264 H556" stroke="#dc2626" stroke-width="2.2" stroke-dasharray="6 5"/>
+    <circle cx="480" cy="264" r="13" fill="#fee2e2" stroke="#dc2626"/><text x="480" y="269" text-anchor="middle" font-size="14" font-weight="700" fill="#dc2626">✕</text>
+    <rect x="262" y="306" width="126" height="24" rx="12" fill="#fef3c7" stroke="#d97706"/>
+    <text x="325" y="322" text-anchor="middle" font-size="10.5" fill="#92400e" font-weight="600">changes queue up safely</text>
+    <text x="645" y="322" text-anchor="middle" font-size="10.5" fill="#92400e">no Foodpanda / QR orders</text>
+
+    <!-- Phase 3 -->
+    <rect x="8" y="356" width="744" height="156" rx="12" fill="#eff6ff" stroke="#93c5fd"/>
+    <circle cx="32" cy="382" r="13" fill="#2563eb"/><text x="32" y="387" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">3</text>
+    <text x="54" y="387" font-size="14" font-weight="700" fill="#1e3a8a">Internet returns — automatic catch-up</text>
+    <g font-size="11.5" text-anchor="middle">
+      <rect x="250" y="412" width="150" height="64" rx="10" fill="#059669"/><text x="325" y="440" font-weight="700" fill="#fff">Branch server</text><text x="325" y="458" fill="#d1fae5">resumes from checkpoint</text>
+      <rect x="560" y="412" width="170" height="64" rx="10" fill="#2563eb"/><text x="645" y="440" font-weight="700" fill="#fff">erp.vrodux.com</text><text x="645" y="458" fill="#dbeafe">applies, ignores repeats</text>
+    </g>
+    <path d="M400 430 H556" stroke="#059669" stroke-width="2.2" marker-end="url(#b2)"/>
+    <path d="M556 458 H404" stroke="#2563eb" stroke-width="2.2" marker-end="url(#b3)"/>
+    <text x="478" y="422" text-anchor="middle" font-size="10.5" fill="#047857">queued orders uploaded in order</text>
+    <text x="478" y="475" text-anchor="middle" font-size="10.5" fill="#1d4ed8">price / menu changes arrive</text>
+    <g font-size="11" fill="#1e3a8a">
+      <text x="30" y="424">• Replaying a message</text><text x="38" y="440">twice changes nothing</text>
+      <text x="30" y="462">• Prices rung up earlier</text><text x="38" y="478">keep their old price</text>
+    </g>
+  </svg>
+  <div class="cap">The three states of a branch. The sign-in, tills and kitchen screens depend only on the branch server.</div>
+  </div>
+
+  <div class="callout amber"><b class="t">What is refused while offline</b>
+    Wallet, house-account and loyalty payments (they need the live shared balance). Foodpanda and QR-ordering orders cannot arrive, because the internet cannot reach the branch. FBR invoices are queued and sent by the branch server as soon as the link returns.</div>
+  <div class="footer"><span>Vrodux ERP — Branch Server Design</span><span>Page 4</span></div>
+</section>
+
+<!-- ───────────────────────── 4 OWNERSHIP ───────────────────────── -->
+<section class="page">
+  <h2><span class="n">4</span>Who owns what</h2><div class="rule"></div>
+  <p class="sub">Because each row has one owner, no merging is needed. Only a few shared items need an explicit rule.</p>
+
+  <div class="fig">
+  <svg viewBox="0 0 760 250" font-family="Segoe UI, sans-serif">
+    <defs>
+      <marker id="c1" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9z" fill="#059669"/></marker>
+      <marker id="c2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9z" fill="#2563eb"/></marker>
+    </defs>
+    <rect x="10" y="10" width="270" height="230" rx="12" fill="#ecfdf5" stroke="#059669"/>
+    <text x="145" y="38" text-anchor="middle" font-size="14" font-weight="700" fill="#065f46">BRANCH SERVER</text>
+    <g font-size="11.5" fill="#064e3b"><text x="30" y="68">• Orders, items, modifiers</text><text x="30" y="90">• Payments, tips, splits</text><text x="30" y="112">• Shifts &amp; cash drawer</text><text x="30" y="134">• Voids, refunds, discounts</text><text x="30" y="156">• Kitchen tickets</text><text x="30" y="178">• Branch warehouse stock</text><text x="30" y="200">• FBR invoice status</text></g>
+    <rect x="480" y="10" width="270" height="230" rx="12" fill="#eff6ff" stroke="#2563eb"/>
+    <text x="615" y="38" text-anchor="middle" font-size="14" font-weight="700" fill="#1e3a8a">HEAD OFFICE (CLOUD)</text>
+    <g font-size="11.5" fill="#1e3a8a"><text x="500" y="68">• Menu, categories, prices</text><text x="500" y="90">• Branch price overrides</text><text x="500" y="112">• Tax &amp; FBR account</text><text x="500" y="134">• Tables, floors, branches</text><text x="500" y="156">• Users, roles, permissions</text><text x="500" y="178">• Loyalty rules, payment methods</text><text x="500" y="200">• Licence</text></g>
+    <path d="M286 100 H474" stroke="#059669" stroke-width="3" marker-end="url(#c1)"/>
+    <text x="380" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#047857">UP</text>
+    <text x="380" y="120" text-anchor="middle" font-size="10" fill="#475569">continuous, replay-safe</text>
+    <path d="M474 172 H286" stroke="#2563eb" stroke-width="3" marker-end="url(#c2)"/>
+    <text x="380" y="162" text-anchor="middle" font-size="12" font-weight="700" fill="#1d4ed8">DOWN</text>
+    <text x="380" y="192" text-anchor="middle" font-size="10" fill="#475569">pulled by the branch</text>
+  </svg></div>
+
+  <h3>The awkward ones — proposed rules</h3>
+  <table>
+    <tr><th>Data</th><th>Why it is awkward</th><th>Proposed rule</th></tr>
+    <tr><td><b>Customers</b></td><td>Created at any branch, edited at head office</td><td>Cloud-owned. A branch creates a <i>pending</i> customer; the cloud confirms and sends the final record down</td></tr>
+    <tr><td><b>Wallet &amp; loyalty balances</b></td><td>One balance, spent at any branch</td><td>Cloud-owned, <b>online only</b>. Refused at an offline branch</td></tr>
+    <tr><td><b>House-account credit</b></td><td>Shared limit and balance</td><td>Same as wallet</td></tr>
+    <tr><td><b>Shared stock</b></td><td>Branch stock vs central purchasing</td><td>Branch warehouse stock is branch-owned; purchases and transfers arrive down as documents</td></tr>
+    <tr><td><b>Table layout vs table status</b></td><td>Edited at head office, used live in the branch</td><td>Layout flows down; live status belongs to the branch</td></tr>
+  </table>
+
+  <h3>Numbers that must never clash</h3>
+  <ul>
+    <li><b>Row ids</b> are GUIDs, so branches can never create the same id.</li>
+    <li><b>Order and receipt numbers</b> get a branch-code prefix and a per-day counter held on the branch server, for example <code>HB2-20261024-0042</code>. No coordination needed.</li>
+    <li>Each branch has its own <b>time zone and business date</b>; sync uses UTC instants.</li>
+  </ul>
+  <div class="footer"><span>Vrodux ERP — Branch Server Design</span><span>Page 5</span></div>
+</section>
+
+<!-- ───────────────────────── 5 SYNC / SIGN-IN / INBOUND ───────────────────────── -->
+<section class="page compact">
+  <h2><span class="n">5</span>How the sync works</h2><div class="rule"></div>
+  <p class="sub">Built on what already exists: the cloud-mirror push service, change tracking and the replay-safe client ids.</p>
+
+  <div class="cols">
+    <div class="card g"><h4>UP — branch to cloud</h4>
+      <ul>
+        <li>SQL Server change tracking on the in-scope tables</li>
+        <li>Runs every few seconds while connected, in bounded batches</li>
+        <li>Cloud <b>upserts by primary key</b> in dependency order</li>
+        <li>Per-branch, per-table checkpoint, so a retry resumes</li>
+        <li>These rows are read-only in the cloud and written only by the sync endpoint</li></ul></div>
+    <div class="card b"><h4>DOWN — cloud to branch</h4>
+      <ul>
+        <li>Change feed on config tables, filtered to the branch</li>
+        <li>The branch <b>pulls</b>; it never needs an inbound connection</li>
+        <li>Applied in order, one transaction per batch</li>
+        <li>Config is read-only at the branch</li>
+        <li>Deletes are already soft deletes, so they flow as ordinary changes</li></ul></div>
+  </div>
+
+  <h3>Signing in with no internet</h3>
+  <ul>
+    <li>Users, password hashes, roles, permission grants and denies, and branch assignments flow <b>down</b>; a password change at head office reaches the branch within seconds when online.</li>
+    <li>The branch server issues its <b>own sign-in tokens</b> signed with a branch key, carrying the same claims the cloud uses. Tokens are never exchanged; only data is.</li>
+    <li>User administration is done in the cloud, not at the branch.</li>
+    <li>A user disabled at head office can still sign in at an offline branch until it reconnects. This can be tightened with a per-branch "last seen" limit.</li>
+  </ul>
+
+  <h3>Traffic that can only reach the cloud</h3>
+  <table>
+    <tr><th>Traffic</th><th>How the branch gets it</th></tr>
+    <tr><td><b>Foodpanda</b> orders &amp; cancellations</td><td>The cloud receives the webhook and queues it; the branch pulls it. Accept, reject and handover go back through the cloud. Offline: no new orders — the branch should show as unavailable on the platform</td></tr>
+    <tr><td><b>QR table ordering</b></td><td>Same pull model. The QR page must show a clear "restaurant is offline" state</td></tr>
+    <tr><td><b>FBR reporting</b></td><td>The <b>branch server</b> reports directly and already queues and retries. An outage only delays it</td></tr>
+    <tr><td><b>Online payment callbacks</b></td><td>Cloud-only. Offline branches take cash and terminal card only</td></tr>
+  </table>
+
+  <div class="callout blue"><b class="t">Conflict policy</b>
+    No row conflicts exist because of ownership. For the shared items above the cloud wins and branch writes are proposals. Counters (such as sign-in attempts) use last-writer-wins. Anything found writing on the wrong side is <b>rejected and logged</b>, never merged.</div>
+  <div class="footer"><span>Vrodux ERP — Branch Server Design</span><span>Page 6</span></div>
+</section>
+
+<!-- ───────────────────────── 6 FAILURES ───────────────────────── -->
+<section class="page">
+  <h2><span class="n">6</span>When things go wrong</h2><div class="rule"></div>
+  <p class="sub">The branch server becomes a single point of failure for its branch. The design and the hardware plan have to account for that.</p>
+
+  <table>
+    <tr><th style="width:30%">Failure</th><th>What happens</th></tr>
+    <tr><td><b>Branch internet down</b></td><td>Branch trades normally; uploads and config updates wait. No Foodpanda or QR orders. Wallet, house-account and loyalty payments are refused</td></tr>
+    <tr><td><b>Link drops mid-upload</b></td><td>Replayed from the checkpoint; no duplicates</td></tr>
+    <tr><td><b>Branch server PC fails</b></td><td>Branch is down. Mitigate with a spare PC with a recent image, an SSD, and a UPS; or switch the branch back to Cloud mode and use per-till offline</td></tr>
+    <tr><td><b>Wrong clock on the branch PC</b></td><td>Drift is flagged; sync is refused beyond a limit</td></tr>
+    <tr><td><b>Price changed at head office while branch is offline</b></td><td>Applied on reconnect. Bills already rung up keep their price</td></tr>
+    <tr><td><b>Two branches, same visible number</b></td><td>Prevented by the branch-code prefix</td></tr>
+    <tr><td><b>Cloud outage</b></td><td>Branches are unaffected; they accumulate and catch up</td></tr>
+    <tr><td><b>Licence expires</b></td><td>Same offline-licence rules as other on-premises installs</td></tr>
+  </table>
+
+  <h3>Running it day to day</h3>
+  <div class="cols">
+    <div class="card"><h4>Install</h4>
+      <p>The existing server installer in "branch mode" asks for the cloud address, tenant, branch, and a revocable <b>branch key</b> issued from the cloud. The first connection downloads a full config snapshot, then normal sync starts. Desktop clients just point at the branch server's LAN address.</p></div>
+    <div class="card"><h4>Monitor</h4>
+      <p>A head-office screen lists each branch: last successful up and down sync, queue depth, version, licence expiry. It alerts when a branch has been silent too long, reusing the integration health-alert pattern.</p></div>
+    <div class="card"><h4>Back up</h4>
+      <p>Nightly local backup (see the backup guide). The cloud copy of operational data is also an off-site backup.</p></div>
+    <div class="card"><h4>Upgrade</h4>
+      <p>A branch server must run a compatible version. The cloud rejects sync from a branch too far behind and tells head office. Upgrades happen branch by branch.</p></div>
+  </div>
+  <div class="footer"><span>Vrodux ERP — Branch Server Design</span><span>Page 7</span></div>
+</section>
+
+<!-- ───────────────────────── 7 CUTOVER + PHASES ───────────────────────── -->
+<section class="page">
+  <h2><span class="n">7</span>Moving a branch over</h2><div class="rule"></div>
+  <p class="sub">A deliberate, audited switch, one branch at a time. Rolling back is the reverse and is safe while the cloud copy is complete.</p>
+
+  <div class="fig">
+  <svg viewBox="0 0 760 120" font-family="Segoe UI, sans-serif">
+    <defs><marker id="d1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8z" fill="#94a3b8"/></marker></defs>
+    <g font-size="11" text-anchor="middle">
+      <rect x="6"   y="14" width="138" height="92" rx="12" fill="#dbeafe" stroke="#2563eb"/><text x="75" y="38" font-weight="700" fill="#1e3a8a">1 · Install</text><text x="75" y="58" fill="#1e40af">Branch server</text><text x="75" y="74" fill="#1e40af">pulls config</text>
+      <rect x="156" y="14" width="138" height="92" rx="12" fill="#dbeafe" stroke="#2563eb"/><text x="225" y="38" font-weight="700" fill="#1e3a8a">2 · Shadow day</text><text x="225" y="58" fill="#1e40af">Syncs up,</text><text x="225" y="74" fill="#1e40af">nobody uses it</text>
+      <rect x="306" y="14" width="138" height="92" rx="12" fill="#fef3c7" stroke="#d97706"/><text x="375" y="38" font-weight="700" fill="#92400e">3 · Quiet time</text><text x="375" y="58" fill="#92400e">Close shifts,</text><text x="375" y="74" fill="#92400e">queue empty</text>
+      <rect x="456" y="14" width="138" height="92" rx="12" fill="#d1fae5" stroke="#059669"/><text x="525" y="38" font-weight="700" fill="#065f46">4 · Switch</text><text x="525" y="58" fill="#065f46">Mode = Local,</text><text x="525" y="74" fill="#065f46">point devices</text>
+      <rect x="606" y="14" width="148" height="92" rx="12" fill="#d1fae5" stroke="#059669"/><text x="680" y="38" font-weight="700" fill="#065f46">5 · Go live</text><text x="680" y="58" fill="#065f46">Open fresh shifts;</text><text x="680" y="74" fill="#065f46">per-till offline</text><text x="680" y="90" fill="#065f46">stays as fallback</text>
+    </g>
+    <g stroke="#94a3b8" stroke-width="2"><path d="M146 60 H154" marker-end="url(#d1)"/><path d="M296 60 H304" marker-end="url(#d1)"/><path d="M446 60 H454" marker-end="url(#d1)"/><path d="M596 60 H604" marker-end="url(#d1)"/></g>
+  </svg></div>
+
+  <h2 style="margin-top:8mm"><span class="n">8</span>Phases and effort</h2><div class="rule"></div>
+  <p class="sub">Rough ranges for one developer who knows this codebase. Dark bar = minimum, light = maximum.</p>
+
+  <div class="fig">
+  <svg viewBox="0 0 760 290" font-family="Segoe UI, sans-serif">
+    <!-- axis: 0..21 weeks, x = 190 + w*26 -->
+    <g stroke="#e2e8f0"><path d="M190 26 V258"/><path d="M216 26 V258"/><path d="M242 26 V258"/><path d="M268 26 V258"/><path d="M294 26 V258"/><path d="M320 26 V258"/><path d="M346 26 V258"/><path d="M372 26 V258"/><path d="M398 26 V258"/><path d="M424 26 V258"/><path d="M450 26 V258"/><path d="M476 26 V258"/><path d="M502 26 V258"/><path d="M528 26 V258"/><path d="M554 26 V258"/><path d="M580 26 V258"/><path d="M606 26 V258"/><path d="M632 26 V258"/><path d="M658 26 V258"/><path d="M684 26 V258"/><path d="M710 26 V258"/><path d="M736 26 V258"/></g>
+    <g font-size="10" fill="#64748b" text-anchor="middle"><text x="190" y="18">0</text><text x="294" y="18">4</text><text x="398" y="18">8</text><text x="502" y="18">12</text><text x="606" y="18">16</text><text x="710" y="18">20</text><text x="736" y="18">wk</text></g>
+    <g font-size="11" fill="#0f172a">
+      <text x="10" y="50"><tspan font-weight="700">P0</tspan> Spike</text>
+      <text x="10" y="84"><tspan font-weight="700">P1</tspan> Up-sync (restaurant + POS)</text>
+      <text x="10" y="118"><tspan font-weight="700">P2</tspan> Down-sync of config</text>
+      <text x="10" y="152"><tspan font-weight="700">P3</tspan> Identity &amp; licensing</text>
+      <text x="10" y="186"><tspan font-weight="700">P4</tspan> Numbering &amp; cloud guard</text>
+      <text x="10" y="220"><tspan font-weight="700">P5</tspan> Foodpanda / QR relay</text>
+      <text x="10" y="254"><tspan font-weight="700">P6</tspan> Monitoring &amp; hardening</text>
+    </g>
+    <!-- bars: start,min,max (weeks) -->
+    <g>
+      <rect x="190" y="36" width="52" height="20" rx="5" fill="#bfdbfe"/><rect x="190" y="36" width="26" height="20" rx="5" fill="#2563eb"/>
+      <rect x="242" y="70" width="104" height="20" rx="5" fill="#bfdbfe"/><rect x="242" y="70" width="78" height="20" rx="5" fill="#2563eb"/>
+      <rect x="346" y="104" width="104" height="20" rx="5" fill="#bfdbfe"/><rect x="346" y="104" width="78" height="20" rx="5" fill="#2563eb"/>
+      <rect x="450" y="138" width="78" height="20" rx="5" fill="#bfdbfe"/><rect x="450" y="138" width="52" height="20" rx="5" fill="#2563eb"/>
+      <rect x="528" y="172" width="78" height="20" rx="5" fill="#bfdbfe"/><rect x="528" y="172" width="52" height="20" rx="5" fill="#2563eb"/>
+      <rect x="606" y="206" width="52" height="20" rx="5" fill="#bfdbfe"/><rect x="606" y="206" width="52" height="20" rx="5" fill="#2563eb"/>
+      <rect x="658" y="240" width="78" height="20" rx="5" fill="#bfdbfe"/><rect x="658" y="240" width="52" height="20" rx="5" fill="#2563eb"/>
+    </g>
+    <g font-size="9.5" fill="#475569"><text x="246" y="50">1–2 w</text><text x="350" y="84">3–4 w</text><text x="454" y="118">3–4 w</text><text x="532" y="152">2–3 w</text><text x="610" y="186">2–3 w</text><text x="662" y="220">2 w</text><text x="570" y="254" text-anchor="end">2–3 w</text></g>
+  </svg>
+  <div class="cap">Run one after another by one developer. A second developer can overlap P2, P3 and P5 with P1. Total: about 15–21 weeks.</div></div>
+  <div class="footer"><span>Vrodux ERP — Branch Server Design</span><span>Page 8</span></div>
+</section>
+
+<!-- ───────────────────────── 9 DECISIONS ───────────────────────── -->
+<section class="page">
+  <h2><span class="n">9</span>Decisions needed before starting</h2><div class="rule"></div>
+  <p class="sub">The first one decides whether this project is needed at all.</p>
+
+  <ol class="num" style="padding:0;margin:0 0 4mm">
+    <li><b>Is a branch with several tills the normal case?</b> If every branch has a single till, today's per-till offline mode plus a 4G backup link may be enough, and this project can wait.</li>
+    <li><b>Wallet, house account and loyalty at an offline branch:</b> refuse (proposed), or allow a small offline allowance per branch?</li>
+    <li><b>Customer creation at a branch:</b> pending until the cloud confirms (proposed), or branch-local customers merged later?</li>
+    <li><b>Fixing a bill after the fact:</b> only the branch, or head office through an "instruction" the branch applies (proposed)?</li>
+    <li><b>Hardware:</b> who supplies and supports the branch PC? It needs an SSD, a UPS and a spare image.</li>
+    <li><b>Packaging:</b> is the branch server a paid add-on per branch?</li>
+    <li><b>Retail POS branches:</b> same phase, or restaurant first?</li>
+    <li><b>Hosting:</b> confirm everything stays on erp.vrodux.com, with the branch key as the only credential a branch holds.</li>
+  </ol>
+
+  <div class="cols">
+    <div class="card"><h4>Not in scope</h4>
+      <ul><li>Multi-master replication or automatic merging</li><li>Branch-to-branch communication</li><li>Offline Foodpanda, QR ordering or online payments</li><li>HR, Finance, CRM and other modules at the branch</li><li>Replacing the per-till queue — it stays as the last fallback</li></ul></div>
+    <div class="card a"><h4>Risks</h4>
+      <ul><li><b>Table volume:</b> start with what a branch needs to trade and extend deliberately</li><li><b>Schema drift</b> between branch and cloud: same migrations, strict version checks</li><li><b>Support burden:</b> a server in every branch is operations work</li><li><b>Testing:</b> outages, wrong clocks, power loss mid-sync and re-seeds are the expensive part</li></ul></div>
+  </div>
+
+  <div class="callout green" style="margin-top:6mm"><b class="t">Recommended order</b>
+    1) Ship the first customer on today's per-till offline mode with a 4G link and a UPS. 2) Run the 1–2 week spike (P0) to confirm the approach. 3) Decide the packaging and the eight questions above. 4) Build P1–P6 for the first branch that genuinely needs shared offline operation.</div>
+  <div class="footer"><span>Vrodux ERP — Branch Server Design</span><span>Page 9</span></div>
+</section>
+
+</body>
+</html>

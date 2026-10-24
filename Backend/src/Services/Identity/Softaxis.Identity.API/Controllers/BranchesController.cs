@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.Identity.Application.Branches.Commands.CreateBranch;
 using Softaxis.Identity.Application.Branches.Commands.DeleteBranch;
+using Softaxis.Identity.Application.Branches.Commands.SetBranchServerMode;
 using Softaxis.Identity.Application.Branches.Commands.UpdateBranch;
 using Softaxis.Identity.Application.Branches.Queries.GetBranchById;
 using Softaxis.Identity.Application.Branches.Queries.GetBranches;
@@ -43,6 +44,11 @@ public sealed class BranchesController(ISender sender) : BaseApiController(sende
             req.Address, req.Phone, req.Email, req.Manager, req.Staff,
             req.Status, req.Currency, req.Timezone, req.OpenedDate), ct));
 
+    // ── PUT /api/branches/{id}/server-mode ────────────────────────────────────
+    [HttpPut("{id:guid}/server-mode")]
+    public async Task<IActionResult> SetServerMode(Guid id, [FromBody] SetServerModeRequest req, CancellationToken ct) =>
+        HandleResult(await Sender.Send(new SetBranchServerModeCommand(id, req.Mode), ct));
+
     // ── DELETE /api/branches/{id} ─────────────────────────────────────────────
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
@@ -50,6 +56,8 @@ public sealed class BranchesController(ISender sender) : BaseApiController(sende
 }
 
 // ── Request DTO ───────────────────────────────────────────────────────────────
+
+public sealed record SetServerModeRequest(string Mode);
 
 public sealed record UpsertBranchRequest(
     string  Code,

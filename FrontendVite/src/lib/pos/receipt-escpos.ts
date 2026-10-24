@@ -5,6 +5,7 @@
  */
 
 import { EscPos } from "./escpos";
+import { getTenantCurrency } from "@/hooks/use-currency";
 import type { ReceiptLineItem } from "@/modules/pos/retail/components/pos-receipt";
 
 export interface EscPosReceiptParams {
@@ -37,7 +38,7 @@ export interface EscPosReceiptParams {
 function getCurrencyDecimals(currency: string): number {
   try {
     // resolvedOptions types this as optional, though a currency format always resolves one.
-    return new Intl.NumberFormat("en", { style: "currency", currency: currency || "AED" })
+    return new Intl.NumberFormat("en", { style: "currency", currency: currency || getTenantCurrency() })
       .resolvedOptions().maximumFractionDigits ?? 2;
   } catch {
     return 2;

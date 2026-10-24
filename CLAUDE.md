@@ -8678,3 +8678,140 @@ leads", "Retry N failed" and a live event log. Saving checks the dataset with Me
   bump it after testing lead retrieval. Not changed here because it affects a working integration.
 - Phone matching for locally-typed numbers needs the tenant's country code (setting provided; empty by default).
 - Leads without Meta's lead id (organic or imported) cannot be reported.
+### Module 81b — Hospitality & Tourism: travel agency / tour operator (phase 2)
+
+The module is renamed **"Hospitality & Tourism"** in labels only; the code stays `hospitality`. The
+industry "Hospitality & Tourism" (`hospitality_tourism`) and `travel_tourism` now attach the module
+at signup (`Tenant.IndustryPackModule`).
+
+- **Domain** (`Tours.cs`):
+  - `TourPackage`: code, destination, type, days, per-person adult/child price, single supplement,
+    included/excluded items, and itinerary days.
+  - `TourDeparture`: dated run with seats and an optional price override.
+  - `TourBooking`: either on a departure, a package on the customer's own dates, or a tailor-made trip.
+    Status `enquiry → confirmed → completed`, or `cancelled` (reopen allowed).
+    Totals: per-person × travellers + single supplements + extras − discount, then tax.
+    Cost = supplier cost of services not cancelled. Margin = total − tax − cost.
+  - `TourTraveller`: passport details. A passport is flagged if it is missing or expires within 6 months of return.
+  - `TourService`: supplier booking — type, supplier, cost, paid to supplier, status, confirmation,
+    and optional "extra" sold on top. `Details` holds type-specific name/value pairs (JSON):
+    flight, hotel, car, transfer, rail, cruise, bus, visa, activity, guide, insurance, other.
+    The frontend field list per type is in `service-details.tsx`; adding a field needs no backend change.
+  - `TourInstalment` and `TourPayment`: payments are voided, never deleted. Money received is applied
+    to instalments oldest-due first. With no schedule, the whole balance is due on the start date.
+    Taking a payment confirms an enquiry.
+- **Seats:** each departure has a seat limit. Create, edit and reopen all check it. Cancelling a booking
+  releases its seats. A departure with bookings cannot be cancelled or deleted, and a package with
+  unfinished bookings cannot be deleted.
+- **API:** `api/hospitality/tours/*` (`ToursController`).
+  - Permissions:
+    - `hospitality.tours` view/create/edit/delete
+    - `hospitality.tour-bookings` view/create/edit/delete/record/void
+    - `hospitality.tour-costs` view/edit
+  - Costs and margin are null for callers without `tour-costs.view`, and adding or editing a supplier
+    booking needs `tour-costs.edit`.
+  - Migrations: `AddTourAgency`, `AddTourServiceDetails` (Hospitality); `AddTourPermissions` (Identity).
+- **Finance** (Integration Center queue, off until switched on):
+  - `tours.payment`: Dr cash/bank, Cr customer 1200. A payment voided after posting is flagged.
+  - `tours.trip`: on completion, Dr customer 1200 with the total; Cr revenue 4002 (net of tax) and tax 2200;
+    Dr cost 5400 / Cr payable 2001 for supplier cost. Payment vouchers then clear payables.
+  - Deposits therefore sit as a credit on the customer until the trip is posted. There is no
+    customer-deposits account in the default chart; remap it if an accountant wants one.
+- **Frontend** (`modules/hospitality/tours/`):
+  - Pages: Travel Agency dashboard (needs-attention list, departures, Post to Finance), Tour Packages
+    (itinerary editor, departures), Tour Bookings.
+  - Booking drawer tabs: overview, travellers, suppliers, payments + schedule, itinerary.
+  - Quotation / itinerary PDF in `lib/hospitality/tour-print.ts`.
+- **Verified:**
+  - 61 API checks, including isolation against a real second workspace.
+  - 16 checks for service details and Finance posting; the posted trip entry balanced.
+  - Finance unit tests (172) and the SourceSchema SQL tests against the real DB (40).
+  - `tsc` 0 errors, `vite build` ✅.
+  - Browser walkthrough: package, departure, booking, payment schedule, deposit, dashboard, flight details form.
+- **Not verified:** the PDF print window, Arabic screens, supplier email/confirmation sending (not built).
+- **Local test data:** test packages and bookings in tenant Softaxis, plus a throwaway workspace
+  "IsoTour …" (tenant `55bad4f4-…`, user `iso.mv977a4w@local.test`) created for the isolation checks.
+- **Not built:** supplier master list (supplier is free text), refunds as their own record (voids only),
+  per-traveller pricing, online customer portal, GDS / airline booking APIs.
+
+---
+
+## Module 87 — Restaurant: multi-branch (one group, many branches)
+
+For a restaurant chain client (Habibi 2/3/4 + Zeestry, Muzaffarabad) moving from ePosmatic. Built on the
+branch plumbing that already existed (`UserBranch`, `IBranchAccessGuard`, `BranchSwitcher`, `BranchId` on
+most restaurant entities) but which only tagged new records and scoped four lists.
+
+- **Selected branch filters every screen.** `IBranchAccessGuard.ResolveReadScopeAsync(requestedBranchId)`:
+  the selected branch narrowed to the user's assigned branches (a branch they are not assigned to → empty).
+  `?branchId=` added to tables, tables summary, floors, floor layout (**was unscoped**), orders, orders
+  summary, kitchen tickets + summary (**were unscoped**), reservations, waitlist, open-shift. Unbranched rows
+  (legacy, single-location) stay visible in every branch.
+- **Writes are checked.** `CanWriteToBranchAsync`: staff can only create orders in their branches; an order
+  must name a branch when the workspace has branches (403 `Branch.Forbidden` → new `.Forbidden` → 403 mapping).
+  A table's branch wins over what the screen sent.
+- **🔴 Shifts belong to a branch.** `POSSession.BranchId` (POS migration `AddSessionBranch`); register-in-use is
+  per branch (two branches may both have "Terminal-1"). A floor order attaches only to **its branch's** open
+  shift (`PosSessionLedger.FindOpenSessionAsync(branchId)`) — previously the newest shift in the whole
+  workspace, so one branch's sales could land in another's Z-report. An explicit shift must match the order's
+  branch exactly. **No fallback to unbranched shifts** (stale ones are left open for days): on deploy day each
+  cashier must close and reopen their shift once.
+- **Per-branch menu.** `MenuItemBranchSetting` (price override / not sold here; migration
+  `AddMenuItemBranchSettings`). `GET menu?branchId=` returns branch price (+ `basePrice`) and `soldHere`;
+  `OrderItemFactory` charges the branch price and refuses items not sold there (409). `GET menu/branch-settings`,
+  `PUT menu/items/{id}/branches/{branchId}`; a price equal to the menu price is stored as no override.
+- **Front end:** `useActiveBranchId()` feeds every restaurant read and its cache key. Restaurant till: `BranchGate`
+  (pick a branch first), `ShiftGate branchId`, `ShiftBranchLock` (screen pinned to the open shift's branch,
+  switcher disabled). Switcher on kitchen display, reservations, waitlist, floor designer. Menu Management
+  "Branch prices" tab (only when branches exist). Till/order dialogs hide `soldHere=false` items.
+- Fixed in passing: `GET orders` ignored `page`/`pageSize`.
+- **Verified:** 27 scripted API checks on a test gateway (:5199, test JWT secret) against the dev DB — scoping,
+  restricted user, same register at two branches, waiter order → its branch's shift, no-branch order refused,
+  cross-branch order refused, branch price charged, not-sold refused, kitchen per branch. Test rows deleted.
+  Both migrations **applied** to SHAHBAZ-QFINITY. Gateway + POS build 0 errors; `tsc` 0; `vite build` ✅.
+- **Not verified:** the screens in a browser (no login credentials used).
+
+### Module 87b — the rest of multi-branch, and closing a shift on the restaurant till
+- **Delivery:** runs are scoped through their order's branch (`BranchScope.ApplyByOrder`); riders by
+  `Driver.BranchId`. Creating a run / assigning a rider checks the order's branch; a rider tied to another
+  branch is refused (409). `?branchId=` on delivery list/summary and drivers.
+- **Creation checks:** tables, floors, reservations, waitlist entries need a branch the user may write to.
+  **Table numbers are unique per branch** (was per workspace, so "Table 1" could exist at only one branch).
+- **Order changes:** `IOrderScopedCommand` marker on all 22 order commands + `OrderBranchBehavior` (MediatR):
+  a branch-assigned user changing another branch's order gets 404. New order commands must implement it.
+- **Reports/dashboards:** `IBranchScopedQuery` + `BranchQueryBehavior`: a branch-assigned user must name one
+  of their branches (no branch = whole group → 403). Front-end report/dashboard hooks default to the selected
+  branch; switcher on reports, dashboards, delivery.
+- **Stock per branch:** `Warehouse.BranchId` (Inventory migration `AddWarehouseBranch`). Serving a dish
+  deducts recipe ingredients from the branch's warehouse (`ProductStock` row + movement with warehouse id)
+  as well as the product total; running out switches the dish off **at that branch only**
+  (`MenuItemBranchSetting.IsAvailable=false`), not across the group. No branch warehouse → old behaviour.
+  Warehouse update keeps the current branch when none is sent (`Guid.Empty` clears it). Warehouse form has a
+  branch picker.
+- **Closing a shift:** the restaurant till had **no Close Shift button** (only retail did). Added
+  `CloseShiftButton` (warns when bills are still open on the shift). 🔴 An order whose shift had closed could
+  **never be paid** (409). Now payment carries the bill over to the branch's open shift
+  (`Order.CarryOverToSession`), or refuses with a clear message when no till is open at the branch.
+- **Verified:** 29 more scripted API checks on a separate test gateway build (:5199) against the dev DB, all
+  passing, incl. stock 10→9, dish off at one branch only, and shift carry-over. Test rows deleted. Migration
+  `AddWarehouseBranch` applied. `tsc` 0, `vite build` ✅.
+
+---
+
+## Module 88 — Identity: every new tenant owner must verify their email; super-admin Re-invite
+
+- **Website signup sent no email at all** and pre-verified the owner. `RegisterTrialCommandHandler` now leaves the
+  owner unverified, issues a 48h verification token and sends `SendEmailVerificationAsync` after the commit
+  (failure logged, never fails signup). "Buy Now" auto-login now fails by design and falls through to the
+  "check your email" screen; the pending-checkout marker still opens checkout after the first sign-in.
+- **Super-admin Create Tenant** no longer pre-verifies. Blank password → set-password invite (the reset link
+  confirms the address via `ConfirmEmailViaPasswordReset`); password given → verification email.
+- Login was already blocked for unverified users (`LoginCommandHandler`); the login page offers "Resend link".
+- **Re-invite:** `POST /api/admin/tenants/{id}/resend-invite` (`ResendTenantInviteCommand`, SuperAdminOnly) — new
+  tokens for every not-activated user, then set-password email (invited, never signed in) or verification
+  email. `TenantDto.AwaitingActivation` (tenant list only) = no user ever signed in AND someone is unverified or
+  holds an unused set-password token (covers owners invited before this change). Super-admin tenant cards show
+  "Not activated" + a Re-invite button.
+- Existing self-signup tenants stay verified (they were pre-verified) — not shown as awaiting.
+- ⚠️ When SMTP is unconfigured the email service only logs the link, so Re-invite reports "sent".
+- Build: Identity.API 0 errors · frontend `tsc` 0 errors. **Not runtime-tested.** No migration.

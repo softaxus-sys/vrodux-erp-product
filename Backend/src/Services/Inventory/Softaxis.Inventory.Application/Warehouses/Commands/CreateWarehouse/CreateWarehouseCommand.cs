@@ -9,5 +9,6 @@ public sealed record CreateWarehouseCommand(
     string? Address,
     string? ContactPerson,
     string? Phone,
-    bool    IsActive = true
+    bool    IsActive = true,
+    Guid?   BranchId = null
 ) : ICommand<WarehouseDto>;

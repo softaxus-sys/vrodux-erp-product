@@ -38,19 +38,33 @@ public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> op
     public DbSet<TableOrderingSession> TableOrderingSessions => Set<TableOrderingSession>();
     public DbSet<DigitalReceiptLog> DigitalReceiptLogs => Set<DigitalReceiptLog>();
     public DbSet<UserBranch> UserBranches => Set<UserBranch>();
+    public DbSet<MenuItemBranchSetting> MenuItemBranchSettings => Set<MenuItemBranchSetting>();
+    public DbSet<OfflineOp> OfflineOps => Set<OfflineOp>();
+    public DbSet<TaxProfile> TaxProfiles => Set<TaxProfile>();
+    public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<NotificationProviderConfig> NotificationProviderConfigs => Set<NotificationProviderConfig>();
     public DbSet<DeviceRegistration> DeviceRegistrations => Set<DeviceRegistration>();
+    public DbSet<BranchInstruction> BranchInstructions => Set<BranchInstruction>();
+    public DbSet<BranchInstructionResult> BranchInstructionResults => Set<BranchInstructionResult>();
+    public DbSet<RelayedOrder> RelayedOrders => Set<RelayedOrder>();
+    public DbSet<RelayedOrderResult> RelayedOrderResults => Set<RelayedOrderResult>();
+    public DbSet<PlatformActionRequest> PlatformActionRequests => Set<PlatformActionRequest>();
+    public DbSet<PlatformActionResult> PlatformActionResults => Set<PlatformActionResult>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
         mb.HasDefaultSchema("restaurant");
         mb.ApplyConfigurationsFromAssembly(typeof(RestaurantConfigurations).Assembly);
         TenantIsolation.ApplyTenantId(mb, this, "Softaxis.Restaurant.Domain");
+        // An offline action is applied once per workspace; an offline order is created once.
+        TenantIsolation.TenantUniqueIndex<OfflineOp>(mb, [nameof(OfflineOp.OpId)], excludeSoftDeleted: false);
+        TenantIsolation.TenantUniqueIndex<Order>(mb, [nameof(Order.ClientRef)], extraFilter: "[ClientRef] IS NOT NULL");
     }
 
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         TenantIsolation.StampTenantId(ChangeTracker);
-        return base.SaveChangesAsync(cancellationToken);
+        await Common.OrderNumbering.AssignAsync(this, cancellationToken);
+        return await base.SaveChangesAsync(cancellationToken);
     }
 }

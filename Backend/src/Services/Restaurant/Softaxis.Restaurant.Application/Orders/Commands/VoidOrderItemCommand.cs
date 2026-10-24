@@ -1,3 +1,4 @@
+using Softaxis.Restaurant.Application.Abstractions;
 using FluentValidation;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.Restaurant.Application.Orders.Dtos;
@@ -6,7 +7,7 @@ namespace Softaxis.Restaurant.Application.Orders.Commands;
 
 /// <summary>POST /api/restaurant/orders/{id}/items/{itemId}/void — replaces the old silent
 /// soft-delete with an audited void (reason required, who voided it logged).</summary>
-public sealed record VoidOrderItemCommand(Guid OrderId, Guid ItemId, string Reason) : ICommand<OrderDto>;
+public sealed record VoidOrderItemCommand(Guid OrderId, Guid ItemId, string Reason) : IOrderScopedCommand, ICommand<OrderDto>;
 
 public sealed class VoidOrderItemValidator : AbstractValidator<VoidOrderItemCommand>
 {

@@ -10,6 +10,10 @@ public sealed class POSSession : AuditableEntity<Guid>
 {
     public Guid          CashierId      { get; private set; }
     public string        RegisterId     { get; private set; } = default!;
+
+    /// <summary>The branch (Identity) this till sits in; null for single-location tenants. Restaurant
+    /// orders attach only to an open shift of their own branch.</summary>
+    public Guid?         BranchId       { get; private set; }
     public SessionStatus Status         { get; private set; }
     public DateTime      OpenedAt       { get; private set; }
     public DateTime?     ClosedAt       { get; private set; }
@@ -35,7 +39,7 @@ public sealed class POSSession : AuditableEntity<Guid>
 
     private POSSession() { }
 
-    public static Result<POSSession> Open(Guid cashierId, string registerId, decimal openingCash)
+    public static Result<POSSession> Open(Guid cashierId, string registerId, decimal openingCash, Guid? branchId = null)
     {
         if (string.IsNullOrWhiteSpace(registerId))
             return Result.Failure<POSSession>(Error.Custom("Session.RegisterRequired", "Register ID is required."));
@@ -48,6 +52,7 @@ public sealed class POSSession : AuditableEntity<Guid>
             Id           = Guid.NewGuid(),
             CashierId    = cashierId,
             RegisterId   = registerId.Trim(),
+            BranchId     = branchId,
             Status       = SessionStatus.Open,
             OpenedAt     = DateTime.UtcNow,
             OpeningCash  = openingCash,

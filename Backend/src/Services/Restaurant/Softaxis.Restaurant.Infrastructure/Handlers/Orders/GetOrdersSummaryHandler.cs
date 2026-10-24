@@ -15,7 +15,7 @@ internal sealed class GetOrdersSummaryHandler(RestaurantDbContext db, IBranchAcc
     public async Task<Result<OrdersSummaryDto>> Handle(GetOrdersSummaryQuery query, CancellationToken ct)
     {
         var today = DateTime.UtcNow.Date;
-        var accessible = await branchAccess.GetAccessibleBranchIdsAsync(ct);
+        var accessible = await branchAccess.ResolveReadScopeAsync(query.BranchId, ct);
         var all = await BranchScope.Apply(db.Orders.AsNoTracking().Where(x => !x.IsDeleted), accessible)
             .Select(x => new { x.Status, x.Total, x.TipAmount, x.OrderType, x.CreatedAt }).ToListAsync(ct);
         var todayOrders = all.Where(x => x.CreatedAt >= today).ToList();

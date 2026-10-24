@@ -17,6 +17,7 @@ import {
 } from "@/hooks/restaurant/use-restaurant-reports";
 import { useOptionalShift } from "@/modules/pos/retail/components/shift-gate";
 import { Can } from "@/components/auth/can";
+import { BranchSwitcher } from "./branch-switcher";
 
 function todayIso() { return new Date().toISOString().split("T")[0]; }
 function daysAgoIso(days: number) {
@@ -101,6 +102,7 @@ function ReportsContent() {
           </h1>
           <p className="text-sm text-muted-foreground">{t("reports.description")}</p>
         </div>
+        <BranchSwitcher />
         <PostToFinanceButton module="restaurant" />
       </div>
 

@@ -4,10 +4,11 @@ import { integrationsApi, type UpdateConfigRequest, type MetaPageSelection, type
 
 const QK = "crm-integrations";
 
-export function useProviderCatalog() {
+export function useProviderCatalog(enabled = true) {
   return useQuery({
     queryKey: [QK, "catalog"],
     queryFn:  integrationsApi.getCatalog,
+    enabled,
     staleTime: 30 * 1000,
   });
 }

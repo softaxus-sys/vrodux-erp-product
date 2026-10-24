@@ -31,8 +31,9 @@ export const INSTALMENT_STATUS: Record<InstalmentStatus, { label: string; chip: 
 };
 
 export const SERVICE_TYPES: { value: ServiceType; label: string }[] = [
-  { value: "hotel", label: "Hotel" }, { value: "flight", label: "Flight" }, { value: "transfer", label: "Transfer" },
-  { value: "visa", label: "Visa" }, { value: "activity", label: "Activity / excursion" }, { value: "guide", label: "Guide" },
+  { value: "hotel", label: "Hotel" }, { value: "flight", label: "Flight" }, { value: "car", label: "Car rental" },
+  { value: "transfer", label: "Transfer" }, { value: "rail", label: "Train" }, { value: "cruise", label: "Cruise" },
+  { value: "bus", label: "Bus / coach" }, { value: "visa", label: "Visa" }, { value: "activity", label: "Activity / excursion" }, { value: "guide", label: "Guide" },
   { value: "insurance", label: "Travel insurance" }, { value: "other", label: "Other" },
 ];
 

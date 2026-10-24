@@ -14,7 +14,8 @@ namespace Softaxis.Restaurant.Infrastructure.Handlers.Orders;
 /// Records a (possibly partial) payment — supports split-tender (multiple methods) and split-bill
 /// (multiple guest payments). See PayOrderHandler for why this is tracked-entity + retry, not raw SQL.
 /// </summary>
-internal sealed class AddOrderPaymentHandler(RestaurantDbContext db, POSDbContext posDb, IRestaurantRealtimeNotifier realtime)
+internal sealed class AddOrderPaymentHandler(RestaurantDbContext db, POSDbContext posDb, IRestaurantRealtimeNotifier realtime,
+    Fbr.FbrReporter fbr)
     : ICommandHandler<AddOrderPaymentCommand, OrderDto>
 {
     public async Task<Result<OrderDto>> Handle(AddOrderPaymentCommand cmd, CancellationToken ct)
@@ -22,11 +23,21 @@ internal sealed class AddOrderPaymentHandler(RestaurantDbContext db, POSDbContex
         var wasPaid = await db.Orders.AsNoTracking().AnyAsync(x => x.Id == cmd.OrderId && x.Status == "paid", ct);
         var result = await PayAsync(cmd, ct);
         await LoyaltySupport.EarnIfJustPaidAsync(posDb, wasPaid, result, ct);
-        return result;
+        return await Fbr.FbrAfterPayment.ReportIfDueAsync(fbr, result, ct);
     }
 
     private async Task<Result<OrderDto>> PayAsync(AddOrderPaymentCommand cmd, CancellationToken ct)
     {
+        // Never more than is owed: an over-typed amount (1000 for 100) would otherwise be recorded
+        // as takings and as cash expected in the drawer. Checked before any wallet is charged.
+        var owed = await db.Orders.AsNoTracking().Where(x => x.Id == cmd.OrderId && !x.IsDeleted)
+            .Select(x => new { x.Status, Due = x.Total + x.TipAmount - x.AmountPaid }).FirstOrDefaultAsync(ct);
+        if (owed is { Status: "paid" })
+            return Result.Failure<OrderDto>(Error.Custom("Order.Conflict", "This bill is already paid."));
+        if (owed is not null && cmd.Amount > owed.Due + 0.01m)
+            return Result.Failure<OrderDto>(Error.Custom("Order.Conflict",
+                $"That is more than is owed on this bill ({owed.Due:0.00})."));
+
         // Wallet/house-account charge, if applicable — see CustomerPaymentSupport for why this must
         // run exactly once, outside the retry loop below, before any Order row is mutated.
         if (CustomerPaymentSupport.IsCustomerFundedMethod(cmd.Method))

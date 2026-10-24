@@ -4,4 +4,4 @@ using Softaxis.Restaurant.Application.Tables.Dtos;
 namespace Softaxis.Restaurant.Application.Tables.Queries;
 
 /// <summary>GET /api/restaurant/tables/summary</summary>
-public sealed record GetTablesSummaryQuery : IQuery<TablesSummaryDto>;
+public sealed record GetTablesSummaryQuery(Guid? BranchId = null) : IQuery<TablesSummaryDto>;

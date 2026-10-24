@@ -5,6 +5,63 @@ import {
   type HappyHourRule, type DeliveryStatus, type ImportMenuRow,
 } from "@/lib/restaurant/restaurant.api";
 import { toast } from "sonner";
+import { taxApi } from "@/lib/restaurant/tax-platforms.api";
+import { useBranchStore } from "@/store/branch.store";
+import { useRestaurantOffline, isNetworkError, type RestaurantOfflineValue } from "@/contexts/restaurant-offline-context";
+import { isLocalOrderId, type RestaurantOffline } from "@/lib/restaurant/offline/restaurant-offline";
+import type { PagedOrders, RestaurantOrder } from "@/lib/restaurant/restaurant.api";
+
+// ── Offline-aware reads and writes (restaurant till only) ─────────────────────────
+// Outside the till there is no offline provider and these behave exactly like plain API calls.
+
+/** Read from the server and keep the till's copy fresh; read the copy when the server can't be reached. */
+function offlineRead<T>(
+  off: RestaurantOfflineValue | null,
+  live: () => Promise<T>,
+  local: (e: RestaurantOffline) => Promise<T>,
+  remember?: (e: RestaurantOffline, data: T) => Promise<void> | void,
+): () => Promise<T> {
+  return async () => {
+    if (off?.offline) return local(off.engine);
+    try {
+      const data = await live();
+      if (off && remember) Promise.resolve(remember(off.engine, data)).catch(() => undefined);
+      return data;
+    } catch (e) {
+      if (off && isNetworkError(e)) { off.markUnreachable(); return local(off.engine); }
+      throw e;
+    }
+  };
+}
+
+/** Saves to the server, or to the till's queue while offline. A bill taken offline stays on the queue
+ * until it has uploaded — the server does not know its id yet. */
+async function offlineWrite<T>(
+  off: RestaurantOfflineValue | null,
+  orderId: string | null,
+  live: () => Promise<T>,
+  local: (e: RestaurantOffline) => Promise<T>,
+): Promise<T> {
+  if (off && (off.offline || (orderId !== null && isLocalOrderId(orderId)))) return local(off.engine);
+  try {
+    return await live();
+  } catch (e) {
+    if (off && isNetworkError(e)) {
+      off.markUnreachable();
+      // The request may or may not have reached the server, so retrying blind could charge twice.
+      throw new Error("The connection dropped while saving. Check the bill before trying again — it may already have been saved.");
+    }
+    throw e;
+  }
+}
+
+function offlineKey(off: RestaurantOfflineValue | null) { return off?.offline ? "offline" : "online"; }
+
+/** The restaurant branch selected in the switcher; null = "All Branches". Every branch-scoped read
+ * sends it and keys its cache on it, so switching branch refetches instead of showing the last one. */
+export function useActiveBranchId(): string | null {
+  return useBranchStore(s => s.currentBranchId);
+}
 
 export const rKeys = {
   all:            ["restaurant"] as const,
@@ -42,13 +99,32 @@ export const rKeys = {
 // ── Queries ────────────────────────────────────────────────────────────────────
 
 export function useTables() {
-  return useQuery({ queryKey: rKeys.tables(), queryFn: restaurantApi.getTables, refetchInterval: 15_000 });
+  const b = useActiveBranchId();
+  const off = useRestaurantOffline();
+  return useQuery({ queryKey: [...rKeys.tables(), b, offlineKey(off)],
+    queryFn: offlineRead(off, () => restaurantApi.getTables(b), e => e.getTables(b), (e, d) => e.remember(b, { tables: d })), refetchInterval: 15_000 });
 }
 export function useTablesSummary() {
-  return useQuery({ queryKey: rKeys.tablesSummary(), queryFn: restaurantApi.getTablesSummary, refetchInterval: 15_000 });
+  const b = useActiveBranchId();
+  return useQuery({ queryKey: [...rKeys.tablesSummary(), b], queryFn: () => restaurantApi.getTablesSummary(b), refetchInterval: 15_000 });
 }
-export function useMenu() {
-  return useQuery({ queryKey: rKeys.menu(), queryFn: restaurantApi.getMenu, staleTime: 120_000 });
+/** The tax a new bill at the active branch is charged. Kept on the till so offline bills match. */
+export function useCurrentTax() {
+  const b = useActiveBranchId();
+  const off = useRestaurantOffline();
+  return useQuery({ queryKey: [...rKeys.all, "current-tax", b],
+    queryFn: offlineRead(off, () => taxApi.current(b), e => e.getTax(b), (e, d) => e.remember(b, { tax: d })), staleTime: 300_000 });
+}
+
+/** Pass forBranch=false for menu management, which edits the shared menu rather than one branch's view. */
+export function useMenu(forBranch = true) {
+  const active = useActiveBranchId();
+  const b = forBranch ? active : null;
+  const off = useRestaurantOffline();
+  // Only the till's branch view is kept offline; menu management edits the shared menu online.
+  const o = forBranch ? off : null;
+  return useQuery({ queryKey: [...rKeys.menu(), b, offlineKey(o)],
+    queryFn: offlineRead(o, () => restaurantApi.getMenu(b), e => e.getMenu(b), (e, d) => e.remember(b, { menu: d })), staleTime: 120_000 });
 }
 export function useMenuSummary() {
   return useQuery({ queryKey: rKeys.menuSummary(), queryFn: restaurantApi.getMenuSummary, staleTime: 60_000 });
@@ -71,26 +147,37 @@ export function useItemModifierGroups(itemId: string | null) {
  * taken, with items and modifiers, every 15 seconds.
  */
 export function useOrders(params: { status?: string; page?: number; pageSize?: number } = {}) {
+  const b = useActiveBranchId();
+  const off = useRestaurantOffline();
   return useQuery({
-    queryKey: [...rKeys.orders(), params],
-    queryFn: () => restaurantApi.getOrders(params),
+    queryKey: [...rKeys.orders(), params, b, offlineKey(off)],
+    queryFn: offlineRead<PagedOrders>(off,
+      () => restaurantApi.getOrders({ ...params, branchId: b }),
+      async e => pageOf(await e.getOpenOrders(b), params),
+      // Only the "open" list is the till's working set of bills.
+      (e, d) => (params.status === "open" ? e.remember(b, {}, d.items) : undefined)),
     // Keeps the current page on screen while the next one loads, so paging never blanks the list.
     placeholderData: (prev) => prev,
     refetchInterval: 15_000,
   });
 }
 export function useOrdersSummary() {
-  return useQuery({ queryKey: rKeys.ordersSummary(), queryFn: restaurantApi.getOrdersSummary, refetchInterval: 15_000 });
+  const b = useActiveBranchId();
+  const off = useRestaurantOffline();
+  return useQuery({ queryKey: [...rKeys.ordersSummary(), b, offlineKey(off)],
+    queryFn: offlineRead(off, () => restaurantApi.getOrdersSummary(b), async e => summaryOf(await e.getOpenOrders(b))), refetchInterval: 15_000 });
 }
 export function useKitchenTickets(stationId?: string) {
+  const b = useActiveBranchId();
   return useQuery({
-    queryKey: [...rKeys.kitchen(), stationId ?? "all"],
-    queryFn: () => restaurantApi.getKitchenTickets(stationId),
+    queryKey: [...rKeys.kitchen(), stationId ?? "all", b],
+    queryFn: () => restaurantApi.getKitchenTickets(stationId, b),
     refetchInterval: 10_000,
   });
 }
 export function useKitchenSummary() {
-  return useQuery({ queryKey: rKeys.kitchenSummary(), queryFn: restaurantApi.getKitchenSummary, refetchInterval: 10_000 });
+  const b = useActiveBranchId();
+  return useQuery({ queryKey: [...rKeys.kitchenSummary(), b], queryFn: () => restaurantApi.getKitchenSummary(b), refetchInterval: 10_000 });
 }
 export function usePrinterProfiles() {
   return useQuery({ queryKey: rKeys.printerProfiles(), queryFn: restaurantApi.getPrinterProfiles, staleTime: 60_000 });
@@ -113,11 +200,13 @@ function useInvalidateAll() {
 }
 
 export function useCreateTable() {
+  // New records belong to the branch selected in the switcher unless the form names one.
+  const branch = useActiveBranchId();
   const invalidate = useInvalidateAll();
   return useMutation({
     // Mirrors restaurantApi.createTable / backend CreateTableCommand — branchId + diningAreaId
     // are both optional and are persisted by CreateTableHandler.
-    mutationFn: (p: { tableNumber: string; section: string; capacity: number; branchId?: string | null; diningAreaId?: string | null }) => restaurantApi.createTable(p),
+    mutationFn: (p: { tableNumber: string; section: string; capacity: number; branchId?: string | null; diningAreaId?: string | null }) => restaurantApi.createTable({ ...p, branchId: (p as { branchId?: string | null }).branchId ?? branch }),
     onSuccess: () => { invalidate(); toast.success("Table added."); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -134,9 +223,10 @@ export function useSetTableStatus() {
 
 export function useCreateOrder() {
   const invalidate = useInvalidateAll();
+  const off = useRestaurantOffline();
   return useMutation({
     mutationFn: (p: { tableId: string | null; waiter: string; covers: number; orderType: string; notes?: string | null; items: OrderLineInput[]; branchId?: string | null; sessionId?: string | null; customerId?: string | null }) =>
-      restaurantApi.createOrder(p),
+      offlineWrite(off, null, () => restaurantApi.createOrder(p), e => e.createOrder(p)),
     onSuccess: () => { invalidate(); toast.success("Order opened."); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -144,8 +234,11 @@ export function useCreateOrder() {
 
 export function useAddItems() {
   const invalidate = useInvalidateAll();
+  const off = useRestaurantOffline();
+  const b = useActiveBranchId();
   return useMutation({
-    mutationFn: ({ id, items }: { id: string; items: OrderLineInput[] }) => restaurantApi.addItems(id, items),
+    mutationFn: ({ id, items }: { id: string; items: OrderLineInput[] }) =>
+      offlineWrite(off, id, () => restaurantApi.addItems(id, items), e => e.addItems(b, id, items)),
     onSuccess: () => { invalidate(); toast.success("Items added."); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -163,8 +256,10 @@ export function useVoidItem() {
 
 export function useSendToKitchen() {
   const invalidate = useInvalidateAll();
+  const off = useRestaurantOffline();
+  const b = useActiveBranchId();
   return useMutation({
-    mutationFn: (id: string) => restaurantApi.sendToKitchen(id),
+    mutationFn: (id: string) => offlineWrite(off, id, () => restaurantApi.sendToKitchen(id), e => e.send(b, id)),
     onSuccess: () => { invalidate(); toast.success("Sent to kitchen."); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -172,8 +267,10 @@ export function useSendToKitchen() {
 
 export function useServeOrder() {
   const invalidate = useInvalidateAll();
+  const off = useRestaurantOffline();
+  const b = useActiveBranchId();
   return useMutation({
-    mutationFn: (id: string) => restaurantApi.serve(id),
+    mutationFn: (id: string) => offlineWrite(off, id, () => restaurantApi.serve(id), e => e.serve(b, id)),
     onSuccess: () => { invalidate(); toast.success("Order served."); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -181,8 +278,11 @@ export function useServeOrder() {
 
 export function usePayOrder() {
   const invalidate = useInvalidateAll();
+  const off = useRestaurantOffline();
+  const b = useActiveBranchId();
   return useMutation({
-    mutationFn: ({ id, method }: { id: string; method: string }) => restaurantApi.pay(id, method),
+    mutationFn: ({ id, method }: { id: string; method: string }) =>
+      offlineWrite(off, id, () => restaurantApi.pay(id, method), e => e.payInFull(b, id, method)),
     onSuccess: () => { invalidate(); toast.success("Payment recorded."); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -246,7 +346,11 @@ export function useSetOrderTip() {
 
 /** For floor staff only — polled, so the banner clears soon after the cashier opens the till. */
 export function useOpenShift(enabled = true) {
-  return useQuery({ queryKey: [...rKeys.all, "open-shift"], queryFn: () => restaurantApi.getOpenShift(), enabled, refetchInterval: 30_000 });
+  const b = useActiveBranchId();
+  const off = useRestaurantOffline();
+  // Offline the till cannot know whether the cashier's shift is still open; it does not warn.
+  return useQuery({ queryKey: [...rKeys.all, "open-shift", b, offlineKey(off)],
+    queryFn: offlineRead(off, () => restaurantApi.getOpenShift(b), async () => ({ isOpen: true, sessionId: null })), enabled, refetchInterval: 30_000 });
 }
 
 export function useRedeemOrderLoyalty() {
@@ -339,9 +443,12 @@ export function useRecallOrder() {
 
 export function useAddOrderPayment() {
   const invalidate = useInvalidateAll();
+  const off = useRestaurantOffline();
+  const b = useActiveBranchId();
   return useMutation({
     mutationFn: ({ id, method, amount, reference }: { id: string; method: string; amount: number; reference?: string | null }) =>
-      restaurantApi.addPayment(id, { method, amount, reference }),
+      offlineWrite(off, id, () => restaurantApi.addPayment(id, { method, amount, reference }),
+        e => e.addPayment(b, id, { method, amount, reference })),
     onSuccess: () => invalidate(),
     onError: (e: Error) => toast.error(e.message),
   });
@@ -377,11 +484,15 @@ export function useTransferOrderTable() {
 // ── Floors / Dining Areas / Table layout ──────────────────────────────────────
 
 export function useFloors() {
-  return useQuery({ queryKey: rKeys.floors(), queryFn: restaurantApi.getFloors, staleTime: 60_000 });
+  const b = useActiveBranchId();
+  return useQuery({ queryKey: [...rKeys.floors(), b], queryFn: () => restaurantApi.getFloors(b), staleTime: 60_000 });
 }
 
 export function useFloorLayout() {
-  return useQuery({ queryKey: rKeys.floorLayout(), queryFn: restaurantApi.getFloorLayout, refetchInterval: 15_000 });
+  const b = useActiveBranchId();
+  const off = useRestaurantOffline();
+  return useQuery({ queryKey: [...rKeys.floorLayout(), b, offlineKey(off)],
+    queryFn: offlineRead(off, () => restaurantApi.getFloorLayout(b), e => e.getLayout(b), (e, d) => e.remember(b, { layout: d })), refetchInterval: 15_000 });
 }
 
 export function useDiningAreas(floorId: string, enabled = true) {
@@ -394,9 +505,11 @@ export function useDiningAreas(floorId: string, enabled = true) {
 }
 
 export function useCreateFloor() {
+  // New records belong to the branch selected in the switcher unless the form names one.
+  const branch = useActiveBranchId();
   const invalidate = useInvalidateAll();
   return useMutation({
-    mutationFn: (p: { name: string; sortOrder: number; branchId?: string | null }) => restaurantApi.createFloor(p),
+    mutationFn: (p: { name: string; sortOrder: number; branchId?: string | null }) => restaurantApi.createFloor({ ...p, branchId: (p as { branchId?: string | null }).branchId ?? branch }),
     onSuccess: () => { invalidate(); toast.success("Floor added."); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -509,18 +622,22 @@ export function useUnmergeTable() {
 // ── Waitlist ───────────────────────────────────────────────────────────────────
 
 export function useWaitlist(status?: string) {
-  return useQuery({ queryKey: [...rKeys.waitlist(), status ?? "all"], queryFn: () => restaurantApi.getWaitlist(status), refetchInterval: 15_000 });
+  const b = useActiveBranchId();
+  return useQuery({ queryKey: [...rKeys.waitlist(), status ?? "all", b], queryFn: () => restaurantApi.getWaitlist(status, b), refetchInterval: 15_000 });
 }
 
 export function useWaitlistSummary() {
-  return useQuery({ queryKey: rKeys.waitlistSummary(), queryFn: restaurantApi.getWaitlistSummary, refetchInterval: 15_000 });
+  const b = useActiveBranchId();
+  return useQuery({ queryKey: [...rKeys.waitlistSummary(), b], queryFn: () => restaurantApi.getWaitlistSummary(b), refetchInterval: 15_000 });
 }
 
 export function useAddToWaitlist() {
+  // New records belong to the branch selected in the switcher unless the form names one.
+  const branch = useActiveBranchId();
   const invalidate = useInvalidateAll();
   return useMutation({
     mutationFn: (p: { guestName: string; guestPhone: string; partySize: number; quotedWaitMinutes: number; notes?: string | null }) =>
-      restaurantApi.addToWaitlist(p),
+      restaurantApi.addToWaitlist({ ...p, branchId: (p as { branchId?: string | null }).branchId ?? branch }),
     onSuccess: () => { invalidate(); toast.success("Added to waitlist."); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -556,11 +673,13 @@ export function useNoShowWaitlistEntry() {
 // ── Reservations ───────────────────────────────────────────────────────────────
 
 export function useReservations(date?: string) {
-  return useQuery({ queryKey: [...rKeys.reservations(), date ?? "all"], queryFn: () => restaurantApi.getReservations(date), refetchInterval: 30_000 });
+  const b = useActiveBranchId();
+  return useQuery({ queryKey: [...rKeys.reservations(), date ?? "all", b], queryFn: () => restaurantApi.getReservations(date, b), refetchInterval: 30_000 });
 }
 
 export function useReservationsSummary() {
-  return useQuery({ queryKey: rKeys.reservationsSummary(), queryFn: restaurantApi.getReservationsSummary, refetchInterval: 30_000 });
+  const b = useActiveBranchId();
+  return useQuery({ queryKey: [...rKeys.reservationsSummary(), b], queryFn: () => restaurantApi.getReservationsSummary(b), refetchInterval: 30_000 });
 }
 
 export function useReservationRule(branchId?: string | null) {
@@ -568,10 +687,12 @@ export function useReservationRule(branchId?: string | null) {
 }
 
 export function useCreateReservation() {
+  // New records belong to the branch selected in the switcher unless the form names one.
+  const branch = useActiveBranchId();
   const invalidate = useInvalidateAll();
   return useMutation({
     mutationFn: (p: { guestName: string; guestPhone: string; guestEmail?: string | null; covers: number; reservationDate: string; reservationTime: string; specialRequests?: string | null; tableId?: string | null; arrivalWindowStart?: string | null; arrivalWindowEnd?: string | null }) =>
-      restaurantApi.createReservation(p),
+      restaurantApi.createReservation({ ...p, branchId: (p as { branchId?: string | null }).branchId ?? branch }),
     onSuccess: () => { invalidate(); toast.success("Reservation created."); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -912,14 +1033,17 @@ export function useDeleteDeliveryZone() {
 // ── Drivers ────────────────────────────────────────────────────────────────────
 
 export function useDrivers(activeOnly?: boolean) {
-  return useQuery({ queryKey: rKeys.drivers(activeOnly), queryFn: () => restaurantApi.getDrivers(activeOnly), staleTime: 30_000 });
+  const b = useActiveBranchId();
+  return useQuery({ queryKey: [...rKeys.drivers(activeOnly), b], queryFn: () => restaurantApi.getDrivers(activeOnly, b), staleTime: 30_000 });
 }
 
 export function useCreateDriver() {
+  // New records belong to the branch selected in the switcher unless the form names one.
+  const branch = useActiveBranchId();
   const invalidate = useInvalidateAll();
   return useMutation({
     mutationFn: (p: { name: string; phone: string; vehicleInfo?: string | null; linkedUserId?: string | null; branchId?: string | null }) =>
-      restaurantApi.createDriver(p),
+      restaurantApi.createDriver({ ...p, branchId: (p as { branchId?: string | null }).branchId ?? branch }),
     onSuccess: () => { invalidate(); toast.success("Driver added."); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -951,11 +1075,13 @@ export function useDeliveryProviders() {
 }
 
 export function useDeliverySummary() {
-  return useQuery({ queryKey: rKeys.deliverySummary(), queryFn: restaurantApi.getDeliverySummary, refetchInterval: 15_000 });
+  const b = useActiveBranchId();
+  return useQuery({ queryKey: [...rKeys.deliverySummary(), b], queryFn: () => restaurantApi.getDeliverySummary(b), refetchInterval: 15_000 });
 }
 
 export function useDeliveryOrders(status?: string, enabled = true) {
-  return useQuery({ queryKey: rKeys.deliveryOrders(status), queryFn: () => restaurantApi.getDeliveryOrders(status), refetchInterval: 15_000, enabled });
+  const b = useActiveBranchId();
+  return useQuery({ queryKey: [...rKeys.deliveryOrders(status), b], queryFn: () => restaurantApi.getDeliveryOrders(status, b), refetchInterval: 15_000, enabled });
 }
 
 export function useDeliveryOrder(id: string, enabled = true) {
@@ -1012,4 +1138,44 @@ export function useSendReceipt() {
     onSuccess: (res) => { if (res.success) toast.success(`Receipt sent via ${res.channel}.`); else toast.error(`Couldn't send via ${res.channel} — check configuration.`); },
     onError: (e: Error) => toast.error(e.message),
   });
+}
+
+// ── Per-branch menu (price / not sold here) ─────────────────────────────────────
+
+export function useMenuBranchSettings(branchId: string | null) {
+  return useQuery({
+    queryKey: [...rKeys.menu(), "branch-settings", branchId],
+    queryFn: () => restaurantApi.getMenuBranchSettings(branchId!),
+    enabled: !!branchId,
+  });
+}
+
+export function useSetMenuItemBranchSetting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (p: { itemId: string; branchId: string; priceOverride: number | null; isAvailable: boolean }) =>
+      restaurantApi.setMenuItemBranchSetting(p.itemId, p.branchId, { priceOverride: p.priceOverride, isAvailable: p.isAvailable }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: rKeys.menu() }); toast.success("Branch menu updated."); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+/** Offline: the till's bills as one page, newest first, filtered the way the server would. */
+function pageOf(orders: RestaurantOrder[], params: { status?: string; page?: number; pageSize?: number }): PagedOrders {
+  const live = (o: RestaurantOrder) => o.status !== "paid" && o.status !== "cancelled";
+  const rows = orders
+    .filter(o => !params.status || (params.status === "open" ? live(o) : o.status === params.status))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const page = params.page ?? 1, pageSize = params.pageSize ?? 30;
+  return { items: rows.slice((page - 1) * pageSize, page * pageSize), page, pageSize,
+           totalCount: rows.length, totalPages: Math.max(1, Math.ceil(rows.length / pageSize)) };
+}
+
+/** Offline: the status counts the till can know from its own bills (no takings history). */
+function summaryOf(orders: RestaurantOrder[]) {
+  const n = (st: string) => orders.filter(o => o.status === st).length;
+  const paidRevenue = orders.filter(o => o.status === "paid").reduce((t, o) => t + o.total, 0);
+  return { total: orders.length, open: n("open"), sent: n("sent"), ready: n("ready"), served: n("served"),
+           paid: n("paid"), cancelled: n("cancelled"), split: n("split"), held: n("held"),
+           todayOrders: orders.length, todayRevenue: paidRevenue, totalRevenue: paidRevenue, totalTips: 0 };
 }

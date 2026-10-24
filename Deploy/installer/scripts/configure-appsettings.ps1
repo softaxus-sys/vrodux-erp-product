@@ -30,7 +30,11 @@ try {
         $i = $line.IndexOf('=')
         if ($i -gt 0) { $v[$line.Substring(0, $i).Trim()] = $line.Substring($i + 1) }
     }
-    foreach ($req in 'SqlServer', 'Database', 'TenantName', 'AdminEmail') {
+    # A branch server gets its workspace, users and subscription from head office, so no store,
+    # administrator or licence is set up here - only the connection to head office.
+    $isBranch = [bool]($v.BranchCode -and $v.BranchCode.Trim())
+    $required = if ($isBranch) { 'SqlServer', 'Database' } else { 'SqlServer', 'Database', 'TenantName', 'AdminEmail' }
+    foreach ($req in $required) {
         if (-not $v[$req] -or -not $v[$req].Trim()) { throw "Missing value: $req" }
     }
 
@@ -63,6 +67,29 @@ try {
     Set-Prop $json 'Urls' "http://*:$port"
 
     if ($v.FrontendUrl) { Set-Prop $json 'FrontendUrl' $v.FrontendUrl.Trim() }
+
+    if ($isBranch) {
+        # "VBR1." + base64url of {u: head-office address, t: workspace, b: branch, k: key} - see check-branch-code.ps1.
+        $b64 = ($v.BranchCode -replace '\s', '').Substring(5).Replace('-', '+').Replace('_', '/')
+        switch ($b64.Length % 4) { 2 { $b64 += '==' } 3 { $b64 += '=' } }
+        $c = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) | ConvertFrom-Json
+        $bs = [pscustomobject]@{
+            Mode                = 'Branch'
+            TenantId            = "$($c.t)"
+            BranchId            = "$($c.b)"
+            CloudBaseUrl        = "$($c.u)".TrimEnd('/')
+            BranchKey           = "$($c.k)"
+            IntervalSeconds     = 5
+            StartupDelaySeconds = 120
+        }
+        Set-Prop $json 'BranchSync' $bs
+        $out = $json | ConvertTo-Json -Depth 32
+        [IO.File]::WriteAllText($Path, $out, (New-Object Text.UTF8Encoding($false)))
+        Log "appsettings.json configured as a branch server of $($bs.CloudBaseUrl) (branch $($bs.BranchId)) on $($v.SqlServer.Trim()) / $($v.Database.Trim())"
+        exit 0
+    }
+    # A single store: make sure a previous branch setup on this PC does not linger.
+    if ($json.PSObject.Properties['BranchSync']) { $json.BranchSync.Mode = '' }
 
     $op = $json.OnPremises
     Set-Prop $op 'TenantName'     $v.TenantName.Trim()

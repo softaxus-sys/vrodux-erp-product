@@ -333,7 +333,7 @@ internal sealed class RentAlertSender(
     }
 
     /// <summary>The workspace's operating currency (Module 6e), for the amounts in the notice.
-    /// Falls back to AED rather than printing a bare number with no unit.</summary>
+    /// Falls back to the platform base currency rather than printing a bare number with no unit.</summary>
     private async Task<string> ResolveCurrencyAsync(CancellationToken ct)
     {
         try
@@ -344,11 +344,11 @@ internal sealed class RentAlertSender(
                 .ToListAsync(ct);
 
             var currency = found.FirstOrDefault();
-            return string.IsNullOrWhiteSpace(currency) ? "AED" : currency!;
+            return string.IsNullOrWhiteSpace(currency) ? Softaxis.BuildingBlocks.Domain.Multitenancy.TenantCurrency.Fallback : currency!;
         }
         catch
         {
-            return "AED";
+            return Softaxis.BuildingBlocks.Domain.Multitenancy.TenantCurrency.Fallback;
         }
     }
 

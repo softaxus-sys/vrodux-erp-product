@@ -15,7 +15,7 @@ import { StatusBadge, useIntegrationText } from "@/modules/finance/integrations/
 import { PostingCheckDialog } from "@/modules/finance/integrations/components/posting-check";
 
 /** Modules whose documents can be posted to the ledger from the posting queue. */
-export type PostingModule = "pos" | "restaurant" | "real-estate" | "library" | "hr";
+export type PostingModule = "pos" | "restaurant" | "real-estate" | "library" | "hr" | "hospitality";
 
 const TABS = ["pending", "failed", "posted"] as const;
 type Tab = (typeof TABS)[number];

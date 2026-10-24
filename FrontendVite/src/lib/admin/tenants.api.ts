@@ -40,6 +40,8 @@ export interface TenantDto {
   hasLicenseKey: boolean;
   /** True when this workspace is the read-only cloud reflection of an on-premises installation. */
   isMirror?: boolean;
+  /** Users exist but none has confirmed their email — the owner cannot sign in yet. */
+  awaitingActivation?: boolean;
   licenseExpiresAt: string | null;
   lastHeartbeatAt: string | null;
   trialEndsAt: string | null;
@@ -159,6 +161,10 @@ export const tenantsAdminApi = {
 
   activate: (id: string): Promise<TenantDto> =>
     apiClient.patch(`${BASE}/${id}/activate`),
+
+  /** Re-send the activation email to the workspace's users who never verified their address. */
+  resendInvite: (id: string): Promise<{ sent: number; failed: number; recipients: string[] }> =>
+    apiClient.post(`${BASE}/${id}/resend-invite`),
 
   suspend: (id: string): Promise<TenantDto> =>
     apiClient.patch(`${BASE}/${id}/suspend`),

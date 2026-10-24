@@ -6,6 +6,9 @@ import { ShiftGate }         from "@/modules/pos/retail/components/shift-gate";
 import { usePosFocusMode }   from "@/hooks/pos/use-pos-focus-mode";
 import { useCan }            from "@/components/auth/can";
 import { useOpenShift }      from "@/hooks/restaurant/use-restaurant";
+import { useCurrentBranch }  from "@/hooks/restaurant/use-current-branch";
+import { BranchGate, ShiftBranchLock } from "@/modules/pos/restaurant/components/branch-gate";
+import { RestaurantOfflineProvider } from "@/contexts/restaurant-offline-context";
 
 export default function Page() {
   // Same as retail: the order screen takes the full width.
@@ -13,16 +16,25 @@ export default function Page() {
   // Whoever runs a till opens their own shift. Floor staff (waiters) do not handle a drawer: they
   // take orders under the cashier's open shift, so they are never asked to count cash.
   const runsTill = useCan("pos.sessions.create");
+  const { branchId } = useCurrentBranch();
 
+  // The branch is chosen first: a shift opened here belongs to it, and so does every order.
   return (
     <HardwareProvider>
-      {runsTill ? (
-        <ShiftGate>
-          <RestaurantPOSView />
-        </ShiftGate>
-      ) : (
-        <FloorStaff />
-      )}
+      {/* Keeps the till trading through an outage; uploads what happened when the server is back. */}
+      <RestaurantOfflineProvider>
+      <BranchGate>
+        {runsTill ? (
+          <ShiftGate branchId={branchId}>
+            <ShiftBranchLock>
+              <RestaurantPOSView />
+            </ShiftBranchLock>
+          </ShiftGate>
+        ) : (
+          <FloorStaff />
+        )}
+      </BranchGate>
+      </RestaurantOfflineProvider>
     </HardwareProvider>
   );
 }

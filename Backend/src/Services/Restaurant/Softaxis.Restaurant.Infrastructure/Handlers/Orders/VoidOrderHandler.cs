@@ -40,6 +40,7 @@ internal sealed class VoidOrderHandler(RestaurantDbContext db, POSDbContext posD
                 "This order was split — cancel each part individually."));
 
         o.VoidWholeOrder(cmd.Reason, userId);
+        db.OrderVoidLogs.Add(o.VoidLogs[^1]);   // new child row — EF would otherwise treat it as an update
         await db.SaveChangesAsync(ct);
 
         return Result.Success(OrderMappings.ToDto(o));

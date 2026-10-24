@@ -19,9 +19,9 @@ public static class TenantCurrency
     /// <summary>
     /// Fallback used when no tenant currency is resolvable — an unauthenticated context,
     /// a super-admin acting outside any tenant, or a background worker that did not
-    /// supply one. Matches the historical column default so nothing regresses.
+    /// supply one. USD is the platform base currency (Module 6e); never a country-specific guess.
     /// </summary>
-    public const string Fallback = "AED";
+    public const string Fallback = "USD";
 
     /// <summary>The current tenant's operating currency, or <see cref="Fallback"/>.</summary>
     public static string Resolve() => TenantAmbient.Currency ?? Fallback;

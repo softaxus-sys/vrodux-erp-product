@@ -268,6 +268,7 @@ internal sealed class UpsertTourServiceHandler(HospitalityDbContext db) : IComma
         }
         s.Update(cmd.Type, cmd.SupplierName, cmd.Description, cmd.ServiceDate, cmd.EndDate, cmd.ConfirmationNumber,
             cmd.Cost, cmd.SupplierPaid, cmd.IsExtra, cmd.SellPrice, cmd.Status, cmd.Notes);
+        s.SetDetails(cmd.Details is null ? null : new Dictionary<string, string>(cmd.Details));
         await TourSupport.RecalculateAsync(db, b, ct);
         await db.SaveChangesAsync(ct);
         return Result.Success(TourSupport.ToDto(s, true));
@@ -357,7 +358,6 @@ internal sealed class GetTourDashboardHandler(HospitalityDbContext db) : IQueryH
         HotelDates.TryParse(today, out var t);
         var in30 = HotelDates.Text(t.AddDays(30));
         var in60 = HotelDates.Text(t.AddDays(60));
-        var monthStart = HotelDates.Text(new DateOnly(t.Year, t.Month, 1));
 
         var open = await db.TourBookings.AsNoTracking().Where(b => !b.IsDeleted && (b.Status == "enquiry" || b.Status == "confirmed")).ToListAsync(ct);
         var ids = open.Select(b => b.Id).ToList();
@@ -402,9 +402,10 @@ internal sealed class GetTourDashboardHandler(HospitalityDbContext db) : IQueryH
                     $"{g.Count()} supplier booking{(g.Count() == 1 ? "" : "s")} not confirmed", null));
         }
 
+        // Sales are counted when the booking is taken, not when the trip runs.
+        var monthFrom = new DateTime(t.Year, t.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var month = await db.TourBookings.AsNoTracking()
-            .Where(b => !b.IsDeleted && b.Status != "cancelled" && string.Compare(b.StartDate, monthStart) >= 0
-                        && string.Compare(b.StartDate, HotelDates.Text(new DateOnly(t.Year, t.Month, 1).AddMonths(1))) < 0)
+            .Where(b => !b.IsDeleted && b.Status != "cancelled" && b.CreatedAt >= monthFrom && b.CreatedAt < monthFrom.AddMonths(1))
             .Select(b => new { b.TotalAmount, b.TaxAmount, b.CostAmount }).ToListAsync(ct);
 
         var deps = await db.TourDepartures.AsNoTracking()

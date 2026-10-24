@@ -5,6 +5,7 @@ import { CheckCircle2, Printer, X } from "lucide-react";
 import { cn, formatCurrency, parseApiDate } from "@/lib/utils";
 import { useCompanyBranding } from "@/hooks/use-company-name";
 import type { RestaurantOrder } from "@/lib/restaurant/restaurant.api";
+import QRCode from "qrcode";
 
 /**
  * The tax receipt for a settled order, shown on screen straight after payment and reopenable from
@@ -20,8 +21,15 @@ export function OrderReceiptModal({ order, currency, justPaid, onClose }: {
 
   const money = (n: number) => formatCurrency(n, currency);
   const taxable = order.subTotal - order.discountAmount;
-  // The order stores the tax amount, not the rate — shown only when it works out to a clean figure.
-  const rate = taxable > 0 && order.taxAmount > 0 ? Math.round((order.taxAmount / taxable) * 1000) / 10 : null;
+  // Bills carry their rate; older ones only the amount, so the rate is worked out for those.
+  const rate = order.taxRate ?? (taxable > 0 && order.taxAmount > 0 ? Math.round((order.taxAmount / taxable) * 1000) / 10 : null);
+  const taxName = order.taxLabel && order.taxLabel !== "Tax" ? order.taxLabel : t("posView.receiptView.tax");
+  // FBR asks for its invoice number as a QR code on every reported receipt.
+  const [fbrQr, setFbrQr] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!order.fbrInvoiceNumber) { setFbrQr(null); return; }
+    QRCode.toDataURL(order.fbrInvoiceNumber, { margin: 0, width: 140, errorCorrectionLevel: "M" }).then(setFbrQr).catch(() => setFbrQr(null));
+  }, [order.fbrInvoiceNumber]);
   const refunded = order.refunds.reduce((sum, r) => sum + r.amount, 0);
   const change = Math.max(0, order.amountPaid - order.total - order.tipAmount);
   const when = parseApiDate(order.payments[order.payments.length - 1]?.createdAt ?? order.createdAt);
@@ -101,7 +109,8 @@ export function OrderReceiptModal({ order, currency, justPaid, onClose }: {
 
             <Row label={t("posView.receiptView.subtotal")} value={money(order.subTotal)} />
             {order.discountAmount > 0 && <Row label={t("posView.receiptView.discount")} value={`− ${money(order.discountAmount)}`} />}
-            <Row label={rate !== null ? `${t("posView.receiptView.tax")} (${rate}%)` : t("posView.receiptView.tax")} value={money(order.taxAmount)} />
+            <Row label={rate !== null ? `${taxName} (${rate}%)` : taxName} value={money(order.taxAmount)} />
+            {(order.serviceFee ?? 0) > 0 && <Row label={t("platform.fbrFee")} value={money(order.serviceFee!)} />}
             {order.tipAmount > 0 && <Row label={t("posView.receiptView.tip")} value={money(order.tipAmount)} />}
             <Rule />
             <Row strong big label={t("posView.receiptView.total")} value={money(order.total + order.tipAmount)} />
@@ -114,6 +123,23 @@ export function OrderReceiptModal({ order, currency, justPaid, onClose }: {
             {refunded > 0 && <Row strong label={t("posView.receiptView.refunded")} value={`− ${money(refunded)}`} />}
             {order.outstanding > 0 && <Row strong label={t("posView.receiptView.balanceDue")} value={money(order.outstanding)} />}
 
+            {order.fbrStatus && (
+              <>
+                <Rule />
+                <div className="c text-center">
+                  {order.fbrInvoiceNumber ? (
+                    <>
+                      <div className="b font-bold">{t("platform.fbrInvoiceNo")}</div>
+                      <div className="break-all">{order.fbrInvoiceNumber}</div>
+                      {fbrQr && <img src={fbrQr} alt="" className="mx-auto my-2 h-28 w-28" style={{ maxHeight: "none" }} />}
+                      <div className="m text-xs text-neutral-600">{t("platform.fbrVerify")}</div>
+                    </>
+                  ) : (
+                    <div className="m text-xs text-neutral-600">{t("platform.fbrPending")}</div>
+                  )}
+                </div>
+              </>
+            )}
             <Rule />
             <div className="c text-center">{t("posView.receiptView.thanks")}</div>
           </div>

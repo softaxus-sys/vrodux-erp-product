@@ -15,14 +15,14 @@ public sealed class KitchenController(ISender sender) : RestaurantControllerBase
     /// <summary>GET /api/restaurant/kitchen/summary</summary>
     [HttpGet("summary")]
     [RequirePermission("restaurant.kitchen.view")]
-    public async Task<IActionResult> GetSummary(CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetKitchenSummaryQuery(), ct));
+    public async Task<IActionResult> GetSummary([FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetKitchenSummaryQuery(branchId), ct));
 
     /// <summary>GET /api/restaurant/kitchen/tickets?stationId=</summary>
     [HttpGet("tickets")]
     [RequirePermission("restaurant.kitchen.view")]
-    public async Task<IActionResult> GetTickets([FromQuery] Guid? stationId, CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetKitchenTicketsQuery(stationId), ct));
+    public async Task<IActionResult> GetTickets([FromQuery] Guid? stationId, [FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetKitchenTicketsQuery(stationId, branchId), ct));
 
     /// <summary>PATCH /api/restaurant/kitchen/orders/{id}/ready — same command as OrdersController.MarkReady;
     /// exposed here too since the KDS marks orders ready without going through the order-drawer UI.</summary>

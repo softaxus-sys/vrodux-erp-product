@@ -14,7 +14,7 @@ internal sealed class GetTablesSummaryHandler(RestaurantDbContext db, IBranchAcc
 {
     public async Task<Result<TablesSummaryDto>> Handle(GetTablesSummaryQuery query, CancellationToken ct)
     {
-        var accessible = await branchAccess.GetAccessibleBranchIdsAsync(ct);
+        var accessible = await branchAccess.ResolveReadScopeAsync(query.BranchId, ct);
         var all = await BranchScope.Apply(db.Tables.AsNoTracking().Where(x => !x.IsDeleted), accessible)
             .Select(x => new { x.Status, x.Section, x.Capacity }).ToListAsync(ct);
 

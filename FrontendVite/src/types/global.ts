@@ -191,6 +191,12 @@ export interface NavItem {
   isNew?: boolean;
   isBeta?: boolean;
   separator?: boolean;
+  /** A non-clickable section label inside a child list (Settings). Hidden when nothing follows it. */
+  heading?: boolean;
+  /** Shown only on an on-premises installation. */
+  onPremOnly?: boolean;
+  /** ISO country codes the item is for; hidden for any other workspace country. */
+  countries?: string[];
 }
 
 export interface NavGroup {

@@ -246,6 +246,10 @@ public static class PermissionSeedData
         ["restaurant.notifications"] = ["view","edit"],
         // Registered POS terminals/tablets — inventory/observability, not access control (Epic 9)
         ["restaurant.devices"]      = ["view","edit"],
+        // Tax rate per country / branch, and FBR (Pakistan) invoice reporting
+        ["restaurant.tax"]          = ["view","edit"],
+        // Online ordering platforms (Foodpanda)
+        ["restaurant.integrations"] = ["view","edit"],
 
         // Real Estate (properties, units, tenants, leases, brokers).
         // The module previously had NO permission keys at all and no enforcement anywhere -

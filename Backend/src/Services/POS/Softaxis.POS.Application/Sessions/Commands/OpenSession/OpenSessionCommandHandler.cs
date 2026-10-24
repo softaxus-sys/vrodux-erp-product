@@ -19,7 +19,7 @@ public sealed class OpenSessionCommandHandler(
             return Result.Failure<POSSessionDto>(Error.Custom("Session.Unauthorized", "User must be authenticated to open a session."));
 
         // Enforce one open session per register
-        var existing = await sessionRepo.GetActiveByRegisterAsync(cmd.RegisterId, ct);
+        var existing = await sessionRepo.GetActiveByRegisterAsync(cmd.RegisterId, cmd.BranchId, ct);
         if (existing is not null)
             return Result.Failure<POSSessionDto>(Error.Custom("Session.RegisterInUse",
                 $"Register '{cmd.RegisterId}' already has an active session."));
@@ -30,7 +30,7 @@ public sealed class OpenSessionCommandHandler(
             return Result.Failure<POSSessionDto>(Error.Custom("Session.CashierHasSession",
                 "You already have an active POS session. Close it before opening a new one."));
 
-        var result = POSSession.Open(currentUser.Id.Value, cmd.RegisterId, cmd.OpeningCash);
+        var result = POSSession.Open(currentUser.Id.Value, cmd.RegisterId, cmd.OpeningCash, cmd.BranchId);
         if (result.IsFailure)
             return Result.Failure<POSSessionDto>(result.Error);
 
@@ -44,5 +44,5 @@ public sealed class OpenSessionCommandHandler(
         new(s.Id, s.CashierId, s.RegisterId, s.Status.ToString(),
             s.OpenedAt, s.ClosedAt, s.OpeningCash, s.ClosingCash,
             s.ExpectedCash, s.CashVariance, s.TotalTransactions,
-            s.TotalSales, s.TotalRefunds, s.NetSales, s.Notes);
+            s.TotalSales, s.TotalRefunds, s.NetSales, s.Notes, s.BranchId);
 }

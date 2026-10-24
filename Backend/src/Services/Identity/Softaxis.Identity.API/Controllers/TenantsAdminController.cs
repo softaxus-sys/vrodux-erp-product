@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.Identity.Application.DTOs;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.ActivateTenant;
+using Softaxis.Identity.Application.TenantsAdmin.Commands.ResendTenantInvite;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.ImpersonateTenant;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.ChangeTenantPlan;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.CreateTenant;
@@ -68,6 +69,11 @@ public sealed class TenantsAdminController(ISender sender) : BaseApiController(s
     [HttpPatch("{id:guid}/activate")]
     public async Task<IActionResult> Activate(Guid id, CancellationToken ct)
         => HandleResult(await Sender.Send(new ActivateTenantCommand(id), ct));
+
+    // POST /api/admin/tenants/{id}/resend-invite — re-send activation to users who never verified.
+    [HttpPost("{id:guid}/resend-invite")]
+    public async Task<IActionResult> ResendInvite(Guid id, CancellationToken ct)
+        => HandleResult(await Sender.Send(new ResendTenantInviteCommand(id), ct));
 
     // PATCH /api/admin/tenants/{id}/suspend
     [HttpPatch("{id:guid}/suspend")]

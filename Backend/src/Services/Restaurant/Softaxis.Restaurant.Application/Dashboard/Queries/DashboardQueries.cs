@@ -1,16 +1,17 @@
+using Softaxis.Restaurant.Application.Abstractions;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.Restaurant.Application.Dashboard.Dtos;
 
 namespace Softaxis.Restaurant.Application.Dashboard.Queries;
 
 /// <summary>GET /api/restaurant/dashboard/owner?branchId= — tenant-wide (or one branch) business snapshot.</summary>
-public sealed record GetOwnerDashboardQuery(Guid? BranchId = null) : IQuery<OwnerDashboardDto>;
+public sealed record GetOwnerDashboardQuery(Guid? BranchId = null) : IBranchScopedQuery, IQuery<OwnerDashboardDto>;
 
 /// <summary>GET /api/restaurant/dashboard/branch?branchId= — one branch's today snapshot + floor status.</summary>
-public sealed record GetBranchDashboardQuery(Guid? BranchId = null) : IQuery<BranchDashboardDto>;
+public sealed record GetBranchDashboardQuery(Guid? BranchId = null) : IBranchScopedQuery, IQuery<BranchDashboardDto>;
 
 /// <summary>GET /api/restaurant/dashboard/kitchen?branchId= — active KDS load + today's prep-time signal.</summary>
-public sealed record GetKitchenDashboardQuery(Guid? BranchId = null) : IQuery<KitchenDashboardDto>;
+public sealed record GetKitchenDashboardQuery(Guid? BranchId = null) : IBranchScopedQuery, IQuery<KitchenDashboardDto>;
 
 /// <summary>GET /api/restaurant/dashboard/cashier?sessionId= — the acting cashier's current shift snapshot.</summary>
 public sealed record GetCashierDashboardQuery(Guid? SessionId = null) : IQuery<CashierDashboardDto>;

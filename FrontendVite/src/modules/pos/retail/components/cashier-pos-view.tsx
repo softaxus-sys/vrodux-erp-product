@@ -6,6 +6,7 @@
  * Shortcuts: F2 search · F4 hold sale · F9 pay
  */
 
+import { getTenantCurrency } from "@/hooks/use-currency";
 import * as React from "react";
 import { usePosSettings } from "@/hooks/pos/use-pos-settings";
 import { motion, AnimatePresence } from "framer-motion";
@@ -64,7 +65,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 export function CashierPOSView() {
   const { user, tenant } = useAuthStore();
-  const currency       = tenant?.currency || "AED";
+  const currency       = tenant?.currency || getTenantCurrency();
   const companyName    = tenant?.branding?.companyName ?? "Vrodux POS";
   const paymentMethods = usePaymentMethods();
   const { sessionId, shiftDuration, openClosePanel } = useShift();

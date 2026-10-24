@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useAuthStore } from "@/store/auth.store";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import {
@@ -6,6 +7,7 @@ import {
   X, Plus, Pencil, Trash2, AlertTriangle, Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Can } from "@/components/auth/can";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
@@ -74,11 +76,16 @@ const TIMEZONE_OPTIONS = [
 
 // ── Branch Form ───────────────────────────────────────────────────────────────
 
-const EMPTY_BRANCH: Omit<Branch, "id"> = {
-  code: "", name: "", type: "regional", city: "", country: "Pakistan", flag: "🇵🇰",
-  address: "", phone: "", email: "", manager: "", staff: 0,
-  status: "active", currency: "PKR", timezone: "Asia/Karachi (UTC+5)", openedDate: "",
-};
+/** A new branch starts in the workspace's own country, currency and timezone — never a fixed one. */
+function emptyBranch(): Omit<Branch, "id"> {
+  const t = useAuthStore.getState().tenant;
+  return {
+    code: "", name: "", type: "regional", city: "", country: t?.country ?? "", flag: "",
+    address: "", phone: "", email: "", manager: "", staff: 0,
+    status: "active", currency: t?.currency ?? "USD",
+    timezone: t?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", openedDate: "",
+  };
+}
 
 function BranchFormModal({
   initial, title, onSave, onClose,
@@ -91,7 +98,7 @@ function BranchFormModal({
   const { t } = useTranslation("settings");
   const { t: tc } = useTranslation("common");
   const [form, setForm] = React.useState<Omit<Branch, "id">>(
-    initial ? { ...initial } : { ...EMPTY_BRANCH }
+    initial ? { ...initial } : emptyBranch()
   );
 
   const set = (key: keyof Omit<Branch, "id">, value: string | number) =>
@@ -342,13 +349,17 @@ function BranchDetailDrawer({
           </div>
         </div>
         <div className="px-6 py-4 border-t border-border flex gap-2">
-          <Button className="flex-1 gap-1.5" variant="outline" onClick={onEdit}>
+          <Can permission="settings.branches.edit">
+            <Button className="flex-1 gap-1.5" variant="outline" onClick={onEdit}>
             <Pencil className="h-4 w-4" />{tc("action.edit")}
           </Button>
+          </Can>
+          <Can permission="settings.branches.delete">
           <Button variant="outline" size="icon" className="text-destructive hover:text-destructive hover:border-destructive/40"
             onClick={onDelete}>
             <Trash2 className="h-4 w-4" />
           </Button>
+          </Can>
         </div>
       </motion.div>
     </AnimatePresence>
@@ -497,9 +508,11 @@ export function BranchesView() {
           <h1 className="text-2xl font-bold">{t("branches.title")}</h1>
           <p className="text-muted-foreground mt-1 text-sm">{t("branches.description")}</p>
         </div>
+        <Can permission="settings.branches.create">
         <Button className="gap-2" onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4" />{t("branches.add")}
         </Button>
+        </Can>
       </div>
 
       {/* Stats */}

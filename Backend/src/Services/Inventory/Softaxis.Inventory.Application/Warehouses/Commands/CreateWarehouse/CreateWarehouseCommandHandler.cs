@@ -15,6 +15,7 @@ public sealed class CreateWarehouseCommandHandler(
     {
         var wh = new Warehouse(cmd.Name, cmd.Code, cmd.Address, cmd.ContactPerson, cmd.Phone);
         if (!cmd.IsActive) wh.Update(cmd.Name, cmd.Code, cmd.Address, cmd.ContactPerson, cmd.Phone, false);
+        wh.SetBranch(cmd.BranchId);
 
         // First warehouse becomes default automatically
         if (!await warehouseRepo.AnyAsync(ct)) wh.SetDefault();
@@ -24,6 +25,6 @@ public sealed class CreateWarehouseCommandHandler(
 
         return Result.Success(new WarehouseDto(
             wh.Id, wh.Name, wh.Code, wh.Address, wh.ContactPerson, wh.Phone,
-            wh.IsActive, wh.IsDefault, 0, wh.CreatedAt, wh.UpdatedAt));
+            wh.IsActive, wh.IsDefault, 0, wh.CreatedAt, wh.UpdatedAt, wh.BranchId));
     }
 }

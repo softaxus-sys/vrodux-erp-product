@@ -684,6 +684,9 @@ export const navigationConfig: NavGroup[] = [
           { id: "hotel-rates", label: "Rates", href: "/hospitality/rates", icon: "Tags" },
           { id: "hotel-guests", label: "Guests", href: "/hospitality/guests", icon: "Contact" },
           { id: "hotel-settings", label: "Hotel Settings", href: "/hospitality/settings", icon: "Settings2" },
+          { id: "tour-dashboard", label: "Travel Agency", href: "/hospitality/tours", icon: "Plane" },
+          { id: "tour-packages", label: "Tour Packages", href: "/hospitality/tours/packages", icon: "Compass" },
+          { id: "tour-bookings", label: "Tour Bookings", href: "/hospitality/tours/bookings", icon: "Luggage" },
         ],
       },
       {
@@ -772,27 +775,39 @@ export const navigationConfig: NavGroup[] = [
         // admin. Admin tiers still see everything — see `canOpenSettingsPage` in auth.store.
         // Pages with no seeded key of their own stay on the nearest one (noted inline).
         children: [
+          { id: "h-company", label: "Company", heading: true },
           { id: "general", label: "General", href: "/settings/general", icon: "SlidersHorizontal", requiresPermission: "settings.general.view" },
           // no settings.currency key — currency is a company-wide general setting
           { id: "currency", label: "Currency & Rates", href: "/settings/currency", icon: "Coins", requiresPermission: "settings.general.view" },
+          { id: "branches", label: "Branches", href: "/settings/branches", icon: "GitBranch", requiresPermission: "settings.branches.view" },
+          { id: "branch-servers", label: "Branch Servers", href: "/settings/branch-servers", icon: "Server", requiresPermission: "settings.branches.view" },
           { id: "billing", label: "Billing & Plan", href: "/settings/billing", icon: "CreditCard", requiresPermission: "settings.billing.view" },
-          { id: "pos-payment-methods", label: "POS Payments", href: "/settings/pos-payment-methods", icon: "CreditCard", module: "pos" },
-          { id: "receipt-printer", label: "Receipt Printer", href: "/settings/receipt-printer", icon: "Printer", module: "pos" },
-          { id: "fbr", label: "FBR Integration", href: "/settings/fbr", icon: "Landmark", module: "pos" },
-          { id: "payment-gateway", label: "Payment Gateway", href: "/settings/payment-gateway", icon: "Landmark", module: "pos" },
-          { id: "notifications", label: "SMS & WhatsApp", href: "/settings/notifications", icon: "Bell", module: "restaurant", requiresPermission: "restaurant.notifications.view" },
-          { id: "devices", label: "Registered Devices", href: "/settings/devices", icon: "Monitor", module: "restaurant", requiresPermission: "restaurant.devices.view" },
-          { id: "vouchers", label: "Vouchers & Coupons", href: "/settings/vouchers", icon: "Ticket", module: "pos" },
+
+          { id: "h-access", label: "People & access", heading: true },
           { id: "users", label: "Users", href: "/settings/users", icon: "Users", requiresPermission: "settings.users.view" },
-          { id: "roles", label: "Roles & Permissions", href: "/settings/roles", icon: "ShieldCheck", requiresPermission: "settings.roles.view" },
           // no settings.teams key — a team is a grouping of users
           { id: "teams", label: "Teams", labelAr: "الفرق", href: "/settings/teams", icon: "Users", requiresPermission: "settings.users.view" },
+          { id: "roles", label: "Roles & Permissions", href: "/settings/roles", icon: "ShieldCheck", requiresPermission: "settings.roles.view" },
           // 2FA is the signed-in user's OWN account — never permission-gated
           { id: "security", label: "Security (2FA)", href: "/settings/security", icon: "ShieldCheck" },
-          { id: "branches", label: "Branches", href: "/settings/branches", icon: "GitBranch", requiresPermission: "settings.branches.view" },
-          { id: "integrations", label: "Integrations", href: "/settings/integrations", icon: "Plug", requiresPermission: "settings.integrations.view" },
+
+          { id: "h-pos", label: "Point of sale", heading: true },
+          { id: "pos-payment-methods", label: "POS Payments", href: "/settings/pos-payment-methods", icon: "CreditCard", module: "pos" },
+          { id: "payment-gateway", label: "Payment Gateway", href: "/settings/payment-gateway", icon: "Landmark", module: "pos" },
+          { id: "receipt-printer", label: "Receipt Printer", href: "/settings/receipt-printer", icon: "Printer", module: "pos" },
+          { id: "vouchers", label: "Vouchers & Coupons", href: "/settings/vouchers", icon: "Ticket", module: "pos" },
+          { id: "devices", label: "Registered Devices", href: "/settings/devices", icon: "Monitor", module: "restaurant", requiresPermission: "restaurant.devices.view" },
+          { id: "notifications", label: "SMS & WhatsApp", href: "/settings/notifications", icon: "Bell", module: "restaurant", requiresPermission: "restaurant.notifications.view" },
+
+          { id: "h-tax", label: "Tax & compliance", heading: true },
+          // Pakistan only: the FBR POS account. Other countries get their own item once their authority is connected.
+          { id: "fbr", label: "FBR Integration", href: "/settings/fbr", icon: "Landmark", module: "pos", countries: ["PK"] },
+          { id: "restaurant-tax", label: "Restaurant Tax", href: "/settings/integrations?tab=tax", icon: "Percent", module: "restaurant", requiresPermission: "restaurant.tax.view" },
+
+          { id: "h-connect", label: "Connections & data", heading: true },
+          { id: "integrations", label: "Integrations", href: "/settings/integrations", icon: "Plug", requiresPermission: "settings.integrations.view|restaurant.integrations.view" },
           // on-premises only — the screen itself says so on a cloud deployment
-          { id: "cloud-sync", label: "Cloud Sync", href: "/settings/cloud-sync", icon: "CloudUpload", requiresPermission: "settings.integrations.edit" },
+          { id: "cloud-sync", label: "Cloud Sync", href: "/settings/cloud-sync", icon: "CloudUpload", onPremOnly: true, requiresPermission: "settings.integrations.edit" },
           { id: "audit-logs", label: "Audit Logs", href: "/settings/audit", icon: "ScrollText", requiresPermission: "settings.audit.view" },
         ],
       },

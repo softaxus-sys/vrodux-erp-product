@@ -94,7 +94,7 @@ internal static class TourSupport
     public static TourServiceDto ToDto(TourService s, bool canSeeCosts) => new(
         s.Id, s.Type, s.SupplierName, s.Description, s.ServiceDate, s.EndDate, s.ConfirmationNumber,
         canSeeCosts ? s.Cost : null, canSeeCosts ? s.SupplierPaid : null, canSeeCosts ? s.SupplierBalance : null,
-        s.IsExtra, s.SellPrice, s.Status, s.Notes);
+        s.IsExtra, s.SellPrice, s.Status, s.Notes, s.Details);
 
     public static TourPaymentDto ToDto(TourPayment p) =>
         new(p.Id, p.Amount, p.Method, p.Reference, p.PaidOn, p.ReceivedBy, p.IsVoided, p.VoidReason, p.CreatedAt);

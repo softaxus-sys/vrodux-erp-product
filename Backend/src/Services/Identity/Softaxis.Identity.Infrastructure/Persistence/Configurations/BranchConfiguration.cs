@@ -33,6 +33,7 @@ public sealed class BranchConfiguration : IEntityTypeConfiguration<Branch>
         builder.Property(b => b.Currency).HasMaxLength(10).IsRequired();
         builder.Property(b => b.Timezone).HasMaxLength(80);
         builder.Property(b => b.OpenedDate).HasMaxLength(20);
+        builder.Property(b => b.ServerMode).HasMaxLength(10).IsRequired().HasDefaultValue("cloud");
 
         builder.HasQueryFilter(b => !b.IsDeleted);
     }

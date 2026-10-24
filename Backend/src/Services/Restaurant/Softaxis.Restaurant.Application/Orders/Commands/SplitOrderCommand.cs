@@ -1,3 +1,4 @@
+using Softaxis.Restaurant.Application.Abstractions;
 using FluentValidation;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.Restaurant.Application.Orders.Dtos;
@@ -9,7 +10,7 @@ namespace Softaxis.Restaurant.Application.Orders.Commands;
 /// orders (a "split bill"), each independently payable. Every non-deleted item on the order must be
 /// assigned to exactly one group — the handler validates the partition, not just this shape.
 /// </summary>
-public sealed record SplitOrderCommand(Guid OrderId, IReadOnlyList<SplitGroupInput> Groups) : ICommand<IReadOnlyList<OrderDto>>;
+public sealed record SplitOrderCommand(Guid OrderId, IReadOnlyList<SplitGroupInput> Groups) : IOrderScopedCommand, ICommand<IReadOnlyList<OrderDto>>;
 
 public sealed class SplitOrderValidator : AbstractValidator<SplitOrderCommand>
 {

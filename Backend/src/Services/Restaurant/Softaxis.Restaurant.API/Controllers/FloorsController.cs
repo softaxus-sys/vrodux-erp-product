@@ -17,14 +17,14 @@ public sealed class FloorsController(ISender sender) : RestaurantControllerBase
     /// <summary>GET /api/restaurant/floors — flat list, for dropdowns.</summary>
     [HttpGet]
     [RequirePermission("restaurant.tables.view")]
-    public async Task<IActionResult> GetAll(CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetFloorsQuery(), ct));
+    public async Task<IActionResult> GetAll([FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetFloorsQuery(branchId), ct));
 
     /// <summary>GET /api/restaurant/floors/layout — full nested Floor→DiningArea→Table tree for the designer canvas.</summary>
     [HttpGet("layout")]
     [RequirePermission("restaurant.tables.view")]
-    public async Task<IActionResult> GetLayout(CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetFloorLayoutQuery(), ct));
+    public async Task<IActionResult> GetLayout([FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetFloorLayoutQuery(branchId), ct));
 
     /// <summary>POST /api/restaurant/floors</summary>
     [HttpPost]

@@ -15,13 +15,31 @@ internal static class OrderItemFactory
 {
     public static async Task<Result<OrderItem>> BuildAsync(
         RestaurantDbContext db, Guid orderId, Guid menuItemId, int quantity, string? notes,
-        IReadOnlyList<Guid>? selectedModifierIds, CancellationToken ct, int courseNumber = 1)
+        IReadOnlyList<Guid>? selectedModifierIds, CancellationToken ct, int courseNumber = 1,
+        Guid? branchId = null, decimal? offlineUnitPrice = null)
     {
         var menuItem = await db.MenuItems.FindAsync([menuItemId], ct);
         if (menuItem is null || menuItem.IsDeleted)
             return Result.Failure<OrderItem>(Error.NotFoundById("MenuItem", menuItemId));
 
-        var item = new OrderItem(orderId, menuItemId, menuItem.Name, quantity, menuItem.Price, notes, courseNumber);
+        // The branch's own price or "not sold here" overrides the shared menu.
+        var price = menuItem.Price;
+        if (branchId is Guid b)
+        {
+            var setting = await db.MenuItemBranchSettings.AsNoTracking()
+                .FirstOrDefaultAsync(s => s.MenuItemId == menuItemId && s.BranchId == b, ct);
+            // A sale recorded offline has already happened — the food went out — so an item switched
+            // off since then is still accepted on upload.
+            if (setting is not null && !setting.IsAvailable && offlineUnitPrice is null)
+                return Result.Failure<OrderItem>(Error.Custom("MenuItem.Conflict",
+                    $"'{menuItem.Name}' is not sold at this branch."));
+            if (setting?.PriceOverride is decimal p) price = p;
+        }
+
+        // Offline: the price the customer was actually charged at the till.
+        if (offlineUnitPrice is decimal op && op >= 0) price = op;
+
+        var item = new OrderItem(orderId, menuItemId, menuItem.Name, quantity, price, notes, courseNumber);
 
         var ids = selectedModifierIds ?? [];
         if (ids.Count == 0)

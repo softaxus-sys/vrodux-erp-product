@@ -1,3 +1,4 @@
+using Softaxis.Restaurant.Application.Abstractions;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.Restaurant.Application.Orders.Dtos;
 
@@ -14,4 +15,4 @@ public sealed record ComboSelectionInput(Guid ComboItemId, Guid MenuItemId);
 /// Price, all tagged with a shared (new) ComboOrderItemId so KDS/receipts can group them as one line.
 /// </summary>
 public sealed record AddComboToOrderCommand(Guid OrderId, Guid ComboId, IReadOnlyList<ComboSelectionInput> Selections)
-    : ICommand<OrderDto>;
+    : IOrderScopedCommand, ICommand<OrderDto>;

@@ -27,6 +27,7 @@ export const sessionsApi = {
     registerId: string;
     openingCash: number;
     notes?: string | null;
+    branchId?: string | null;
   }): Promise<POSSessionDto> => apiClient.post<POSSessionDto>(`${BASE}/open`, payload),
 
   close: (

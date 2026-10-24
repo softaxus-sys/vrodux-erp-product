@@ -40,8 +40,9 @@ public abstract class BaseApiController(ISender sender) : ControllerBase
         return result.Error.Code switch
         {
             var c when c.EndsWith(".NotFound")    => NotFound(ApiResponse.Fail(result.Error.Code, result.Error.Description)),
+            var c when c.EndsWith(".Forbidden")   => StatusCode(403, ApiResponse.Fail(result.Error.Code, result.Error.Description)),
             "Validation.Failed"                   => BadRequest(ApiResponse.Fail(result.Error.Code, result.Error.Description)),
-            _                                     => BadRequest(ApiResponse.Fail(result.Error.Code, result.Error.Description)),
+            _                                    => BadRequest(ApiResponse.Fail(result.Error.Code, result.Error.Description)),
         };
     }
 }

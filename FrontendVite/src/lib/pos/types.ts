@@ -84,6 +84,8 @@ export interface POSSessionDto {
   totalRefunds: number;
   netSales: number;
   notes: string | null;
+  /** The branch the till sits in; null for single-location tenants. */
+  branchId?: string | null;
 }
 
 export interface POSSessionSummaryDto {
@@ -93,6 +95,7 @@ export interface POSSessionSummaryDto {
   openedAt: string;
   totalTransactions: number;
   netSales: number;
+  branchId?: string | null;
 }
 
 // ── Transactions ──────────────────────────────────────────────────────────────

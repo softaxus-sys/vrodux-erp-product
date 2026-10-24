@@ -13,8 +13,8 @@ public sealed class DriversController(ISender sender) : RestaurantControllerBase
 {
     [HttpGet]
     [RequirePermission("restaurant.delivery.view")]
-    public async Task<IActionResult> GetAll([FromQuery] bool activeOnly, CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetDriversQuery(activeOnly), ct));
+    public async Task<IActionResult> GetAll([FromQuery] bool activeOnly, [FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetDriversQuery(activeOnly, branchId), ct));
 
     [HttpPost]
     [RequirePermission("restaurant.delivery.create")]

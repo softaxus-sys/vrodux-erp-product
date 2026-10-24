@@ -126,6 +126,7 @@
     "roles": "Roles & Permissions",
     "security": "Security (2FA)",
     "branches": "Branches",
+    "branch-servers": "Branch Servers",
     "integrations": "Integrations",
     "audit-logs": "Audit Logs",
     "crm-documents": "Documents",
@@ -148,6 +149,7 @@
     "trade-shipments": "Shipments",
     "trade-in-transit": "Stock in Transit",
     "trade-duty-rates": "Duty Rates",
-    "trade-parties": "Suppliers & Agents"
+    "trade-parties": "Suppliers & Agents",
+    "restaurant-tax": "Restaurant Tax & FBR"
   }
 }

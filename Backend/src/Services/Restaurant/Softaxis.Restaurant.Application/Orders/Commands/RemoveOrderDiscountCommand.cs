@@ -1,3 +1,4 @@
+using Softaxis.Restaurant.Application.Abstractions;
 using FluentValidation;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.Restaurant.Application.Orders.Dtos;
@@ -6,7 +7,7 @@ namespace Softaxis.Restaurant.Application.Orders.Commands;
 
 /// <summary>DELETE /api/restaurant/orders/{id}/discount — removes whatever discount is
 /// currently active. Audited like every other discount mutation.</summary>
-public sealed record RemoveOrderDiscountCommand(Guid OrderId, string Reason) : ICommand<OrderDto>;
+public sealed record RemoveOrderDiscountCommand(Guid OrderId, string Reason) : IOrderScopedCommand, ICommand<OrderDto>;
 
 public sealed class RemoveOrderDiscountValidator : AbstractValidator<RemoveOrderDiscountCommand>
 {

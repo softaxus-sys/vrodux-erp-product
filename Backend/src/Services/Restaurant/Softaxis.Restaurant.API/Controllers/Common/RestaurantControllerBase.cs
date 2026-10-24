@@ -40,6 +40,8 @@ public abstract class RestaurantControllerBase : ControllerBase
             var c when c.EndsWith(".InvalidTransition") => BadRequest(body),
             var c when c.EndsWith(".NotConfigured")     => BadRequest(body),
             var c when c.EndsWith(".Conflict")  => Conflict(body),
+            var c when c.EndsWith(".Forbidden") => StatusCode(StatusCodes.Status403Forbidden, body),
+            var c when c.EndsWith(".Unauthorized") => StatusCode(StatusCodes.Status401Unauthorized, body),
             "Validation.Failed"                 => UnprocessableEntity(body),
             _                                   => StatusCode(StatusCodes.Status500InternalServerError, body),
         };

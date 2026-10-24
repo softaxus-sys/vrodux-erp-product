@@ -126,6 +126,7 @@
     "roles": "الأدوار والصلاحيات",
     "security": "الأمان (المصادقة الثنائية)",
     "branches": "الفروع",
+    "branch-servers": "خوادم الفروع",
     "integrations": "التكاملات",
     "audit-logs": "سجلات التدقيق",
     "crm-documents": "المستندات",
@@ -148,6 +149,7 @@
     "trade-shipments": "الشحنات",
     "trade-in-transit": "بضاعة في الطريق",
     "trade-duty-rates": "الرسوم الجمركية",
-    "trade-parties": "الموردون والوكلاء"
+    "trade-parties": "الموردون والوكلاء",
+    "restaurant-tax": "ضريبة المطعم و FBR"
   }
 }

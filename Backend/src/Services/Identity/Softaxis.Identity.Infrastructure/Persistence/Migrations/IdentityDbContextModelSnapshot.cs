@@ -292,6 +292,13 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<string>("ServerMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("cloud");
+
                     b.Property<int>("Staff")
                         .HasColumnType("int");
 
@@ -3357,6 +3364,34 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "edit",
                             Description = "Edit restaurant devices",
                             ModuleId = "restaurant.devices"
+                        },
+                        new
+                        {
+                            Id = new Guid("8169e5d7-d4df-09e9-d64f-fe4e180e8808"),
+                            Action = "view",
+                            Description = "View restaurant tax",
+                            ModuleId = "restaurant.tax"
+                        },
+                        new
+                        {
+                            Id = new Guid("36c562de-5ae0-705d-fb07-c6222859d4dd"),
+                            Action = "edit",
+                            Description = "Edit restaurant tax",
+                            ModuleId = "restaurant.tax"
+                        },
+                        new
+                        {
+                            Id = new Guid("69799f4b-66b6-7427-2935-e1f7894dfbc3"),
+                            Action = "view",
+                            Description = "View restaurant integrations",
+                            ModuleId = "restaurant.integrations"
+                        },
+                        new
+                        {
+                            Id = new Guid("8efcebea-abb9-6ffe-5a82-f4c0c7a509cd"),
+                            Action = "edit",
+                            Description = "Edit restaurant integrations",
+                            ModuleId = "restaurant.integrations"
                         },
                         new
                         {

@@ -117,6 +117,13 @@ public sealed class TourServiceConfiguration : IEntityTypeConfiguration<TourServ
         b.HasKey(x => x.Id);
         b.Property(x => x.Id).ValueGeneratedNever();
         b.Ignore(x => x.SupplierBalance);
+        b.Property(x => x.Details).HasColumnType("nvarchar(max)").HasConversion(
+            v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+            v => string.IsNullOrEmpty(v) ? new Dictionary<string, string>() : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new Dictionary<string, string>(),
+            new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<Dictionary<string, string>>(
+                (a, b) => System.Text.Json.JsonSerializer.Serialize(a, (System.Text.Json.JsonSerializerOptions?)null) == System.Text.Json.JsonSerializer.Serialize(b, (System.Text.Json.JsonSerializerOptions?)null),
+                v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null).GetHashCode(),
+                v => new Dictionary<string, string>(v)));
         b.Property(x => x.Type).HasMaxLength(20).IsRequired();
         b.Property(x => x.SupplierName).HasMaxLength(200).IsRequired();
         b.Property(x => x.Description).HasMaxLength(500).IsRequired();

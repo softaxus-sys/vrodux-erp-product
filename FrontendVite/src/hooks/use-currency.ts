@@ -5,7 +5,7 @@ import type { Currency } from "@/types/global";
  * Fallback used only when no tenant is resolved (logged out, or a super-admin acting
  * outside any tenant). Mirrors the backend's `TenantCurrency.Fallback`.
  */
-const FALLBACK: Currency = "AED";
+const FALLBACK: Currency = "USD";
 
 /**
  * The tenant's operating currency (Settings → Currency & Rates).

@@ -7,7 +7,7 @@ namespace Softaxis.POS.Domain.Repositories;
 public interface IPOSSessionRepository
 {
     Task<POSSession?>  GetByIdAsync(Guid id, CancellationToken ct = default);
-    Task<POSSession?>  GetActiveByRegisterAsync(string registerId, CancellationToken ct = default);
+    Task<POSSession?>  GetActiveByRegisterAsync(string registerId, Guid? branchId, CancellationToken ct = default);
     Task<POSSession?>  GetActiveByUserAsync(Guid cashierId, CancellationToken ct = default);
 
     Task<PagedResult<POSSession>> GetPagedAsync(

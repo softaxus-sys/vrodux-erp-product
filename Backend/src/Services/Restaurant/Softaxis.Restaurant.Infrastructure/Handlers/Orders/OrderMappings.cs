@@ -25,5 +25,7 @@ internal static class OrderMappings
         o.Refunds.OrderBy(r => r.CreatedAt).Select(r => new OrderRefundDto(
             r.Id, r.Amount, r.Reason, r.Method, r.RefundedByUserId, r.CreatedAt)).ToList(),
         o.ParentOrderId, [], // Splits populated separately by GetOrderByIdHandler (needs a sibling query this mapper can't do)
-        o.CustomerId);
+        o.CustomerId,
+        o.TaxRate, o.TaxLabel, o.ServiceFee, o.FbrStatus, o.FbrInvoiceNumber, o.FbrError,
+        o.ExternalSource, o.ExternalOrderCode, o.ExternalStatus);
 }

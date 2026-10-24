@@ -29,7 +29,10 @@ public sealed record TenantDto(
     DateTime?               DeletedAt = null,
     // True when this workspace is the read-only cloud reflection of an on-premises installation.
     // docs/on-premises-cloud-mirror.md
-    bool                    IsMirror  = false);
+    bool                    IsMirror  = false,
+    // True when the workspace has users but none has verified their email — the owner never
+    // activated. Drives the super admin's "Re-invite" button. Set only by the tenant list query.
+    bool                    AwaitingActivation = false);
 
 public sealed record CreateTenantRequest(
     string  Name,

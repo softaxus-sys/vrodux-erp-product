@@ -7,17 +7,20 @@ using Softaxis.Restaurant.Application.DeliveryOrders.Commands;
 using Softaxis.Restaurant.Application.DeliveryOrders.Dtos;
 using Softaxis.Restaurant.Application.DeliveryOrders.Queries;
 using Softaxis.Restaurant.Domain.Entities;
+using Softaxis.Restaurant.Infrastructure.Common;
 using Softaxis.Restaurant.Infrastructure.Persistence;
 
 namespace Softaxis.Restaurant.Infrastructure.Handlers.DeliveryOrders;
 
-internal sealed class CreateDeliveryOrderHandler(RestaurantDbContext db, IDeliveryProviderRegistry providers)
+internal sealed class CreateDeliveryOrderHandler(RestaurantDbContext db, IDeliveryProviderRegistry providers, IBranchAccessGuard branchAccess)
     : ICommandHandler<CreateDeliveryOrderCommand, DeliveryOrderDto>
 {
     public async Task<Result<DeliveryOrderDto>> Handle(CreateDeliveryOrderCommand cmd, CancellationToken ct)
     {
         var order = await db.Orders.FirstOrDefaultAsync(x => x.Id == cmd.OrderId && !x.IsDeleted, ct);
         if (order is null) return Result.Failure<DeliveryOrderDto>(Error.NotFoundById("Order", cmd.OrderId));
+        if (!await branchAccess.CanWriteToBranchAsync(order.BranchId, ct))
+            return Result.Failure<DeliveryOrderDto>(Error.Custom("Branch.Forbidden", "You are not assigned to this branch."));
 
         var alreadyExists = await db.DeliveryOrders.AnyAsync(x => x.OrderId == cmd.OrderId && !x.IsDeleted, ct);
         if (alreadyExists)
@@ -50,7 +53,7 @@ internal sealed class CreateDeliveryOrderHandler(RestaurantDbContext db, IDelive
     }
 }
 
-internal sealed class AssignDriverToDeliveryHandler(RestaurantDbContext db, ICurrentUser currentUser)
+internal sealed class AssignDriverToDeliveryHandler(RestaurantDbContext db, ICurrentUser currentUser, IBranchAccessGuard branchAccess)
     : ICommandHandler<AssignDriverToDeliveryCommand, DeliveryOrderDto>
 {
     public async Task<Result<DeliveryOrderDto>> Handle(AssignDriverToDeliveryCommand cmd, CancellationToken ct)
@@ -64,6 +67,14 @@ internal sealed class AssignDriverToDeliveryHandler(RestaurantDbContext db, ICur
 
         var driver = await db.Drivers.FirstOrDefaultAsync(x => x.Id == cmd.DriverId && !x.IsDeleted, ct);
         if (driver is null) return Result.Failure<DeliveryOrderDto>(Error.NotFoundById("Driver", cmd.DriverId));
+
+        // The run belongs to the order's branch: dispatched only by that branch's staff, and only to a
+        // rider of that branch (or a rider not tied to any branch).
+        var orderBranch = await db.Orders.Where(o => o.Id == delivery.OrderId).Select(o => o.BranchId).FirstOrDefaultAsync(ct);
+        if (!await branchAccess.CanWriteToBranchAsync(orderBranch, ct))
+            return Result.Failure<DeliveryOrderDto>(Error.Custom("Branch.Forbidden", "You are not assigned to this branch."));
+        if (driver.BranchId is not null && orderBranch is not null && driver.BranchId != orderBranch)
+            return Result.Failure<DeliveryOrderDto>(Error.Custom("Delivery.Conflict", "This rider works at a different branch."));
 
         delivery.AssignDriver(driver.Id);
         await db.SaveChangesAsync(ct);
@@ -91,13 +102,14 @@ internal sealed class ChangeDeliveryStatusHandler(RestaurantDbContext db, ICurre
     }
 }
 
-internal sealed class GetDeliveryOrdersHandler(RestaurantDbContext db, ICurrentUser currentUser)
+internal sealed class GetDeliveryOrdersHandler(RestaurantDbContext db, ICurrentUser currentUser, IBranchAccessGuard branchAccess)
     : IQueryHandler<GetDeliveryOrdersQuery, IReadOnlyList<DeliveryOrderDto>>
 {
     public async Task<Result<IReadOnlyList<DeliveryOrderDto>>> Handle(GetDeliveryOrdersQuery query, CancellationToken ct)
     {
         var q = db.DeliveryOrders.AsNoTracking().Where(x => !x.IsDeleted);
         if (!string.IsNullOrEmpty(query.Status)) q = q.Where(x => x.Status == query.Status);
+        q = BranchScope.ApplyByOrder(q, db, await branchAccess.ResolveReadScopeAsync(query.BranchId, ct));
 
         var mine = await DeliveryScope.RiderDriverIdsAsync(db, currentUser, ct);
         if (mine is not null) q = q.Where(x => x.DriverId != null && mine.Contains(x.DriverId.Value));
@@ -120,11 +132,12 @@ internal sealed class GetDeliveryOrderByIdHandler(RestaurantDbContext db, ICurre
     }
 }
 
-internal sealed class GetDeliverySummaryHandler(RestaurantDbContext db, ICurrentUser currentUser) : IQueryHandler<GetDeliverySummaryQuery, DeliverySummaryDto>
+internal sealed class GetDeliverySummaryHandler(RestaurantDbContext db, ICurrentUser currentUser, IBranchAccessGuard branchAccess) : IQueryHandler<GetDeliverySummaryQuery, DeliverySummaryDto>
 {
     public async Task<Result<DeliverySummaryDto>> Handle(GetDeliverySummaryQuery query, CancellationToken ct)
     {
-        var q = db.DeliveryOrders.AsNoTracking().Where(x => !x.IsDeleted);
+        var q = BranchScope.ApplyByOrder(db.DeliveryOrders.AsNoTracking().Where(x => !x.IsDeleted), db,
+            await branchAccess.ResolveReadScopeAsync(query.BranchId, ct));
         var mine = await DeliveryScope.RiderDriverIdsAsync(db, currentUser, ct);
         if (mine is not null) q = q.Where(x => x.DriverId != null && mine.Contains(x.DriverId.Value));
         var all = await q.Select(x => x.Status).ToListAsync(ct);

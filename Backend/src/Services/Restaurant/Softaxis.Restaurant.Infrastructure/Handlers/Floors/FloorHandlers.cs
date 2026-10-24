@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Restaurant.Application.Abstractions;
 using Softaxis.Restaurant.Application.Floors.Commands;
 using Softaxis.Restaurant.Application.Floors.Dtos;
 using Softaxis.Restaurant.Application.Floors.Queries;
 using Softaxis.Restaurant.Application.Tables.Dtos;
 using Softaxis.Restaurant.Domain.Entities;
+using Softaxis.Restaurant.Infrastructure.Common;
 using Softaxis.Restaurant.Infrastructure.Handlers.Tables;
 using Softaxis.Restaurant.Infrastructure.Persistence;
 
@@ -17,10 +19,13 @@ internal static class FloorMappings
     public static DiningAreaDto ToDto(DiningArea a) => new(a.Id, a.FloorId, a.Name, a.Type, a.SortOrder);
 }
 
-internal sealed class CreateFloorHandler(RestaurantDbContext db) : ICommandHandler<CreateFloorCommand, FloorDto>
+internal sealed class CreateFloorHandler(RestaurantDbContext db, IBranchAccessGuard branchAccess) : ICommandHandler<CreateFloorCommand, FloorDto>
 {
     public async Task<Result<FloorDto>> Handle(CreateFloorCommand cmd, CancellationToken ct)
     {
+        if (!await branchAccess.CanWriteToBranchAsync(cmd.BranchId, ct))
+            return Result.Failure<FloorDto>(Error.Custom("Branch.Forbidden", "You are not assigned to this branch."));
+
         var floor = new Floor(cmd.Name.Trim(), cmd.SortOrder, cmd.BranchId);
         db.Floors.Add(floor);
         await db.SaveChangesAsync(ct);
@@ -102,11 +107,12 @@ internal sealed class DeleteDiningAreaHandler(RestaurantDbContext db) : ICommand
     }
 }
 
-internal sealed class GetFloorsHandler(RestaurantDbContext db) : IQueryHandler<GetFloorsQuery, IReadOnlyList<FloorDto>>
+internal sealed class GetFloorsHandler(RestaurantDbContext db, IBranchAccessGuard branchAccess) : IQueryHandler<GetFloorsQuery, IReadOnlyList<FloorDto>>
 {
     public async Task<Result<IReadOnlyList<FloorDto>>> Handle(GetFloorsQuery query, CancellationToken ct)
     {
-        var items = await db.Floors.AsNoTracking().Where(x => !x.IsDeleted)
+        var scope = await branchAccess.ResolveReadScopeAsync(query.BranchId, ct);
+        var items = await BranchScope.Apply(db.Floors.AsNoTracking().Where(x => !x.IsDeleted), scope)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
             .Select(f => new FloorDto(f.Id, f.BranchId, f.Name, f.SortOrder))
             .ToListAsync(ct);
@@ -128,15 +134,16 @@ internal sealed class GetDiningAreasHandler(RestaurantDbContext db) : IQueryHand
     }
 }
 
-internal sealed class GetFloorLayoutHandler(RestaurantDbContext db) : IQueryHandler<GetFloorLayoutQuery, IReadOnlyList<FloorLayoutDto>>
+internal sealed class GetFloorLayoutHandler(RestaurantDbContext db, IBranchAccessGuard branchAccess) : IQueryHandler<GetFloorLayoutQuery, IReadOnlyList<FloorLayoutDto>>
 {
     public async Task<Result<IReadOnlyList<FloorLayoutDto>>> Handle(GetFloorLayoutQuery query, CancellationToken ct)
     {
-        var floors = await db.Floors.AsNoTracking().Where(x => !x.IsDeleted)
+        var scope = await branchAccess.ResolveReadScopeAsync(query.BranchId, ct);
+        var floors = await BranchScope.Apply(db.Floors.AsNoTracking().Where(x => !x.IsDeleted), scope)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Name).ToListAsync(ct);
         var areas = await db.DiningAreas.AsNoTracking().Where(x => !x.IsDeleted)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Name).ToListAsync(ct);
-        var tables = await db.Tables.AsNoTracking().Where(x => !x.IsDeleted).ToListAsync(ct);
+        var tables = await BranchScope.Apply(db.Tables.AsNoTracking().Where(x => !x.IsDeleted), scope).ToListAsync(ct);
 
         var tablesByArea = tables.Where(t => t.DiningAreaId.HasValue)
             .GroupBy(t => t.DiningAreaId!.Value)

@@ -1,3 +1,4 @@
+using Softaxis.Restaurant.Application.Abstractions;
 using FluentValidation;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.Restaurant.Application.Orders.Dtos;
@@ -16,7 +17,7 @@ public sealed record ApplyOrderDiscountCommand(
     string Type,
     decimal Amount,
     string Reason
-) : ICommand<OrderDto>;
+) : IOrderScopedCommand, ICommand<OrderDto>;
 
 public sealed class ApplyOrderDiscountValidator : AbstractValidator<ApplyOrderDiscountCommand>
 {

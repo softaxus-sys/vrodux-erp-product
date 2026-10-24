@@ -47,6 +47,72 @@ public sealed class Order
     public int CurrentCourse { get; private set; } = 1;
     public bool IsDeleted { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+
+    /// <summary>Id the till gave an order it took while offline; null for orders taken online. The
+    /// server never creates two orders with the same ClientRef, so re-uploading a queue is harmless.</summary>
+    public string? ClientRef { get; private set; }
+
+    /// <summary>Tax rate in percent this bill was opened with — kept, so a later change to the tax
+    /// setting never changes a bill already rung up.</summary>
+    public decimal TaxRate { get; private set; } = 5m;
+    public string TaxLabel { get; private set; } = "Tax";
+    /// <summary>Fixed fee added to the bill (FBR's per-invoice POS service fee); 0 when not reported to FBR.</summary>
+    public decimal ServiceFee { get; private set; }
+
+    /// <summary>"pending" | "sent" | "failed" once the bill must be reported to FBR; null = not reported.</summary>
+    public string? FbrStatus { get; private set; }
+    public string? FbrInvoiceNumber { get; private set; }
+    public string? FbrError { get; private set; }
+    public int FbrAttempts { get; private set; }
+    public DateTime? FbrSentAt { get; private set; }
+
+    /// <summary>Ordering platform the order came from ("foodpanda"); null for orders taken here.</summary>
+    public string? ExternalSource { get; private set; }
+    public string? ExternalOrderId { get; private set; }
+    /// <summary>Short code the rider quotes at pickup.</summary>
+    public string? ExternalOrderCode { get; private set; }
+    /// <summary>Platform token used to accept / reject / update the order.</summary>
+    public string? ExternalToken { get; private set; }
+    /// <summary>"new" | "accepted" | "rejected" | "cancelled" — the platform-facing state.</summary>
+    public string? ExternalStatus { get; private set; }
+
+    public void ApplyTax(decimal ratePercent, string label, decimal serviceFee, bool reportToFbr)
+    {
+        TaxRate = Math.Max(0, ratePercent);
+        TaxLabel = string.IsNullOrWhiteSpace(label) ? "Tax" : label;
+        ServiceFee = Math.Max(0, serviceFee);
+        FbrStatus = reportToFbr ? "pending" : null;
+        Recalculate();
+    }
+
+    public void MarkExternal(string source, string externalId, string? code, string? token)
+    {
+        ExternalSource = source; ExternalOrderId = externalId; ExternalOrderCode = code; ExternalToken = token;
+        ExternalStatus = "new"; OrderChannel = source; UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetExternalStatus(string status) { ExternalStatus = status; UpdatedAt = DateTime.UtcNow; }
+
+    public void RecordFbrSuccess(string invoiceNumber)
+    {
+        FbrStatus = "sent"; FbrInvoiceNumber = invoiceNumber; FbrError = null; FbrAttempts++;
+        FbrSentAt = DateTime.UtcNow; UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary><paramref name="permanent"/>: FBR looked at the invoice and refused it — resending the
+    /// same data will not help, so the automatic retry stops (a person can still send it again).</summary>
+    public void RecordFbrFailure(string error, bool permanent = false)
+    {
+        FbrStatus = "failed"; FbrAttempts = permanent ? Math.Max(FbrAttempts + 1, 50) : FbrAttempts + 1;
+        FbrError = error.Length > 500 ? error[..500] : error; UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Marks an order as one taken offline, dated when it was actually taken.</summary>
+    public void MarkTakenOffline(string clientRef, DateTime occurredAtUtc)
+    {
+        ClientRef = clientRef;
+        if (occurredAtUtc < CreatedAt) CreatedAt = occurredAtUtc;
+    }
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
     /// <summary>EF Core concurrency token — detects two concurrent edits to the same order
     /// (e.g. two waiters adding items) instead of silently letting the later write clobber the earlier one.</summary>
@@ -56,6 +122,20 @@ public sealed class Order
     public List<OrderDiscount> Discounts { get; private set; } = [];
     public List<OrderVoidLog> VoidLogs { get; private set; } = [];
     public List<OrderRefund> Refunds { get; private set; } = [];
+
+    /// <summary>True once the order carries a branch-prefixed number (see OrderNumbering); false for the legacy random one.</summary>
+    public bool HasBranchNumber => !OrderNumber.StartsWith("ORD-", StringComparison.Ordinal);
+    public void SetBranchNumber(string number) => OrderNumber = number;
+
+    /// <summary>
+    /// A relayed order (see <see cref="RelayedOrder"/>) keeps the id the cloud already gave to the guest or
+    /// to Foodpanda. Call before any line is added - lines carry the order id.
+    /// </summary>
+    public void UseRelayedId(Guid id)
+    {
+        if (Items.Count > 0) throw new InvalidOperationException("Set the relayed id before adding lines.");
+        Id = id;
+    }
 
     public Order(Guid tableId, string tableNumber, string waiter, int covers, string orderType, string? notes,
         Guid? branchId = null, Guid? sessionId = null, Guid? cashierId = null, string orderChannel = "pos",
@@ -80,9 +160,10 @@ public sealed class Order
         // Excludes voided items — previously this summed ALL items including soft-deleted ones,
         // so voiding/removing an item never actually reduced the total.
         SubTotal = Items.Where(i => !i.IsDeleted).Sum(i => i.LineTotal);
-        TaxAmount = Math.Round(SubTotal * 0.05m, 2); // 5% VAT
         DiscountAmount = Discounts.Where(d => !d.IsVoided).Sum(d => d.Amount);
-        Total = SubTotal + TaxAmount - DiscountAmount;
+        // Tax is charged on what the guest pays for, after discount.
+        TaxAmount = Math.Round(Math.Max(0, SubTotal - DiscountAmount) * TaxRate / 100m, 2);
+        Total = SubTotal + TaxAmount - DiscountAmount + (SubTotal > 0 ? ServiceFee : 0);
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -191,6 +272,7 @@ public sealed class Order
         var child = new Order(TableId, TableNumber, Waiter, Covers, OrderType, Notes, BranchId, SessionId, CashierId,
             customerId: CustomerId);
         child.SetParent(Id);
+        child.TaxRate = TaxRate; child.TaxLabel = TaxLabel; child.ServiceFee = ServiceFee; child.FbrStatus = FbrStatus;
 
         foreach (var item in itemsToMove.ToList())
         {
@@ -204,9 +286,14 @@ public sealed class Order
 
     private void SetParent(Guid parentOrderId) { ParentOrderId = parentOrderId; UpdatedAt = DateTime.UtcNow; }
 
+    /// <summary>Moves a still-open bill onto the till shift that will collect it — used when the
+    /// shift it was opened under has since closed (a table running across a shift change).</summary>
+    public void CarryOverToSession(Guid sessionId) { SessionId = sessionId; UpdatedAt = DateTime.UtcNow; }
+
     /// <summary>Marks this order as split — it no longer holds any items directly and is never
     /// directly payable again; only its children (created via CreateSplit) can be paid.</summary>
-    public void MarkSplit() { Status = "split"; UpdatedAt = DateTime.UtcNow; }
+    // The parent of a split is not an invoice — each child is reported to FBR on its own.
+    public void MarkSplit() { Status = "split"; FbrStatus = null; UpdatedAt = DateTime.UtcNow; }
 
     /// <summary>Called once every split child has been fully paid — settles the parent (so it drops
     /// out of "active order" views the same way a normal paid order would) and lets the caller free

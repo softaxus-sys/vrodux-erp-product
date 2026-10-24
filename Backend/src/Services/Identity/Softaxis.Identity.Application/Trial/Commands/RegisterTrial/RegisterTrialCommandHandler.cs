@@ -18,6 +18,8 @@ public sealed class RegisterTrialCommandHandler(
     IPasswordHasher        passwordHasher,
     IUnitOfWork            uow,
     IConversionTracker     conversions,
+    IJwtTokenService       jwtService,
+    IEmailService          emailService,
     ILogger<RegisterTrialCommandHandler> logger)
     : ICommandHandler<RegisterTrialCommand, TrialRegistrationResultDto>
 {
@@ -102,7 +104,10 @@ public sealed class RegisterTrialCommandHandler(
             return Result.Failure<TrialRegistrationResultDto>(userResult.Error);
 
         var user = userResult.Value;
-        user.VerifyEmail();       // trial accounts are pre-verified
+        // The owner must confirm the address before they can sign in (the login handler refuses an
+        // unverified account). The raw token goes only into the email.
+        var verificationToken = jwtService.GenerateRefreshTokenRaw();
+        user.SetEmailVerificationToken(jwtService.HashToken(verificationToken), DateTime.UtcNow.AddHours(48));
         user.SetTenant(tenant.Id);
 
         // Provision this tenant's own role set (Administrator + per-module Managers) and
@@ -117,6 +122,18 @@ public sealed class RegisterTrialCommandHandler(
             null, null, null, null, true, tenant.Id));
 
         await uow.SaveChangesAsync(ct);
+
+        // Sent after the commit: a lost email can be re-sent (super admin "Re-invite", or "Resend
+        // link" on the login page); an email for an account that failed to save cannot.
+        try
+        {
+            await emailService.SendEmailVerificationAsync(user.Email.Value, user.FullName, verificationToken, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Verification email failed for new trial owner {Email} (tenant {TenantId})",
+                user.Email.Value, tenant.Id);
+        }
 
         logger.LogInformation(
             "Trial tenant created. TenantId={TenantId} Slug={Slug} Email={Email} Modules=[{Modules}]",

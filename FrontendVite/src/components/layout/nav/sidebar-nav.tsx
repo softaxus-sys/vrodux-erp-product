@@ -34,6 +34,14 @@ function SidebarNavItem({ item, collapsed, depth = 0 }: SidebarNavItemProps) {
   React.useEffect(() => { if (isParentActive) setExpanded(true); }, [isParentActive]);
 
   // ── Child item (depth > 0) ─────────────────────────────────────────────────
+  if (depth > 0 && item.heading) {
+    return (
+      <p className="px-4 pt-2.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider select-none"
+        style={{ color: "hsl(var(--sidebar-foreground)/0.35)" }}>
+        {item.label}
+      </p>
+    );
+  }
   if (depth > 0) {
     const active = item.href
       ? pathname === item.href || pathname.startsWith(item.href + "/")

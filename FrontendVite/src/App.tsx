@@ -183,6 +183,9 @@ const HotelCalendarPage    = lazyWithRetry(() => import("@/pages/hospitality/cal
 const HotelRatesPage       = lazyWithRetry(() => import("@/pages/hospitality/rates"));
 const HotelGuestsPage      = lazyWithRetry(() => import("@/pages/hospitality/guests"));
 const HotelSettingsPage    = lazyWithRetry(() => import("@/pages/hospitality/settings"));
+const TourDashboardPage    = lazyWithRetry(() => import("@/pages/hospitality/tours-dashboard"));
+const TourPackagesPage     = lazyWithRetry(() => import("@/pages/hospitality/tours-packages"));
+const TourBookingsPage     = lazyWithRetry(() => import("@/pages/hospitality/tours-bookings"));
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 const GeneralSettingsPage  = lazyWithRetry(() => import("@/pages/settings/general"));
@@ -196,6 +199,7 @@ const TeamsPage            = lazyWithRetry(() => import("@/pages/settings/teams"
 const BranchesPage         = lazyWithRetry(() => import("@/pages/settings/branches"));
 const IntegrationsPage     = lazyWithRetry(() => import("@/pages/settings/integrations"));
 const CloudSyncPage        = lazyWithRetry(() => import("@/pages/settings/cloud-sync"));
+const BranchServersPage    = lazyWithRetry(() => import("@/pages/settings/branch-servers"));
 const PropertyFinderPage   = lazyWithRetry(() => import("@/pages/settings/property-finder"));
 const AuditPage            = lazyWithRetry(() => import("@/pages/settings/audit"));
 const AppearancePage       = lazyWithRetry(() => import("@/pages/settings/appearance"));
@@ -296,7 +300,10 @@ function RoleGuard({ roles }: { roles: Array<"super_admin" | "tenant_admin" | "m
  */
 function SettingsGuard({ permission }: { permission: string }) {
   const canOpenSettingsPage = useAuthStore((s) => s.canOpenSettingsPage);
-  if (!canOpenSettingsPage(permission)) return <Navigate to="/dashboard" replace />;
+  const hasRawPermission = useAuthStore((s) => s.hasRawPermission);
+  // "a|b": either key opens the page (Integrations serves CRM lead sources and restaurant ordering platforms).
+  const allowed = permission.split("|").some(p => p.startsWith("settings.") ? canOpenSettingsPage(p) : hasRawPermission(p));
+  if (!allowed) return <Navigate to="/dashboard" replace />;
   return <Outlet />;
 }
 
@@ -622,6 +629,9 @@ export function App() {
             <Route path="/hospitality/rates"        element={<HotelRatesPage />} />
             <Route path="/hospitality/guests"       element={<HotelGuestsPage />} />
             <Route path="/hospitality/settings"     element={<HotelSettingsPage />} />
+            <Route path="/hospitality/tours"          element={<TourDashboardPage />} />
+            <Route path="/hospitality/tours/packages" element={<TourPackagesPage />} />
+            <Route path="/hospitality/tours/bookings" element={<TourBookingsPage />} />
           </Route>
 
           {/* ── Master Data ─────────────────────────────────────────────────── */}
@@ -664,8 +674,9 @@ export function App() {
           </Route>
           <Route element={<SettingsGuard permission="settings.branches.view" />}>
             <Route path="/settings/branches"            element={<BranchesPage />} />
+            <Route path="/settings/branch-servers"      element={<BranchServersPage />} />
           </Route>
-          <Route element={<SettingsGuard permission="settings.integrations.view" />}>
+          <Route element={<SettingsGuard permission="settings.integrations.view|restaurant.integrations.view|restaurant.tax.view" />}>
             <Route path="/settings/integrations"        element={<IntegrationsPage />} />
             {/* no settings.sync key — connecting this installation to the cloud is an integration */}
             <Route path="/settings/cloud-sync"          element={<CloudSyncPage />} />
@@ -685,6 +696,7 @@ export function App() {
             <Route path="/settings/pos-payment-methods"   element={<PosPaymentMethodsPage />} />
             <Route path="/settings/receipt-printer"       element={<ReceiptPrinterPage />} />
             <Route path="/settings/fbr"                   element={<FbrSettingsPage />} />
+            <Route path="/settings/restaurant-tax"        element={<Navigate to="/settings/integrations" replace />} />
             <Route path="/settings/payment-gateway"       element={<PaymentGatewayPage />} />
             <Route path="/settings/notifications"         element={<NotificationConfigPage />} />
             <Route path="/settings/devices"               element={<DevicesPage />} />

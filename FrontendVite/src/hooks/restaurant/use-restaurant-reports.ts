@@ -1,5 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { reportsApi, dashboardApi, type ReportRangeParams } from "@/lib/restaurant/reports.api";
+import { useActiveBranchId } from "@/hooks/restaurant/use-restaurant";
+
+/** Reports cover the branch selected in the switcher unless the caller names one. A user assigned to
+ * branches always has one selected — the server refuses their reports otherwise. */
+function useWithBranch(p: ReportRangeParams): ReportRangeParams {
+  const active = useActiveBranchId();
+  return { ...p, branchId: p.branchId ?? active };
+}
+function useBranchOrActive(branchId?: string | null): string | null {
+  const active = useActiveBranchId();
+  return branchId ?? active;
+}
 
 export const reportKeys = {
   all:             ["restaurant-reports"] as const,
@@ -19,26 +31,40 @@ export const reportKeys = {
   inventoryDashboard:() => [...reportKeys.all, "dashboard-inventory"] as const,
 };
 
-export const useSalesDailyReport = (p: ReportRangeParams, enabled = true) =>
-  useQuery({ queryKey: reportKeys.salesDaily(p), queryFn: () => reportsApi.salesDaily(p), enabled });
+export const useSalesDailyReport = (p: ReportRangeParams, enabled = true) => {
+  const q = useWithBranch(p);
+  return useQuery({ queryKey: reportKeys.salesDaily(q), queryFn: () => reportsApi.salesDaily(q), enabled });
+};
 
-export const useSalesByCategoryReport = (p: ReportRangeParams, enabled = true) =>
-  useQuery({ queryKey: reportKeys.salesByCategory(p), queryFn: () => reportsApi.salesByCategory(p), enabled });
+export const useSalesByCategoryReport = (p: ReportRangeParams, enabled = true) => {
+  const q = useWithBranch(p);
+  return useQuery({ queryKey: reportKeys.salesByCategory(q), queryFn: () => reportsApi.salesByCategory(q), enabled });
+};
 
-export const useSalesByEmployeeReport = (p: ReportRangeParams, enabled = true) =>
-  useQuery({ queryKey: reportKeys.salesByEmployee(p), queryFn: () => reportsApi.salesByEmployee(p), enabled });
+export const useSalesByEmployeeReport = (p: ReportRangeParams, enabled = true) => {
+  const q = useWithBranch(p);
+  return useQuery({ queryKey: reportKeys.salesByEmployee(q), queryFn: () => reportsApi.salesByEmployee(q), enabled });
+};
 
-export const useVoidsDiscountsReport = (p: ReportRangeParams, enabled = true) =>
-  useQuery({ queryKey: reportKeys.voidsDiscounts(p), queryFn: () => reportsApi.voidsDiscounts(p), enabled });
+export const useVoidsDiscountsReport = (p: ReportRangeParams, enabled = true) => {
+  const q = useWithBranch(p);
+  return useQuery({ queryKey: reportKeys.voidsDiscounts(q), queryFn: () => reportsApi.voidsDiscounts(q), enabled });
+};
 
-export const useKitchenPrepTimesReport = (p: ReportRangeParams, enabled = true) =>
-  useQuery({ queryKey: reportKeys.kitchenPrep(p), queryFn: () => reportsApi.kitchenPrepTimes(p), enabled });
+export const useKitchenPrepTimesReport = (p: ReportRangeParams, enabled = true) => {
+  const q = useWithBranch(p);
+  return useQuery({ queryKey: reportKeys.kitchenPrep(q), queryFn: () => reportsApi.kitchenPrepTimes(q), enabled });
+};
 
-export const useTableTurnoverReport = (p: ReportRangeParams, enabled = true) =>
-  useQuery({ queryKey: reportKeys.tableTurnover(p), queryFn: () => reportsApi.tableTurnover(p), enabled });
+export const useTableTurnoverReport = (p: ReportRangeParams, enabled = true) => {
+  const q = useWithBranch(p);
+  return useQuery({ queryKey: reportKeys.tableTurnover(q), queryFn: () => reportsApi.tableTurnover(q), enabled });
+};
 
-export const useTaxSummaryReport = (p: ReportRangeParams, enabled = true) =>
-  useQuery({ queryKey: reportKeys.taxSummary(p), queryFn: () => reportsApi.taxSummary(p), enabled });
+export const useTaxSummaryReport = (p: ReportRangeParams, enabled = true) => {
+  const q = useWithBranch(p);
+  return useQuery({ queryKey: reportKeys.taxSummary(q), queryFn: () => reportsApi.taxSummary(q), enabled });
+};
 
 export const useReportShifts = () =>
   useQuery({ queryKey: [...reportKeys.all, "shifts"], queryFn: () => reportsApi.shifts() });
@@ -49,14 +75,20 @@ export const useXReport = (sessionId: string, enabled = true) =>
 export const useZReport = (sessionId: string, enabled = true) =>
   useQuery({ queryKey: reportKeys.zReport(sessionId), queryFn: () => reportsApi.zReport(sessionId), enabled: enabled && !!sessionId });
 
-export const useOwnerDashboard = (branchId?: string | null, enabled = true) =>
-  useQuery({ queryKey: reportKeys.ownerDashboard(branchId), queryFn: () => dashboardApi.owner(branchId), enabled });
+export const useOwnerDashboard = (branchId?: string | null, enabled = true) => {
+  const b = useBranchOrActive(branchId);
+  return useQuery({ queryKey: reportKeys.ownerDashboard(b), queryFn: () => dashboardApi.owner(b), enabled });
+};
 
-export const useBranchDashboard = (branchId?: string | null, enabled = true) =>
-  useQuery({ queryKey: reportKeys.branchDashboard(branchId), queryFn: () => dashboardApi.branch(branchId), enabled });
+export const useBranchDashboard = (branchId?: string | null, enabled = true) => {
+  const b = useBranchOrActive(branchId);
+  return useQuery({ queryKey: reportKeys.branchDashboard(b), queryFn: () => dashboardApi.branch(b), enabled });
+};
 
-export const useKitchenDashboard = (branchId?: string | null, enabled = true) =>
-  useQuery({ queryKey: reportKeys.kitchenDashboard(branchId), queryFn: () => dashboardApi.kitchen(branchId), enabled });
+export const useKitchenDashboard = (branchId?: string | null, enabled = true) => {
+  const b = useBranchOrActive(branchId);
+  return useQuery({ queryKey: reportKeys.kitchenDashboard(b), queryFn: () => dashboardApi.kitchen(b), enabled });
+};
 
 export const useCashierDashboard = (sessionId?: string | null, enabled = true) =>
   useQuery({ queryKey: reportKeys.cashierDashboard(sessionId), queryFn: () => dashboardApi.cashier(sessionId), enabled });

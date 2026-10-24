@@ -1,3 +1,5 @@
+using Softaxis.Restaurant.Infrastructure.Common;
+using Softaxis.Restaurant.Application.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Softaxis.BuildingBlocks.Application.CQRS;
@@ -54,7 +56,7 @@ internal sealed class DeleteDriverHandler(RestaurantDbContext db) : ICommandHand
     }
 }
 
-internal sealed class GetDriversHandler(RestaurantDbContext db, ILogger<GetDriversHandler> logger)
+internal sealed class GetDriversHandler(RestaurantDbContext db, ILogger<GetDriversHandler> logger, IBranchAccessGuard branchAccess)
     : IQueryHandler<GetDriversQuery, IReadOnlyList<DriverDto>>
 {
     private const string RiderRole = "Delivery Rider";
@@ -66,6 +68,7 @@ internal sealed class GetDriversHandler(RestaurantDbContext db, ILogger<GetDrive
 
         var q = db.Drivers.AsNoTracking().Where(x => !x.IsDeleted);
         if (query.ActiveOnly) q = q.Where(x => x.IsActive);
+        q = BranchScope.Apply(q, await branchAccess.ResolveReadScopeAsync(query.BranchId, ct));
         var drivers = await q.OrderBy(x => x.Name).ToListAsync(ct);
 
         var load = (await db.DeliveryOrders.AsNoTracking()

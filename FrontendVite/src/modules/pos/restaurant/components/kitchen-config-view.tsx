@@ -1,3 +1,4 @@
+import { getTenantCurrency } from "@/hooks/use-currency";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -243,13 +244,13 @@ function PrinterModal({ printer, onClose, onSave }: {
 function CombosTab() {
   const { t } = useTranslation("restaurant");
   const { data: combos = [] } = useCombos();
-  const { data: menu = [] } = useMenu();
+  const { data: menu = [] } = useMenu(false);
   const create = useCreateCombo();
   const update = useUpdateCombo();
   const del = useDeleteCombo();
   const [editing, setEditing] = React.useState<Combo | "new" | null>(null);
   const canEdit = useCan("restaurant.menu.edit");
-  const currency = useAuthStore(s => s.tenant?.currency) || "AED";
+  const currency = useAuthStore(s => s.tenant?.currency) || getTenantCurrency();
 
   return (
     <div className="space-y-3">
@@ -382,7 +383,7 @@ function ComboModal({ combo, menu, onClose, onSave }: {
 function HappyHourTab() {
   const { t } = useTranslation("restaurant");
   const { data: rules = [] } = useHappyHourRules();
-  const { data: menu = [] } = useMenu();
+  const { data: menu = [] } = useMenu(false);
   const create = useCreateHappyHourRule();
   const update = useUpdateHappyHourRule();
   const del = useDeleteHappyHourRule();

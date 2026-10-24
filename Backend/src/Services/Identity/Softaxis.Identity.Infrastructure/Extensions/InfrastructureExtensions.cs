@@ -144,6 +144,13 @@ public static class InfrastructureExtensions
         var configuration  = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
         await db.Database.MigrateTolerantOfLockReleaseAsync();
+
+        // Branch server (docs/branch-server-design.md): the tenant, users, roles and permission grants
+        // all arrive from head office. Seeding or backfilling roles here would create same-named roles
+        // with different ids, which the first sync could then not place.
+        if (string.Equals(configuration["BranchSync:Mode"], "Branch", StringComparison.OrdinalIgnoreCase))
+            return;
+
         await SeedAdminAsync(db);
         await SeedSuperAdminAsync(db, passwordHasher, configuration);   // config-driven — no-op unless SuperAdmin creds are set
 

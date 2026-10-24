@@ -1,3 +1,4 @@
+using Softaxis.Restaurant.Application.Abstractions;
 using FluentValidation;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.Restaurant.Application.Orders.Dtos;
@@ -8,7 +9,7 @@ namespace Softaxis.Restaurant.Application.Orders.Commands;
 /// bill, replacing whatever discount was on it. Points = 0 takes the points back off.
 /// Its own command rather than a discount type: a points redemption is the customer's entitlement,
 /// so it does not need the authority to give a discount, and it has to move the customer's balance.</summary>
-public sealed record RedeemOrderLoyaltyCommand(Guid OrderId, decimal Points) : ICommand<OrderDto>;
+public sealed record RedeemOrderLoyaltyCommand(Guid OrderId, decimal Points) : IOrderScopedCommand, ICommand<OrderDto>;
 
 public sealed class RedeemOrderLoyaltyValidator : AbstractValidator<RedeemOrderLoyaltyCommand>
 {

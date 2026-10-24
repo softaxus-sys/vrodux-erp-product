@@ -18,6 +18,6 @@ public sealed class GetWarehouseByIdQueryHandler(IWarehouseRepository warehouseR
             wh.Id, wh.Name, wh.Code, wh.Address, wh.ContactPerson, wh.Phone,
             wh.IsActive, wh.IsDefault,
             wh.StockMovements.Count(m => !m.IsDeleted),
-            wh.CreatedAt, wh.UpdatedAt));
+            wh.CreatedAt, wh.UpdatedAt, wh.BranchId));
     }
 }

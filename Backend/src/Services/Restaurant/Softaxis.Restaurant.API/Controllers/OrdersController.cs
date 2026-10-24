@@ -15,20 +15,21 @@ public sealed class OrdersController(ISender sender) : RestaurantControllerBase
     /// <summary>GET /api/restaurant/orders/summary</summary>
     [HttpGet("summary")]
     [RequirePermission("restaurant.orders.view")]
-    public async Task<IActionResult> GetSummary(CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetOrdersSummaryQuery(), ct));
+    public async Task<IActionResult> GetSummary([FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetOrdersSummaryQuery(branchId), ct));
 
     /// <summary>GET /api/restaurant/orders/open-shift — is a till open for floor staff to order under?</summary>
     [HttpGet("open-shift")]
     [RequirePermission("restaurant.orders.view")]
-    public async Task<IActionResult> GetOpenShift(CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetOpenShiftQuery(), ct));
+    public async Task<IActionResult> GetOpenShift([FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetOpenShiftQuery(branchId), ct));
 
     /// <summary>GET /api/restaurant/orders?status=</summary>
     [HttpGet]
     [RequirePermission("restaurant.orders.view")]
-    public async Task<IActionResult> GetAll([FromQuery] string? status, CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetOrdersQuery(status), ct));
+    public async Task<IActionResult> GetAll([FromQuery] string? status, [FromQuery] Guid? branchId,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 30, CancellationToken ct = default) =>
+        OkOrError(await sender.Send(new GetOrdersQuery(status, page, pageSize, branchId), ct));
 
     /// <summary>GET /api/restaurant/orders/{id}</summary>
     [HttpGet("{id:guid}")]

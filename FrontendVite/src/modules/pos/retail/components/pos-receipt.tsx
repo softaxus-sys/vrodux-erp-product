@@ -7,6 +7,7 @@
  * Add a new country: extend `RECEIPT_CONFIGS` and add a renderer below.
  */
 
+import { getTenantCurrency } from "@/hooks/use-currency";
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Printer, RotateCcw, X, CheckCircle2, QrCode, Zap } from "lucide-react";
@@ -173,7 +174,7 @@ function getCountryCode(country?: string | null, currency?: string | null): stri
 function getCurrencyDecimals(currency: string): number {
   try {
     // resolvedOptions types this as optional, though a currency format always resolves one.
-    return new Intl.NumberFormat("en", { style: "currency", currency: currency || "AED" })
+    return new Intl.NumberFormat("en", { style: "currency", currency: currency || getTenantCurrency() })
       .resolvedOptions().maximumFractionDigits ?? 2;
   } catch {
     return 2;

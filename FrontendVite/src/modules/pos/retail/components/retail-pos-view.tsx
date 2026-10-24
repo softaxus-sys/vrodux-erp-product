@@ -1,3 +1,4 @@
+import { getTenantCurrency } from "@/hooks/use-currency";
 import * as React from "react";
 import { usePosSettings } from "@/hooks/pos/use-pos-settings";
 import { AnimatePresence } from "framer-motion";
@@ -83,7 +84,7 @@ function StatCard({ label, value, accent = "bg-primary" }: { label: string; valu
 
 export function RetailPOSView() {
   const { user, hasRawPermission, tenant } = useAuthStore();
-  const currency       = tenant?.currency || "AED";
+  const currency       = tenant?.currency || getTenantCurrency();
   const paymentMethods = usePaymentMethods();
   const { openDrawer, printRaw, printerStatus } = useHardware();
   // Must be called before any conditional return (rules of hooks)

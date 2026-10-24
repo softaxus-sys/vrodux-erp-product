@@ -18,11 +18,14 @@ internal static class WaitlistMappings
         (int)(DateTime.UtcNow - w.ArrivedAt).TotalMinutes);
 }
 
-internal sealed class CreateWaitlistEntryHandler(RestaurantDbContext db)
+internal sealed class CreateWaitlistEntryHandler(RestaurantDbContext db, IBranchAccessGuard branchAccess)
     : ICommandHandler<CreateWaitlistEntryCommand, WaitlistEntryDto>
 {
     public async Task<Result<WaitlistEntryDto>> Handle(CreateWaitlistEntryCommand cmd, CancellationToken ct)
     {
+        if (!await branchAccess.CanWriteToBranchAsync(cmd.BranchId, ct))
+            return Result.Failure<WaitlistEntryDto>(Error.Custom("Branch.Forbidden", "You are not assigned to this branch."));
+
         var entry = new Domain.Entities.WaitlistEntry(
             cmd.GuestName, cmd.GuestPhone, cmd.PartySize, cmd.QuotedWaitMinutes, cmd.Notes, cmd.BranchId);
         db.WaitlistEntries.Add(entry);
@@ -87,7 +90,7 @@ internal sealed class GetWaitlistHandler(RestaurantDbContext db, IBranchAccessGu
 {
     public async Task<Result<IReadOnlyList<WaitlistEntryDto>>> Handle(GetWaitlistQuery query, CancellationToken ct)
     {
-        var accessible = await branchAccess.GetAccessibleBranchIdsAsync(ct);
+        var accessible = await branchAccess.ResolveReadScopeAsync(query.BranchId, ct);
         var q = BranchScope.Apply(db.WaitlistEntries.AsNoTracking().Where(x => !x.IsDeleted), accessible);
         if (!string.IsNullOrEmpty(query.Status)) q = q.Where(x => x.Status == query.Status);
 
@@ -101,7 +104,7 @@ internal sealed class GetWaitlistSummaryHandler(RestaurantDbContext db, IBranchA
 {
     public async Task<Result<WaitlistSummaryDto>> Handle(GetWaitlistSummaryQuery query, CancellationToken ct)
     {
-        var accessible = await branchAccess.GetAccessibleBranchIdsAsync(ct);
+        var accessible = await branchAccess.ResolveReadScopeAsync(query.BranchId, ct);
         var all = await BranchScope.Apply(db.WaitlistEntries.AsNoTracking().Where(x => !x.IsDeleted), accessible).ToListAsync(ct);
         var waiting = all.Where(x => x.Status == "waiting").ToList();
 

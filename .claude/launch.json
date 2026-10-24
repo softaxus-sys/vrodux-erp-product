@@ -20,6 +20,26 @@
       ],
       "port": 5175,
       "cwd": "FrontendVite"
+    },
+    {
+      "name": "frontend-gateway-5301",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "set VITE_API_URL=http://localhost:5301&& npx vite --port 5175 --strictPort"
+      ],
+      "port": 5175,
+      "cwd": "FrontendVite"
+    },
+    {
+      "name": "frontend-gateway-5199",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "set VITE_API_URL=http://localhost:5199&& npx vite --port 5175 --strictPort"
+      ],
+      "port": 5175,
+      "cwd": "FrontendVite"
     }
   ]
 }

@@ -106,6 +106,10 @@ services:
       ConnectionStrings__CalendarDb: "Server=vrodux-stage-sqlserver;Database=SoftaxisErpDb_Staging;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
       ConnectionStrings__LeadGenDb: "Server=vrodux-stage-sqlserver;Database=SoftaxisErpDb_Staging;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
       Support__OperatorTenantId: "${SUPPORT_OPERATOR_TENANT_ID:-}"
+      # Branch servers (docs/branch-server-runbook.md). Empty = off. "Cloud" makes this the head office that
+      # branch servers sync with; PublicBaseUrl is the address put in connection codes.
+      BranchSync__Mode: "${BRANCH_SYNC_MODE:-}"
+      BranchSync__PublicBaseUrl: "${BRANCH_SYNC_PUBLIC_URL:-}"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: "Softaxis.Identity.API"
       Jwt__Audience: "Softaxis.ERP.Clients"

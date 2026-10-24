@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Application.Sync;
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.POS.Domain.Entities;
@@ -32,6 +33,7 @@ internal static class CustomerPaymentSupport
     public static async Task<Result> ChargeAsync(
         POSDbContext posDb, Guid? customerId, string method, decimal amount, Guid orderId, CancellationToken ct)
     {
+        if (BranchServerMode.IsBranch) return Result.Failure(BranchServerMode.BalanceRefusal($"Paying by {method}"));
         if (customerId is null)
             return Result.Failure(Error.Custom("Order.Conflict", $"Link a customer to this order before paying by {method}."));
 

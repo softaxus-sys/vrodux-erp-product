@@ -19,13 +19,13 @@ public sealed class DeliveryOrdersController(ISender sender) : RestaurantControl
 
     [HttpGet("summary")]
     [RequirePermission("restaurant.delivery.view")]
-    public async Task<IActionResult> GetSummary(CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetDeliverySummaryQuery(), ct));
+    public async Task<IActionResult> GetSummary([FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetDeliverySummaryQuery(branchId), ct));
 
     [HttpGet]
     [RequirePermission("restaurant.delivery.view")]
-    public async Task<IActionResult> GetAll([FromQuery] string? status, CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetDeliveryOrdersQuery(status), ct));
+    public async Task<IActionResult> GetAll([FromQuery] string? status, [FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetDeliveryOrdersQuery(status, branchId), ct));
 
     [HttpGet("{id:guid}")]
     [RequirePermission("restaurant.delivery.view")]

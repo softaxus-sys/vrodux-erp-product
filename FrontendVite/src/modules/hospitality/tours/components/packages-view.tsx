@@ -280,7 +280,6 @@ function PackageForm({ pkg, onClose, onSaved }: { pkg: TourPackageDto | null; on
           <Field label="Not included (one per line)"><textarea rows={5} value={f.exclusions} onChange={e => up("exclusions", e.target.value)} className={textareaCls} placeholder={"International flights\nVisa fees"} /></Field>
         </div>
         {pkg && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.isActive} onChange={e => up("isActive", e.target.checked)} />On sale</label>}
-        <select className={cn(selectCls, "hidden")} aria-hidden />
       </div>
     </Drawer>
   );

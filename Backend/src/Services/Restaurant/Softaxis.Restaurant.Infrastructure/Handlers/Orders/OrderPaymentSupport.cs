@@ -45,7 +45,17 @@ internal static class OrderPaymentSupport
         if (!order.SessionId.HasValue) return Result.Success();
 
         var check = await PosSessionLedger.ValidateOpenSessionAsync(db, order.SessionId.Value, ct);
-        return check.IsFailure ? Result.Failure(check.Error) : Result.Success();
+        if (check.IsSuccess) return Result.Success();
+
+        // The shift it was opened under has closed (bill ran across a shift change): the bill moves
+        // to this branch's open shift, so the money lands in the shift that actually collects it.
+        // The caller saves the order along with the payment.
+        var current = await PosSessionLedger.FindOpenSessionAsync(db, order.BranchId, ct);
+        if (current is null)
+            return Result.Failure(Error.Custom("PosSession.Conflict",
+                "The shift this bill was opened under is closed and no till is open at this branch. Open a shift to take payment."));
+        order.CarryOverToSession(current.Value);
+        return Result.Success();
     }
 
     /// <summary>Bumps the order's POS session totals for the amount just paid (no-op if the order

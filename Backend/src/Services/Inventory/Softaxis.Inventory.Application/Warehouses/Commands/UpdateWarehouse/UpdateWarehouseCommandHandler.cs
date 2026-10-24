@@ -16,6 +16,9 @@ public sealed class UpdateWarehouseCommandHandler(
             return Result.Failure(Error.Custom("Warehouse.NotFound", $"Warehouse '{cmd.Id}' not found."));
 
         wh.Update(cmd.Name, cmd.Code, cmd.Address, cmd.ContactPerson, cmd.Phone, cmd.IsActive);
+        // Omitted = keep the current branch (older screens edit warehouses without knowing about
+        // branches); Guid.Empty = take the warehouse off its branch.
+        if (cmd.BranchId is Guid b) wh.SetBranch(b == Guid.Empty ? null : b);
         await uow.SaveChangesAsync(ct);
         return Result.Success();
     }

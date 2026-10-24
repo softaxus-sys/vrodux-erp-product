@@ -2,6 +2,7 @@
 import { twMerge } from "tailwind-merge";
 import i18n from "@/i18n";
 import type { Currency } from "@/types";
+import { getTenantCurrency } from "@/hooks/use-currency";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -19,7 +20,8 @@ export function activeLocale(): string {
 
 export function formatCurrency(
   amount: number,
-  currency: Currency = "AED",
+  // No currency given = the workspace's own, never a fixed one.
+  currency?: Currency,
   locale: string = activeLocale()
 ): string {
   // Guard non-finite input (undefined/null coerced to NaN, or a NaN sum) so we never
@@ -27,7 +29,7 @@ export function formatCurrency(
   const value = Number.isFinite(amount) ? amount : 0;
   return new Intl.NumberFormat(locale, {
     style: "currency",
-    currency: currency || "AED",
+    currency: currency || getTenantCurrency(),
   }).format(value);
 }
 

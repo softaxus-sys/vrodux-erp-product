@@ -28,7 +28,7 @@ internal sealed class AddOrderItemsHandler(RestaurantDbContext db, IRestaurantRe
         {
             var built = await OrderItemFactory.BuildAsync(
                 db, order.Id, li.MenuItemId, li.Quantity, li.Modifiers, li.SelectedModifierIds, ct,
-                li.CourseNumber ?? order.CurrentCourse);
+                li.CourseNumber ?? order.CurrentCourse, order.BranchId, cmd.Offline ? li.OfflineUnitPrice : null);
             if (built.IsFailure)
                 return Result.Failure<OrderDto>(built.Error);
             order.Items.Add(built.Value);

@@ -1,6 +1,7 @@
 using Softaxis.BuildingBlocks.Application.Multitenancy;
 using Softaxis.BuildingBlocks.Infrastructure.Multitenancy;
 using Softaxis.BuildingBlocks.Infrastructure.Sync;
+using Softaxis.BuildingBlocks.Infrastructure.Sync.Branch;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.DataProtection;
@@ -267,6 +268,8 @@ try
     //    Registration only; nothing touches the database until the startup step
     //    below, which no-ops unless this installation is configured to mirror.
     builder.Services.AddCloudMirrorCapture(builder.Configuration);
+    builder.Services.AddBranchSync(builder.Configuration);
+    builder.Services.AddHostedService<Softaxis.ApiGateway.Sync.BranchHealthAlerter>();
     builder.Services.AddScoped<
         Softaxis.BuildingBlocks.Application.Notifications.INotificationRealtimeNotifier,
         Softaxis.ApiGateway.Notifications.SignalRNotificationNotifier>();
@@ -499,6 +502,7 @@ try
         // change tracking for the tables in scope and creates the watermark table. Never throws -
         // the shop trades whether or not capture is ready. docs/on-premises-cloud-mirror.md §5
         await app.Services.PrepareChangeCaptureAsync();
+        await app.Services.PrepareBranchSyncAsync();
     }
 
     // ── Middleware pipeline ───────────────────────────────────────────────────

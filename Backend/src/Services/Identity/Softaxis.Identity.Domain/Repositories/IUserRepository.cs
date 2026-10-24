@@ -28,6 +28,12 @@ public interface IUserRepository
     /// </summary>
     Task<int> CountSeatsAsync(Guid tenantId, CancellationToken ct = default);
 
+    /// <summary>Tenants that have users but none has verified an email — nobody has activated.</summary>
+    Task<IReadOnlySet<Guid>> GetTenantIdsAwaitingActivationAsync(CancellationToken ct = default);
+
+    /// <summary>The tenant's users who have not verified their email address yet.</summary>
+    Task<IReadOnlyList<User>> GetUnverifiedByTenantAsync(Guid tenantId, CancellationToken ct = default);
+
     void Add(User user);
     void Update(User user);
     void Remove(User user);

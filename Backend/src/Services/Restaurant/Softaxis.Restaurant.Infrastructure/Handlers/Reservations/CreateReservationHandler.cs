@@ -7,11 +7,14 @@ using Softaxis.Restaurant.Infrastructure.Persistence;
 
 namespace Softaxis.Restaurant.Infrastructure.Handlers.Reservations;
 
-internal sealed class CreateReservationHandler(RestaurantDbContext db)
+internal sealed class CreateReservationHandler(RestaurantDbContext db, Softaxis.Restaurant.Application.Abstractions.IBranchAccessGuard branchAccess)
     : ICommandHandler<CreateReservationCommand, ReservationCreatedDto>
 {
     public async Task<Result<ReservationCreatedDto>> Handle(CreateReservationCommand cmd, CancellationToken ct)
     {
+        if (!await branchAccess.CanWriteToBranchAsync(cmd.BranchId, ct))
+            return Result.Failure<ReservationCreatedDto>(Error.Custom("Branch.Forbidden", "You are not assigned to this branch."));
+
         var r = new Reservation(cmd.GuestName, cmd.GuestPhone, cmd.GuestEmail, cmd.Covers,
             cmd.ReservationDate, cmd.ReservationTime, cmd.SpecialRequests,
             cmd.BranchId, cmd.ArrivalWindowStart, cmd.ArrivalWindowEnd);

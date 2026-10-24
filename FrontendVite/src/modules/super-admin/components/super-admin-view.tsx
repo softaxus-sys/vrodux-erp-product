@@ -6,7 +6,7 @@ import {
   Building2, Plus, Search, Users, Server, Cloud,
   ShieldCheck, AlertTriangle, ChevronRight, RefreshCw,
   Loader2, MoreVertical, Key, Link, Trash2, Ban,
-  CheckCircle, Clock, X, Edit, Copy, ExternalLink, LogIn, CreditCard, HardDrive, Radar,
+  CheckCircle, Clock, X, Edit, Copy, ExternalLink, LogIn, CreditCard, HardDrive, Radar, Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,6 +90,19 @@ function TenantCard({ tenant, onClick, onEnter, entering }: {
   tenant: TenantDto; onClick: () => void; onEnter: () => void; entering: boolean;
 }) {
   const limits = planLimits(tenant.plan);
+  const [reinviting, setReinviting] = React.useState(false);
+
+  const reinvite = async () => {
+    try {
+      setReinviting(true);
+      const res = await tenantsAdminApi.resendInvite(tenant.id);
+      toast.success(`Activation email sent to ${res.recipients.join(", ")}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not send the activation email.");
+    } finally {
+      setReinviting(false);
+    }
+  };
   const userPct = limits.maxUsers > 0
     ? Math.min(100, Math.round((0 / limits.maxUsers) * 100))
     : 0;
@@ -127,6 +140,11 @@ function TenantCard({ tenant, onClick, onEnter, entering }: {
       <div className="flex items-center flex-wrap gap-1.5 mb-3">
         <StatusBadge status={tenant.status} />
         <PlanBadge plan={tenant.plan} />
+        {tenant.awaitingActivation && (
+          <span className="text-[11px] font-medium text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">
+            Not activated
+          </span>
+        )}
         {tenant.country && (
           <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
             {tenant.country}
@@ -178,6 +196,22 @@ function TenantCard({ tenant, onClick, onEnter, entering }: {
           : <LogIn className="h-3.5 w-3.5 mr-1.5" />}
         Open tenant
       </Button>
+
+      {/* Only for workspaces whose owner never confirmed their email (and so cannot sign in). */}
+      {tenant.awaitingActivation && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full mt-2 border-amber-500/40 text-amber-600 hover:bg-amber-500/10"
+          disabled={reinviting}
+          onClick={(e) => { e.stopPropagation(); reinvite(); }}
+        >
+          {reinviting
+            ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            : <Mail className="h-3.5 w-3.5 mr-1.5" />}
+          Re-invite
+        </Button>
+      )}
     </motion.div>
   );
 }

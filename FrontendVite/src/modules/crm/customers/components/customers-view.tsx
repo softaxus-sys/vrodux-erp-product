@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { getTenantCurrency } from "@/hooks/use-currency";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
@@ -173,7 +174,7 @@ export function CustomersView() {
   const exportPdfReport = () => exportPdf({
     title: "Customer Directory",
     subtitle: `${customers.length} of ${totalCount} customers (page ${page})`,
-    columns: ["Name","Industry","Email","Phone","Country","Status","Tier","Revenue (AED)","Account Manager"],
+    columns: ["Name","Industry","Email","Phone","Country","Status","Tier",`Revenue (${getTenantCurrency()})`,"Account Manager"],
     rows: customers.map(c => [c.name, c.industry, c.email, c.phone, c.country, c.status, c.tier, c.totalRevenue, c.accountManager]),
     landscape: true,
   });

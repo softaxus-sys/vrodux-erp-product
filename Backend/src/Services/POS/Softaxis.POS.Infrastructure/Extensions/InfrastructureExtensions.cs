@@ -25,6 +25,15 @@ public static class InfrastructureExtensions
                 configuration.GetConnectionString("POSDb"),
                 sql => sql.MigrationsAssembly(typeof(POSDbContext).Assembly.FullName)));
 
+        // Cloud-side guard for a branch that runs on its own server (docs/branch-server-design.md §7).
+        // A no-op unless BranchSync:Mode is Cloud. Open behaviour only: the handlers themselves are
+        // registered by the host.
+        services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblies(typeof(POSDbContext).Assembly);
+            cfg.AddOpenBehavior(typeof(LocalBranchBehavior<,>));
+        });
+
         // Repositories
         services.AddScoped<IProductRepository,         ProductRepository>();
         services.AddSingleton<Softaxis.POS.Application.Catalogue.ICatalogueProvider, Softaxis.POS.Infrastructure.Catalogue.EmbeddedCatalogueProvider>();
