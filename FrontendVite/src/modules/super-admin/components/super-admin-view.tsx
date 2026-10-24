@@ -91,6 +91,23 @@ function TenantCard({ tenant, onClick, onEnter, entering }: {
 }) {
   const limits = planLimits(tenant.plan);
   const [reinviting, setReinviting] = React.useState(false);
+  const [confirmMirror, setConfirmMirror] = React.useState(false);
+  const [mirrorBusy, setMirrorBusy] = React.useState(false);
+  const [isMirror, setIsMirror] = React.useState(!!tenant.isMirror);
+
+  const allowEdits = async () => {
+    try {
+      setMirrorBusy(true);
+      await tenantsAdminApi.setMirror(tenant.id, false);
+      toast.success(`${tenant.name} now accepts edits.`);
+      setConfirmMirror(false);
+      setIsMirror(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not change the mirror setting.");
+    } finally {
+      setMirrorBusy(false);
+    }
+  };
 
   const reinvite = async () => {
     try {
@@ -196,6 +213,28 @@ function TenantCard({ tenant, onClick, onEnter, entering }: {
           : <LogIn className="h-3.5 w-3.5 mr-1.5" />}
         Open tenant
       </Button>
+
+      {/* Read-only cloud mirror of an on-premises shop: offer to switch edits back on. */}
+      {isMirror && (
+        <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-2 text-xs" onClick={(e) => e.stopPropagation()}>
+          <p className="text-amber-700 dark:text-amber-400">Read-only mirror of an on-premises shop. Nobody can edit it here.</p>
+          {!confirmMirror ? (
+            <Button size="sm" variant="outline" className="w-full mt-2" onClick={() => setConfirmMirror(true)}>
+              Allow edits
+            </Button>
+          ) : (
+            <div className="mt-2 space-y-2">
+              <p>Only do this if no shop sends data to this workspace. The nightly sync would overwrite edits made here.</p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="flex-1" disabled={mirrorBusy} onClick={() => setConfirmMirror(false)}>Cancel</Button>
+                <Button size="sm" className="flex-1" disabled={mirrorBusy} onClick={allowEdits}>
+                  {mirrorBusy && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}Allow edits
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Only for workspaces whose owner never confirmed their email (and so cannot sign in). */}
       {tenant.awaitingActivation && (

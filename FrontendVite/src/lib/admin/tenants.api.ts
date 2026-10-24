@@ -156,6 +156,9 @@ export const tenantsAdminApi = {
   changePlan: (id: string, plan: PlanType): Promise<TenantDto> =>
     apiClient.patch(`${BASE}/${id}/plan`, { plan }),
 
+  setMirror: (id: string, isMirror: boolean): Promise<TenantDto> =>
+    apiClient.patch(`${BASE}/${id}/mirror`, { isMirror }),
+
   setIndustry: (id: string, industry: string | null): Promise<TenantDto> =>
     apiClient.patch(`${BASE}/${id}/industry`, { industry }),
 

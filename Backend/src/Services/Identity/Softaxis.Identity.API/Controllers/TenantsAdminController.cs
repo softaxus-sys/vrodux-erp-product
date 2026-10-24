@@ -15,6 +15,7 @@ using Softaxis.Identity.Application.TenantsAdmin.Commands.GenerateTenantLicense;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.RenewTenantSubscription;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.SetTenantConnectionStrings;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.SetTenantIndustry;
+using Softaxis.Identity.Application.TenantsAdmin.Commands.SetTenantMirror;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.SetTenantModules;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.SuspendTenant;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.UpdateTenant;
@@ -127,6 +128,12 @@ public sealed class TenantsAdminController(ISender sender) : BaseApiController(s
     [HttpPatch("{id:guid}/industry")]
     public async Task<IActionResult> SetIndustry(Guid id, [FromBody] SetIndustryRequest req, CancellationToken ct)
         => HandleResult(await Sender.Send(new SetTenantIndustryCommand(id, req.Industry), ct));
+
+    // PATCH /api/admin/tenants/{id}/mirror
+    // Turn the read-only cloud-mirror flag on/off. Off lets the workspace accept edits again.
+    [HttpPatch("{id:guid}/mirror")]
+    public async Task<IActionResult> SetMirror(Guid id, [FromBody] SetMirrorRequest req, CancellationToken ct)
+        => HandleResult(await Sender.Send(new SetTenantMirrorCommand(id, req.IsMirror), ct));
 
     // DELETE /api/admin/tenants/{id} — soft delete; recoverable from the recycle bin below.
     [HttpDelete("{id:guid}")]

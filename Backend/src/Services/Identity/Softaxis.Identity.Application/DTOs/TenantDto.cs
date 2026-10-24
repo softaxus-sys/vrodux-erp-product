@@ -57,6 +57,7 @@ public sealed record CreateTenantRequest(
     bool    IsMirror       = false);
 
 public sealed record SetIndustryRequest(string? Industry);
+public sealed record SetMirrorRequest(bool IsMirror);
 
 public sealed record UpdateTenantRequest(
     string  Name,
