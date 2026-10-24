@@ -27,8 +27,6 @@ import {
   CrmQuotationsPanel, useCanViewQuotations, useCanCreateQuotations,
 } from "@/modules/crm/quotations/components/crm-quotations-panel";
 
-import { WhatsAppHistory } from "@/modules/whatsapp/components/send-whatsapp";
-
 type Tab = "overview" | "journey" | "activity" | "documents" | "quotations";
 
 const STATUS_OPTIONS: LeadStatus[] = ["new", "contacted", "qualified", "unqualified", "converted", "lost"];
@@ -580,13 +578,6 @@ export function LeadDrawer({ lead: listLead, open, onClose, onEdit }: Props) {
 
               {tab === "journey" && <LeadJourney leadId={leadId} />}
 
-              {tab === "activity" && (
-                <WhatsAppHistory target={{
-                  phone: lead.whatsApp || lead.phone, name: lead.fullName, relatedType: "lead", relatedId: leadId,
-                  relatedName: lead.fullName,
-                  fields: { firstName: lead.firstName, fullName: lead.fullName, company: lead.company, interestedIn: lead.interestedIn, assignedTo: lead.assignedTo },
-                }} />
-              )}
               {tab === "activity" && (
                 <ActivityTimeline relatedToType="lead" relatedToId={leadId} relatedToName={lead.fullName} assignedTo={lead.assignedTo} assignedToUserId={lead.assignedToUserId} />
               )}

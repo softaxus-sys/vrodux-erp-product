@@ -209,10 +209,6 @@ public static class PermissionSeedData
         ["leadgen.inbox"]     = ["view","edit","send"],
         ["leadgen.settings"]  = ["view","edit"],
         ["leadgen.reports"]   = ["view","export"],
-        // WhatsApp (every workspace): connection + auto replies, templates, inbox / sending.
-        ["messaging.settings"]  = ["view","edit"],
-        ["messaging.templates"] = ["view","create"],
-        ["messaging.inbox"]     = ["view","send"],
 
         // SEO AI Agent — "sites" (connect/manage a site, super-admin-grant only for now) and
         // "fixes" (review/approve the AI's proposed changes) are separate: approving a fix should

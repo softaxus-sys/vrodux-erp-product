@@ -168,7 +168,7 @@ const KNOWN_MODULES: Record<ModuleKey, true> = {
   "file-manager": true, "super-admin": true, "restaurant": true, "education": true,
   "insurance": true, "b2b": true, "project-management": true, "visa": true,
   "manufacturing": true, "library": true, "trade": true, "leadgen": true,
-  "support": true, "seo": true, "calendar": true, "whatsapp": true,
+  "support": true, "seo": true, "calendar": true,
 };
 
 /** Legacy stored code → canonical ModuleKey. Mirrors `Tenant.LegacyModuleAliases` (backend). */
@@ -215,7 +215,7 @@ function canonicalModuleCode(code: string): ModuleKey | null {
 function backendModulesToFrontend(backendModules: string[]): ModuleKey[] {
   // Pure UI surfaces, never part of plan entitlement. These match hasModuleAccess step 2, which
   // short-circuits before the enabledModules check — listed here only for consistency.
-  const keys = new Set<ModuleKey>(["dashboard", "notifications", "support", "calendar", "whatsapp"]);
+  const keys = new Set<ModuleKey>(["dashboard", "notifications", "support", "calendar"]);
 
   for (const m of backendModules) {
     const key = canonicalModuleCode(m);
@@ -589,8 +589,7 @@ export const useAuthStore = create<AuthState>()(
         // see the backend's ISupportAccessGuard for why holding the permission key alone still
         // does not open the cross-tenant queue for anyone else.
         if (module === "dashboard" || module === "notifications" ||
-            module === "ai-assistant" || module === "support" || module === "calendar" ||
-            module === "whatsapp") return true;   // every workspace; pages gated by messaging.* keys
+            module === "ai-assistant" || module === "support" || module === "calendar") return true;
 
         // ── 3. Tenant must have the module enabled — applies to EVERYONE,
         //       including tenant_admin. A tenant admin can only ever see the

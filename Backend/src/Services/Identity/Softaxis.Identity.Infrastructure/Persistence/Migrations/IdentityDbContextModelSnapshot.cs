@@ -18,7 +18,7 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("identity")
-                .HasAnnotation("ProductVersion", "9.0.21")
+                .HasAnnotation("ProductVersion", "9.0.20")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -3098,48 +3098,6 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "export",
                             Description = "Export leadgen reports",
                             ModuleId = "leadgen.reports"
-                        },
-                        new
-                        {
-                            Id = new Guid("2b29a626-8667-21f3-39d1-55d16248794c"),
-                            Action = "view",
-                            Description = "View messaging settings",
-                            ModuleId = "messaging.settings"
-                        },
-                        new
-                        {
-                            Id = new Guid("25cd9ea9-d15f-6ce4-635a-734f604d6f07"),
-                            Action = "edit",
-                            Description = "Edit messaging settings",
-                            ModuleId = "messaging.settings"
-                        },
-                        new
-                        {
-                            Id = new Guid("cbfb3024-87eb-8eef-0318-72eca9c61007"),
-                            Action = "view",
-                            Description = "View messaging templates",
-                            ModuleId = "messaging.templates"
-                        },
-                        new
-                        {
-                            Id = new Guid("7a63a9b0-df3a-2941-4003-ab1109d25285"),
-                            Action = "create",
-                            Description = "Create messaging templates",
-                            ModuleId = "messaging.templates"
-                        },
-                        new
-                        {
-                            Id = new Guid("dd215a1b-f549-0c14-a48a-5930ddeab50e"),
-                            Action = "view",
-                            Description = "View messaging inbox",
-                            ModuleId = "messaging.inbox"
-                        },
-                        new
-                        {
-                            Id = new Guid("755dc931-a686-f59d-54d5-9ae1e13e0fa8"),
-                            Action = "send",
-                            Description = "Send messaging inbox",
-                            ModuleId = "messaging.inbox"
                         },
                         new
                         {

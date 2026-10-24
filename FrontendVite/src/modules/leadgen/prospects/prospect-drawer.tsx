@@ -7,7 +7,6 @@ import { Can } from "@/components/auth/can";
 import { cn, formatDate } from "@/lib/utils";
 import { MANUAL_STATUSES, type ProspectDto } from "@/lib/leadgen/leadgen.api";
 import { useAddContact, useDeleteContact, useMeta, useProspect, useUpdateProspect } from "@/hooks/leadgen/use-leadgen";
-import { WhatsAppHistory } from "@/modules/whatsapp/components/send-whatsapp";
 import { Banner, ErrorBlock, Field, LoadingBlock, Modal, SELECT, ScoreChip, StatusPill, TEXTAREA } from "../shared/ui";
 
 const EMAIL_TONE: Record<string, string> = {
@@ -123,16 +122,6 @@ export function ProspectDrawer({ id, onClose, onReveal, onAddToCampaign, onImpor
               </dl>
             )}
           </section>
-
-          {/* ── WhatsApp (only once the number is revealed) ── */}
-          {p.isRevealed && p.phone && (
-            <section className="rounded-xl border border-border p-4">
-              <WhatsAppHistory target={{
-                phone: p.phone, name: p.name, relatedType: "prospect", relatedId: p.id, relatedName: p.name,
-                fields: { businessName: p.name, city: p.city, category: p.categoryLabel },
-              }} />
-            </section>
-          )}
 
           {/* ── Why the scores ── */}
           {p.scoreNotes.length > 0 && (

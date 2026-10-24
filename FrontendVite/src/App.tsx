@@ -165,9 +165,6 @@ const LeadGenMailboxesPage = lazyWithRetry(() => import("@/pages/leadgen/mailbox
 const LeadGenCreditsPage   = lazyWithRetry(() => import("@/pages/leadgen/credits"));
 const LeadGenSettingsPage  = lazyWithRetry(() => import("@/pages/leadgen/settings"));
 const LeadGenAdminPage     = lazyWithRetry(() => import("@/pages/leadgen/admin"));
-const WhatsAppInboxPage     = lazyWithRetry(() => import("@/pages/whatsapp/inbox"));
-const WhatsAppTemplatesPage = lazyWithRetry(() => import("@/pages/whatsapp/templates"));
-const WhatsAppSettingsPage  = lazyWithRetry(() => import("@/pages/whatsapp/settings"));
 
 // ── Visa Services ────────────────────────────────────────────────────────────
 const VisaDashboardPage     = lazyWithRetry(() => import("@/pages/visa/dashboard"));
@@ -530,11 +527,6 @@ export function App() {
             <Route path="/pos/low-stock"   element={<PosLowStockPage />} />
           </Route>
 
-          {/* WhatsApp - every workspace; each page is gated by its own messaging.* permission (API enforces it). */}
-          <Route path="/whatsapp/inbox"     element={<WhatsAppInboxPage />} />
-          <Route path="/whatsapp/templates" element={<WhatsAppTemplatesPage />} />
-          <Route path="/whatsapp/settings"  element={<WhatsAppSettingsPage />} />
-
           {/* Lead Generation - available to every workspace; each screen is gated by its own leadgen.* permission. */}
           <Route element={<ModuleGuard module="leadgen" />}>
             <Route path="/lead-generation"            element={<LeadGenOverviewPage />} />
@@ -624,8 +616,7 @@ export function App() {
           <Route element={<ModuleGuard module="hospitality" />}>
             <Route path="/hospitality/bookings"     element={<BookingsPage />} />
             <Route path="/hospitality/rooms"        element={<RoomsPage />} />
-            <Route path="/hospitality/housekeeping" element={<HousekeepingPage />} />
-
+            <Route path="/hospitality/housekeeping" element={<HousekeepingPage />} />
             <Route path="/hospitality/front-desk"   element={<HotelFrontDeskPage />} />
             <Route path="/hospitality/calendar"     element={<HotelCalendarPage />} />
             <Route path="/hospitality/rates"        element={<HotelRatesPage />} />

@@ -138,7 +138,6 @@ export type ModuleKey =
   | "ai-assistant"
   | "notifications"
   | "calendar"
-  | "whatsapp"
   | "file-manager"
   | "super-admin"
   | "restaurant"
