@@ -79,6 +79,7 @@ try {
             BranchId            = "$($c.b)"
             CloudBaseUrl        = "$($c.u)".TrimEnd('/')
             BranchKey           = "$($c.k)"
+            Modules             = "$($c.m)"
             IntervalSeconds     = 5
             StartupDelaySeconds = 120
         }

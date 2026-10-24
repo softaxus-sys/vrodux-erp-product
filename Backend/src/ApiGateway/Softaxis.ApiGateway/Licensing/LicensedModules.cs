@@ -76,6 +76,16 @@ public static class LicensedModules
     public static HashSet<string>? Resolve(IServiceProvider services, IConfiguration cfg, ILogger logger)
     {
         var licence = cfg["OnPremises:LicenseKey"]?.Trim();
+
+        // A branch server holds no licence; the connection code carried the workspace's modules.
+        // None listed (an older code) means install everything.
+        if (string.IsNullOrWhiteSpace(licence)
+            && string.Equals(cfg["BranchSync:Mode"], "Branch", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(cfg["BranchSync:Modules"]))
+            return ExpandWithDependencies(
+                cfg["BranchSync:Modules"]!.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                logger);
+
         if (string.IsNullOrWhiteSpace(licence))
             return null;
 
@@ -93,9 +103,14 @@ public static class LicensedModules
             return null;
         }
 
+        return ExpandWithDependencies(payload.Features ?? [], logger);
+    }
+
+    private static HashSet<string> ExpandWithDependencies(IEnumerable<string?> features, ILogger logger)
+    {
         var wanted = new HashSet<string>(AlwaysInstalled, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var feature in payload.Features ?? [])
+        foreach (var feature in features)
         {
             var code = feature?.Trim().ToLowerInvariant();
             if (string.IsNullOrEmpty(code)) continue;

@@ -452,6 +452,9 @@ try
         app.Environment.IsDevelopment()
         || app.Environment.IsEnvironment("Docker")
         || app.Configuration.GetValue("Database:MigrateOnStartup", false)
+        // A branch server holds no licence key, but its database starts empty and needs its tables
+        // before the first sync can write into them.
+        || string.Equals(app.Configuration["BranchSync:Mode"], "Branch", StringComparison.OrdinalIgnoreCase)
         || !string.IsNullOrWhiteSpace(app.Configuration["OnPremises:LicenseKey"]);
 
     if (migrateOnStartup)

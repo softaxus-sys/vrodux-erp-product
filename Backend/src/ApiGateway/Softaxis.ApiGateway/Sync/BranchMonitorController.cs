@@ -72,7 +72,7 @@ public sealed class BranchMonitorController(
                  ?? User.FindFirst("username")?.Value;
         var key = await keyStore.IssueAsync(branchId, tenantId, by, ct);
         var cloudUrl = configuration["BranchSync:PublicBaseUrl"] is { Length: > 0 } u ? u : $"{Request.Scheme}://{Request.Host}";
-        return Ok(new IssuedBranchKeyDto(branchId, key, BranchKeyStore.ConnectionCode(cloudUrl, tenantId, branchId, key), cloudUrl, key[^4..]));
+        return Ok(new IssuedBranchKeyDto(branchId, key, BranchKeyStore.ConnectionCode(cloudUrl, tenantId, branchId, key, User.FindFirst("modules")?.Value), cloudUrl, key[^4..]));
     }
 
     /// <summary>Revokes every key the branch holds - it stops syncing within seconds (stolen or retired PC).</summary>

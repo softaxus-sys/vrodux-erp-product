@@ -31,6 +31,8 @@ public sealed class BranchSyncOptions
     public string CloudBaseUrl { get; set; } = string.Empty;
     /// <summary>The credential this branch holds. Revocable from the cloud by removing its entry.</summary>
     public string BranchKey    { get; set; } = string.Empty;
+    /// <summary>Comma-separated modules the workspace subscribes to (from the connection code); decides which tables the branch database gets.</summary>
+    public string Modules      { get; set; } = string.Empty;
     public int    IntervalSeconds { get; set; } = 5;
     public int    StartupDelaySeconds { get; set; } = 300;
     /// <summary>Longest wait between attempts while the cloud is unreachable (the interval doubles up to this).</summary>

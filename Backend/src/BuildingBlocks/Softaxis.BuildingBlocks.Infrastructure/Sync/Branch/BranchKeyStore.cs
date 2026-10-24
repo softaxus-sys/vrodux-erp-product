@@ -133,11 +133,11 @@ public sealed class BranchKeyStore(string connectionString)
 
     /// <summary>
     /// What an installer needs to join a branch to head office, in one pastable string:
-    /// <c>VBR1.</c> + base64url of {u: cloud address, t: workspace, b: branch, k: key}.
+    /// <c>VBR1.</c> + base64url of {u: cloud address, t: workspace, b: branch, k: key, m: subscribed modules}.
     /// </summary>
-    public static string ConnectionCode(string cloudBaseUrl, Guid tenantId, Guid branchId, string key)
+    public static string ConnectionCode(string cloudBaseUrl, Guid tenantId, Guid branchId, string key, string? modules = null)
     {
-        var json = JsonSerializer.Serialize(new { u = cloudBaseUrl.TrimEnd('/'), t = tenantId, b = branchId, k = key });
+        var json = JsonSerializer.Serialize(new { u = cloudBaseUrl.TrimEnd('/'), t = tenantId, b = branchId, k = key, m = string.IsNullOrWhiteSpace(modules) ? null : modules });
         return "VBR1." + Convert.ToBase64String(Encoding.UTF8.GetBytes(json)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
     }
 
