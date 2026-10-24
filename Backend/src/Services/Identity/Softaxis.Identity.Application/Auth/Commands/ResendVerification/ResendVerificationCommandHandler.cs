@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Identity.Application.Abstractions;
@@ -9,7 +10,8 @@ public sealed class ResendVerificationCommandHandler(
     IUserRepository  userRepo,
     IJwtTokenService jwtService,
     IEmailService    emailService,
-    IUnitOfWork      uow)
+    IUnitOfWork      uow,
+    ILogger<ResendVerificationCommandHandler> logger)
     : ICommandHandler<ResendVerificationCommand>
 {
     public async Task<Result> Handle(ResendVerificationCommand cmd, CancellationToken ct)
@@ -24,7 +26,16 @@ public sealed class ResendVerificationCommandHandler(
         userRepo.Update(user);
         await uow.SaveChangesAsync(ct);
 
-        await emailService.SendEmailVerificationAsync(user.Email.Value, user.FullName, rawToken, ct);
+        // A mail-server failure must not become a 500 (and must not reveal that this account exists):
+        // log it for the operator and answer the same as for any other address.
+        try
+        {
+            await emailService.SendEmailVerificationAsync(user.Email.Value, user.FullName, rawToken, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Verification email failed to send for user {UserId}", user.Id);
+        }
         return Result.Success();
     }
 }
