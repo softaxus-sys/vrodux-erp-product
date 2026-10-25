@@ -67,6 +67,8 @@ public sealed class BranchMonitorController(
         if (denied is not null) return denied;
         if (!(await ReadBranchesAsync(tenantId, ct)).Any(b => b.Id == branchId))
             return NotFound(new { error = "Branch not found." });
+        if (!await BranchServersEnabledAsync(tenantId, ct))
+            return Conflict(new { error = "Branch servers are not part of this workspace's plan. Ask Softaxis to enable \"cloud + continuous operations\"." });
 
         var by = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? User.FindFirst("name")?.Value
                  ?? User.FindFirst("username")?.Value;
@@ -99,6 +101,17 @@ public sealed class BranchMonitorController(
     }
 
     private sealed record BranchRow(Guid Id, string Name, bool Local);
+
+    /// <summary>Whether this workspace was set up as "cloud + continuous operations" (branch servers allowed).</summary>
+    private async Task<bool> BranchServersEnabledAsync(Guid tenantId, CancellationToken ct)
+    {
+        await using var conn = new SqlConnection(configuration.GetConnectionString("IdentityDb"));
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT BranchServersEnabled FROM [identity].[tenants] WHERE Id = @t";
+        cmd.Parameters.Add(new SqlParameter("@t", tenantId));
+        return await cmd.ExecuteScalarAsync(ct) is true;
+    }
 
     private async Task<List<BranchRow>> ReadBranchesAsync(Guid tenantId, CancellationToken ct)
     {

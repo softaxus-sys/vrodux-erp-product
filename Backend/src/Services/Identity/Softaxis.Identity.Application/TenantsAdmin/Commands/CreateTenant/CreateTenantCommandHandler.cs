@@ -32,6 +32,7 @@ public sealed class CreateTenantCommandHandler(
         var tenant = Tenant.Create(cmd.Name, cmd.Slug, plan, deployment, cmd.ContactEmail, cmd.Country, cmd.Industry);
         tenant.SetCurrency(cmd.Currency);   // manual on the admin path (defaults to USD when null)
         if (cmd.IsMirror) tenant.SetMirror(true);
+        if (cmd.BranchServers && deployment == DeploymentType.Cloud) tenant.SetBranchServersEnabled(true);
 
         // Apply the super admin's module grant BEFORE role provisioning below, so the "{Module}
         // Manager" roles are created against the tenant's real, final module set rather than the

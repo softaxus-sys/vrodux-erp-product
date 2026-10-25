@@ -16,7 +16,7 @@ import { uomKeys } from "@/hooks/inventory/use-uom";
 import { inventoryProductKeys, useInventoryProduct } from "@/hooks/inventory/use-inventory-products";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { useBarcodeAutofill, AUTOFILL_SOURCE_LABELS } from "@/hooks/use-barcode-autofill";
-import { taxForCountry } from "@/lib/onboarding/geo-data";
+import { useTaxOptions } from "@/hooks/use-tax-options";
 import { useAuthStore } from "@/store/auth.store";
 
 interface AddStockItemFormProps {
@@ -48,8 +48,11 @@ export function AddStockItemForm({ open, onClose, editingId }: AddStockItemFormP
   // unconditionally, so an item added here was zero-rated at the till while the identical
   // product added from POS carried a rate - a silent under-charge on every sale.
   const country = useAuthStore(st => st.tenant?.country);
-  const tax     = React.useMemo(() => taxForCountry(country), [country]);
+  const tax     = useTaxOptions();
   const [taxRate, setTaxRate]               = React.useState(tax.standard);
+  // The master loads after the form opens; follow its default until the user picks a rate themselves.
+  const taxTouched = React.useRef(false);
+  React.useEffect(() => { if (!taxTouched.current) setTaxRate(tax.standard); }, [tax.standard]);
   const [barcode, setBarcode]               = React.useState("");
   const [description, setDescription]       = React.useState("");
   const [trackInventory, setTrackInventory] = React.useState(true);
@@ -354,7 +357,7 @@ export function AddStockItemForm({ open, onClose, editingId }: AddStockItemFormP
                     </label>
                     <div className="flex gap-1.5">
                       {tax.rates.map(r => (
-                        <button key={r} type="button" onClick={() => setTaxRate(r)}
+                        <button key={r} type="button" onClick={() => { taxTouched.current = true; setTaxRate(r); }}
                           className={`flex-1 h-9 rounded-lg border-2 text-xs font-medium transition-all ${
                             taxRate === r
                               ? "border-primary bg-primary/5 text-primary"

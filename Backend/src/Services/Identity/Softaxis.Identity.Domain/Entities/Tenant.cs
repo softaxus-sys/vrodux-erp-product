@@ -110,6 +110,13 @@ public sealed class Tenant : AuditableEntity<Guid>
     /// </summary>
     public bool      IsMirror           { get; private set; }
 
+    /// <summary>
+    /// "Cloud + continuous operations": this cloud workspace is the head office for branch servers that keep
+    /// trading when the internet or head office is down. Off for plain cloud workspaces and for on-premises
+    /// (fully offline) installs. Gates issuing branch keys and the Branch Servers screen.
+    /// </summary>
+    public bool      BranchServersEnabled { get; private set; }
+
     // ── Derived ───────────────────────────────────────────────────────────────
 
     public PlanLimits Limits => PlanDefinitions.Get(Plan);
@@ -358,6 +365,12 @@ public sealed class Tenant : AuditableEntity<Guid>
     /// Marks this cloud tenant as the read-only mirror of an on-premises installation (or clears it).
     /// Never set on the on-premises copy - that side is the system of record and must stay writable.
     /// </summary>
+    public void SetBranchServersEnabled(bool enabled)
+    {
+        BranchServersEnabled = enabled;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void SetMirror(bool isMirror)
     {
         IsMirror  = isMirror;

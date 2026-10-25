@@ -8,7 +8,7 @@ import { useInventoryCategories, useCreateInventoryCategory } from "@/hooks/inve
 import { useCreatePOSProduct } from "@/hooks/pos/use-products";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { useBarcodeAutofill, AUTOFILL_SOURCE_LABELS } from "@/hooks/use-barcode-autofill";
-import { taxForCountry } from "@/lib/onboarding/geo-data";
+import { useTaxOptions } from "@/hooks/use-tax-options";
 import { useAuthStore } from "@/store/auth.store";
 
 interface AddPOSProductFormProps {
@@ -28,9 +28,12 @@ export function AddPOSProductForm({ open, onClose }: AddPOSProductFormProps) {
   // ["0","5","10","15"] with 5% preselected - UAE's regime - so a Pakistani shop was offered 15%
   // and never 17%, the rate its receipts legally have to carry.
   const country = useAuthStore(s => s.tenant?.country);
-  const tax     = React.useMemo(() => taxForCountry(country), [country]);
+  const tax     = useTaxOptions();
 
   const [taxRate, setTaxRate]               = React.useState(tax.standard);
+  // The master loads after the form opens; follow its default until the user picks a rate themselves.
+  const taxTouched = React.useRef(false);
+  React.useEffect(() => { if (!taxTouched.current) setTaxRate(tax.standard); }, [tax.standard]);
   const [stock, setStock]                   = React.useState("0");
   const [minStock, setMinStock]             = React.useState("5");
   const [unit, setUnit]                     = React.useState("pcs");
@@ -277,7 +280,7 @@ export function AddPOSProductForm({ open, onClose }: AddPOSProductFormProps) {
                     </label>
                     <div className="flex gap-1.5">
                       {tax.rates.map(r => (
-                        <button key={r} onClick={() => setTaxRate(r)}
+                        <button key={r} onClick={() => { taxTouched.current = true; setTaxRate(r); }}
                           className={`flex-1 h-9 rounded-lg border-2 text-xs font-medium transition-all ${
                             taxRate === r
                               ? "border-primary bg-primary/5 text-primary"

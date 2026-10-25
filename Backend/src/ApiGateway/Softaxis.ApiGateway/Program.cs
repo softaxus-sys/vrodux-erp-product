@@ -547,6 +547,7 @@ try
     app.UseMiddleware<TenantAmbientMiddleware>();           // publish tenant to AsyncLocal for DB isolation
     app.UseMiddleware<SubscriptionEnforcementMiddleware>(); // block expired subscriptions
     app.UseMiddleware<ModuleEnforcementMiddleware>();       // block unlicensed module routes
+    app.UseMiddleware<Softaxis.ApiGateway.Sync.BranchHeadOfficeOnlyMiddleware>(); // branch server: head-office setup is read-only
     app.UseAuthorization();
     app.MapControllers();
     app.MapHub<Softaxis.Restaurant.API.Realtime.RestaurantHub>("/hubs/restaurant");

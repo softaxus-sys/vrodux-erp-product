@@ -75,6 +75,10 @@ public sealed class JwtTokenService(IOptions<JwtSettings> options, IConfiguratio
             // ResolvedModules returns override if set, else plan defaults.
             claims.Add(new Claim("modules", string.Join(",", tenant.ResolvedModules)));
 
+            // Lets the frontend show the Branch Servers screen only where branch servers are part of the deal.
+            if (tenant.BranchServersEnabled)
+                claims.Add(new Claim("branch_servers", "true"));
+
             // Industry vertical — lets the frontend render Industry-Pack-specific UI/labels.
             if (!string.IsNullOrWhiteSpace(tenant.Industry))
                 claims.Add(new Claim("industry", tenant.Industry));

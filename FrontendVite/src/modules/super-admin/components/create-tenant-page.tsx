@@ -29,9 +29,13 @@ const PLANS: { value: PlanType; label: string; desc: string; color: string }[] =
   { value: "Enterprise",   label: "Enterprise",   color: "text-violet-600", desc: "Unlimited users · custom pricing"   },
 ];
 
-const DEPLOYMENTS: { value: DeploymentType; label: string; desc: string; icon: React.ElementType }[] = [
-  { value: "Cloud",      label: "Cloud",       desc: "Vrodux hosts the database",       icon: Cloud  },
-  { value: "OnPremises", label: "On-Premises", desc: "Client provides their own server", icon: Server },
+const DEPLOYMENTS: { key: string; value: DeploymentType; branchServers: boolean; label: string; desc: string; icon: React.ElementType }[] = [
+  { key: "cloud",      value: "Cloud",      branchServers: false, label: "Cloud",
+    desc: "Vrodux hosts the database; the customer uses it in the browser", icon: Cloud },
+  { key: "continuous", value: "Cloud",      branchServers: true,  label: "Cloud + continuous operations",
+    desc: "Cloud head office, plus a branch server at each branch that keeps trading if the internet or head office is down", icon: Cloud },
+  { key: "onprem",     value: "OnPremises", branchServers: false, label: "On-Premises (offline)",
+    desc: "Runs fully on the customer's own server; no cloud needed", icon: Server },
 ];
 
 function slugify(s: string) {
@@ -72,6 +76,7 @@ export function CreateTenantPage() {
   const [slugManual,   setSlugManual]   = React.useState(false);
   const [plan,         setPlan]         = React.useState<PlanType>("Starter");
   const [deployment,   setDeployment]   = React.useState<DeploymentType>("Cloud");
+  const [branchServers, setBranchServers] = React.useState(false);
   // Only meaningful for an on-premises installation: this cloud workspace becomes the read-only
   // mirror the shop pushes into nightly. Reset whenever deployment flips back to Cloud, so a
   // cloud tenant can never be created read-only by a stale tick.
@@ -140,6 +145,7 @@ export function CreateTenantPage() {
         slug:           slug.trim(),
         plan,
         deploymentType: deployment,
+        branchServers:  deployment === "Cloud" ? branchServers : undefined,
         isMirror:       deployment === "OnPremises" ? isMirror : undefined,
         contactEmail:   contactEmail.trim() || undefined,
         country:        country.trim() || undefined,
@@ -233,12 +239,12 @@ export function CreateTenantPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {DEPLOYMENTS.map(d => (
-                    <label key={d.value} className={cn(
+                    <label key={d.key} className={cn(
                       "flex flex-col gap-0.5 p-3 rounded-xl border cursor-pointer transition-colors",
-                      deployment === d.value ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border hover:border-border/80"
+                      (deployment === d.value && branchServers === d.branchServers) ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border hover:border-border/80"
                     )}>
                       <div className="flex items-center gap-2">
-                        <input type="radio" name="deployment" value={d.value} checked={deployment === d.value} onChange={() => { setDeployment(d.value); if (d.value !== "OnPremises") setIsMirror(false); }} className="accent-primary" />
+                        <input type="radio" name="deployment" value={d.key} checked={deployment === d.value && branchServers === d.branchServers} onChange={() => { setDeployment(d.value); setBranchServers(d.branchServers); if (d.value !== "OnPremises") setIsMirror(false); }} className="accent-primary" />
                         <d.icon className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium text-foreground">{d.label}</span>
                       </div>

@@ -65,6 +65,7 @@ export function useVisibleNavigation(): NavGroup[] {
             // Children that carry their own module or permission requirement.
             children: pruneHeadings(item.children?.filter((child) =>
               (!child.onPremOnly || isOnPrem)
+              && (!child.branchServersOnly || !!tenant?.branchServers)
               && (!child.countries || child.countries.includes(countryCodeOf(tenant?.country)))
               && itemVisible(child.module, child.requiresPermission))),
           }))

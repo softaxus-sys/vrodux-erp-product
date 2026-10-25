@@ -40,6 +40,8 @@ export interface TenantDto {
   hasLicenseKey: boolean;
   /** True when this workspace is the read-only cloud reflection of an on-premises installation. */
   isMirror?: boolean;
+  /** Cloud + continuous operations: branch servers may sync with this workspace. */
+  branchServersEnabled?: boolean;
   /** Users exist but none has confirmed their email — the owner cannot sign in yet. */
   awaitingActivation?: boolean;
   licenseExpiresAt: string | null;
@@ -104,6 +106,8 @@ export interface CreateTenantRequest {
    * docs/on-premises-cloud-mirror.md
    */
   isMirror?: boolean;
+  /** Cloud + continuous operations. Only with deploymentType "Cloud". */
+  branchServers?: boolean;
 }
 
 export interface UpdateTenantRequest {
@@ -158,6 +162,9 @@ export const tenantsAdminApi = {
 
   setMirror: (id: string, isMirror: boolean): Promise<TenantDto> =>
     apiClient.patch(`${BASE}/${id}/mirror`, { isMirror }),
+
+  setBranchServers: (id: string, enabled: boolean): Promise<TenantDto> =>
+    apiClient.patch(`${BASE}/${id}/branch-servers`, { enabled }),
 
   setIndustry: (id: string, industry: string | null): Promise<TenantDto> =>
     apiClient.patch(`${BASE}/${id}/industry`, { industry }),

@@ -22,6 +22,28 @@ import { INDUSTRY_OPTIONS } from "@/config/industry-packs";
 
 // ── License Panel ─────────────────────────────────────────────────────────────
 
+/** Cloud + continuous operations: whether branch servers may sync with this workspace. Cloud tenants only. */
+function BranchServersToggle({ tenant, onUpdated }: { tenant: TenantDto; onUpdated: (t: TenantDto) => void }) {
+  const [busy, setBusy] = React.useState(false);
+  const on = !!tenant.branchServersEnabled;
+  const toggle = async () => {
+    try {
+      setBusy(true);
+      onUpdated(await tenantsAdminApi.setBranchServers(tenant.id, !on));
+      toast.success(on ? "Branch servers turned off." : "Branch servers turned on: this workspace can now issue branch keys.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not change the setting.");
+    } finally { setBusy(false); }
+  };
+  return (
+    <button type="button" onClick={toggle} disabled={busy}
+      title="Cloud + continuous operations: a branch server at each branch keeps trading if the internet or head office is down"
+      className={`text-xs px-2 py-1 rounded-md font-medium border transition-colors ${on ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" : "bg-muted text-muted-foreground border-transparent hover:text-foreground"}`}>
+      {busy ? "…" : on ? "Branch servers: on" : "Branch servers: off"}
+    </button>
+  );
+}
+
 function LicensePanel({ tenant, onUpdated }: { tenant: TenantDto; onUpdated: (t: TenantDto) => void }) {
   const [validityDays, setValidityDays] = React.useState(365);
   const [machineCode,  setMachineCode]  = React.useState("");
@@ -558,6 +580,7 @@ export function TenantDetailPage() {
               {tenant.deploymentType === "Cloud" ? <Cloud className="h-3.5 w-3.5 text-blue-500" /> : <Server className="h-3.5 w-3.5 text-orange-500" />}
               {tenant.deploymentType}
             </span>
+            {tenant.deploymentType === "Cloud" && <BranchServersToggle tenant={tenant} onUpdated={onUpdated} />}
             {industryLabel && (
               <span className="text-xs px-2 py-1 rounded-md bg-primary/10 text-primary font-medium flex items-center gap-1">
                 <Factory className="h-3.5 w-3.5" />{industryLabel}

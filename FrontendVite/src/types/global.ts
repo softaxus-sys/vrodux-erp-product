@@ -88,6 +88,8 @@ export interface Tenant {
   /** JWT `license_days_left` claim; only present on an on-premises installation, which is
    *  licensed by a signed key rather than a subscription. */
   licenseDaysLeft?: number | null;
+  /** JWT `branch_servers` claim: this workspace is "cloud + continuous operations" (branch servers allowed). */
+  branchServers?: boolean;
   enabledModules: ModuleKey[];
   branding: TenantBranding;
   settings: TenantSettings;
@@ -195,6 +197,8 @@ export interface NavItem {
   heading?: boolean;
   /** Shown only on an on-premises installation. */
   onPremOnly?: boolean;
+  /** Shown only when the workspace has branch servers ("cloud + continuous operations"). */
+  branchServersOnly?: boolean;
   /** ISO country codes the item is for; hidden for any other workspace country. */
   countries?: string[];
 }

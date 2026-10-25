@@ -19,6 +19,7 @@ import { useShift } from "./shift-gate";
 import { usePaymentMethods } from "@/hooks/pos/use-payment-methods";
 import { useTransactions, useCreateSale } from "@/hooks/pos/use-transactions";
 import { useAuthStore } from "@/store/auth.store";
+import { usePersistedCart } from "@/hooks/pos/use-persisted-cart";
 import { useHeldOrders } from "@/hooks/pos/use-held-orders";
 import { CashierPOSView } from "./cashier-pos-view";
 import { PosReceipt } from "./pos-receipt";
@@ -118,7 +119,7 @@ export function RetailPOSView() {
   const [categoryFilter, setCategoryFilter] = React.useState<string>("all");
 
   // Cart
-  const [cart, setCart]               = React.useState<CartItem[]>([]);
+  const [cart, setCart] = usePersistedCart<CartItem>("retail");
 
   // Discount (multi-type: percentage | fixed | voucher | loyalty) + customer
   const [appliedDiscount, setAppliedDiscount] = React.useState<AppliedDiscount | null>(null);

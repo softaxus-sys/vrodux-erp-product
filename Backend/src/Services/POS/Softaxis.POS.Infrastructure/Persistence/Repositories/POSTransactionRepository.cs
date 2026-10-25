@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.POS.Domain.Entities;
 using Softaxis.POS.Domain.Enums;
@@ -6,7 +7,7 @@ using Softaxis.POS.Domain.Repositories;
 
 namespace Softaxis.POS.Infrastructure.Persistence.Repositories;
 
-public sealed class POSTransactionRepository(POSDbContext db) : IPOSTransactionRepository
+public sealed class POSTransactionRepository(POSDbContext db, IConfiguration configuration) : IPOSTransactionRepository
 {
     private IQueryable<POSTransaction> FullQuery =>
         db.Transactions
@@ -42,10 +43,24 @@ public sealed class POSTransactionRepository(POSDbContext db) : IPOSTransactionR
         // Format: TXN-YYYYMMDD-NNNN (sequential per day)
         var today     = DateTime.UtcNow.Date;
         var tomorrow  = today.AddDays(1);
-        var todayCount = await db.Transactions
-            .CountAsync(t => t.CompletedAt >= today && t.CompletedAt < tomorrow, ct);
 
-        return $"TXN-{today:yyyyMMdd}-{(todayCount + 1):D4}";
+        // On a branch server the number carries the branch code (HB2-TXN-YYYYMMDD-NNNN). The plain number is
+        // unique only per workspace, so two branches selling on the same day would both print ...-0001 and the
+        // second one's upload to head office would be rejected. The branch is the only writer of its own
+        // numbers, so counting its own prefix is safe.
+        var prefix = "TXN";
+        if (string.Equals(configuration["BranchSync:Mode"], "Branch", StringComparison.OrdinalIgnoreCase)
+            && Guid.TryParse(configuration["BranchSync:BranchId"], out var branchId))
+        {
+            var code = await db.Database
+                .SqlQuery<string?>($"SELECT [Code] AS [Value] FROM [identity].[branches] WHERE [Id] = {branchId}")
+                .FirstOrDefaultAsync(ct);
+            if (!string.IsNullOrWhiteSpace(code)) prefix = $"{code.Trim()}-TXN";
+        }
+
+        var stem  = $"{prefix}-{today:yyyyMMdd}-";
+        var count = await db.Transactions.CountAsync(t => t.TransactionNumber.StartsWith(stem), ct);
+        return $"{stem}{(count + 1):D4}";
     }
 
     public async Task<PagedResult<POSTransaction>> GetPagedAsync(

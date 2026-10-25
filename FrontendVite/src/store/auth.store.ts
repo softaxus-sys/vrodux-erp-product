@@ -300,6 +300,7 @@ function buildTenantFromClaims(claims: Record<string, unknown>): Tenant {
     licenseDaysLeft:   claims["license_days_left"] !== undefined && claims["license_days_left"] !== null
                          ? Number(claims["license_days_left"])
                          : null,
+    branchServers:     claims["branch_servers"] === "true" || claims["branch_servers"] === true,
     enabledModules,
     branding: {
       primaryColor: "#2563eb",

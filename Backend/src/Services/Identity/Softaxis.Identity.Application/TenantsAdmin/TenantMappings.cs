@@ -28,5 +28,6 @@ internal static class TenantMappings
         ModulesManuallyGranted: t.ModulesManuallyGranted,
         CreatedAt:        t.CreatedAt,
         DeletedAt:        t.DeletedAt,
-        IsMirror:         t.IsMirror);
+        IsMirror:         t.IsMirror,
+        BranchServersEnabled: t.BranchServersEnabled);
 }

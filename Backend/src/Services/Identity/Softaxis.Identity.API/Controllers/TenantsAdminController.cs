@@ -16,6 +16,7 @@ using Softaxis.Identity.Application.TenantsAdmin.Commands.RenewTenantSubscriptio
 using Softaxis.Identity.Application.TenantsAdmin.Commands.SetTenantConnectionStrings;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.SetTenantIndustry;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.SetTenantMirror;
+using Softaxis.Identity.Application.TenantsAdmin.Commands.SetTenantBranchServers;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.SetTenantModules;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.SuspendTenant;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.UpdateTenant;
@@ -52,7 +53,7 @@ public sealed class TenantsAdminController(ISender sender) : BaseApiController(s
         var result = await Sender.Send(new CreateTenantCommand(
             req.Name, req.Slug, req.Plan, req.DeploymentType, req.ContactEmail, req.Country, req.Industry, req.Currency,
             req.StartTrial, req.Modules, req.AdminEmail, req.AdminUsername, req.AdminFirstName, req.AdminLastName, req.AdminPassword,
-            req.IsMirror), ct);
+            req.IsMirror, req.BranchServers), ct);
         return HandleResult(result, successCode: 201);
     }
 
@@ -128,6 +129,12 @@ public sealed class TenantsAdminController(ISender sender) : BaseApiController(s
     [HttpPatch("{id:guid}/industry")]
     public async Task<IActionResult> SetIndustry(Guid id, [FromBody] SetIndustryRequest req, CancellationToken ct)
         => HandleResult(await Sender.Send(new SetTenantIndustryCommand(id, req.Industry), ct));
+
+    // PATCH /api/admin/tenants/{id}/branch-servers
+    // Turn "cloud + continuous operations" on/off: whether branch servers may sync with this workspace.
+    [HttpPatch("{id:guid}/branch-servers")]
+    public async Task<IActionResult> SetBranchServers(Guid id, [FromBody] SetBranchServersRequest req, CancellationToken ct)
+        => HandleResult(await Sender.Send(new SetTenantBranchServersCommand(id, req.Enabled), ct));
 
     // PATCH /api/admin/tenants/{id}/mirror
     // Turn the read-only cloud-mirror flag on/off. Off lets the workspace accept edits again.

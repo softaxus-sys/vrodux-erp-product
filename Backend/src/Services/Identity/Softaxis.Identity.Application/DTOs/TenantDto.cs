@@ -30,6 +30,7 @@ public sealed record TenantDto(
     // True when this workspace is the read-only cloud reflection of an on-premises installation.
     // docs/on-premises-cloud-mirror.md
     bool                    IsMirror  = false,
+    bool                    BranchServersEnabled = false,
     // True when the workspace has users but none has verified their email — the owner never
     // activated. Drives the super admin's "Re-invite" button. Set only by the tenant list query.
     bool                    AwaitingActivation = false);
@@ -54,10 +55,13 @@ public sealed record CreateTenantRequest(
     string? AdminLastName  = null,
     string? AdminPassword  = null,
     // Create as the read-only cloud mirror of an on-premises installation.
-    bool    IsMirror       = false);
+    bool    IsMirror       = false,
+    // Cloud + continuous operations: branch servers sync with this workspace (cloud deployment only).
+    bool    BranchServers  = false);
 
 public sealed record SetIndustryRequest(string? Industry);
 public sealed record SetMirrorRequest(bool IsMirror);
+public sealed record SetBranchServersRequest(bool Enabled);
 
 public sealed record UpdateTenantRequest(
     string  Name,

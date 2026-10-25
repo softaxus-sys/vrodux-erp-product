@@ -24,7 +24,8 @@ public sealed record CreateTenantCommand(
     // accepts no writes and runs no tenant-scoped background jobs, because the shop does both.
     // The on-premises box then adopts this tenant's id via its license key.
     // docs/on-premises-cloud-mirror.md
-    bool    IsMirror = false) : ICommand<TenantDto>;
+    bool    IsMirror = false,
+    bool    BranchServers = false) : ICommand<TenantDto>;
 
 public sealed class CreateTenantValidator : AbstractValidator<CreateTenantCommand>
 {

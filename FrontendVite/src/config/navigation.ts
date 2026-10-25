@@ -780,7 +780,7 @@ export const navigationConfig: NavGroup[] = [
           // no settings.currency key — currency is a company-wide general setting
           { id: "currency", label: "Currency & Rates", href: "/settings/currency", icon: "Coins", requiresPermission: "settings.general.view" },
           { id: "branches", label: "Branches", href: "/settings/branches", icon: "GitBranch", requiresPermission: "settings.branches.view" },
-          { id: "branch-servers", label: "Branch Servers", href: "/settings/branch-servers", icon: "Server", requiresPermission: "settings.branches.view" },
+          { id: "branch-servers", label: "Branch Servers", href: "/settings/branch-servers", icon: "Server", branchServersOnly: true, requiresPermission: "settings.branches.view" },
           { id: "billing", label: "Billing & Plan", href: "/settings/billing", icon: "CreditCard", requiresPermission: "settings.billing.view" },
 
           { id: "h-access", label: "People & access", heading: true },

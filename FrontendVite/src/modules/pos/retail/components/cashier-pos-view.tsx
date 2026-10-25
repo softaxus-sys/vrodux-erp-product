@@ -27,6 +27,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { PosReceipt } from "./pos-receipt";
 import { inventoryProductsApi } from "@/lib/inventory/products.api";
 import type { ProductSummaryDto } from "@/lib/pos/types";
+import { usePersistedCart } from "@/hooks/pos/use-persisted-cart";
 import {
   type PosProduct, mapToPosProduct, categoryEmoji, usePosShortcuts,
   ScanToast, PosSearch, CategoryPills, ProductTile, PRODUCT_GRID, ProductsLoading, ProductsEmpty,
@@ -76,7 +77,7 @@ export function CashierPOSView() {
   // ── State ─────────────────────────────────────────────────────────────────
   const [search, setSearch]           = React.useState("");
   const [categoryFilter, setCat]      = React.useState("all");
-  const [cart, setCart]               = React.useState<CartItem[]>([]);
+  const [cart, setCart] = usePersistedCart<CartItem>("cashier");
   const [paymentMethod, setPayment]   = React.useState("Card");
   React.useEffect(() => {
     if (paymentMethods.length > 0 && !paymentMethods.find(m => m.id === paymentMethod)) {
