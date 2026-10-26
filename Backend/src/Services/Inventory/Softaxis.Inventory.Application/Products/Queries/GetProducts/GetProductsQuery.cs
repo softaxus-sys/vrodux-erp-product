@@ -10,5 +10,7 @@ public sealed record GetProductsQuery(
     string? Search     = null,
     Guid?   CategoryId = null,
     bool?   IsActive   = null,
-    bool?   IsLowStock = null
+    bool?   IsLowStock = null,
+    /// <summary>Show this branch's own stock figures instead of head-office totals.</summary>
+    Guid?   BranchId   = null
 ) : IQuery<PagedResult<ProductSummaryDto>>;

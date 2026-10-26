@@ -31,6 +31,7 @@ public sealed class POSDbContext(DbContextOptions<POSDbContext> options, IMediat
     public DbSet<PosSettings>         PosSettings          => Set<PosSettings>();
     public DbSet<OfflineSyncBatch>    OfflineSyncBatches   => Set<OfflineSyncBatch>();
     public DbSet<PosTillStatus>       PosTillStatuses      => Set<PosTillStatus>();
+    public DbSet<BranchStock>         BranchStocks         => Set<BranchStock>();
 
     // Vendors & Purchase
     public DbSet<Vendor>            Vendors              => Set<Vendor>();
@@ -78,6 +79,7 @@ public sealed class POSDbContext(DbContextOptions<POSDbContext> options, IMediat
         TenantIsolation.TenantUniqueIndex<POSTransaction>(modelBuilder, [nameof(POSTransaction.ClientRef)], extraFilter: "[ClientRef] IS NOT NULL");
         TenantIsolation.TenantUniqueIndex<CashMovement>(modelBuilder, [nameof(CashMovement.ClientRef)], extraFilter: "[ClientRef] IS NOT NULL");
         TenantIsolation.TenantUniqueIndex<PosTillStatus>(modelBuilder, [nameof(PosTillStatus.DeviceId)]);
+        TenantIsolation.TenantUniqueIndex<BranchStock>(modelBuilder, [nameof(BranchStock.BranchId), nameof(BranchStock.ProductId)]);
 
         base.OnModelCreating(modelBuilder);
     }

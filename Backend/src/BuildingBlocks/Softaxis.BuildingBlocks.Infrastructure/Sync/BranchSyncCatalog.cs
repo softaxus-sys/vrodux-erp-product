@@ -65,6 +65,7 @@ public static class BranchSyncCatalog
         new("pos.pos_line_items",                SyncOwner.Branch, "Lines on a retail sale."),
         new("pos.pos_payments",                  SyncOwner.Branch, "Payments on a retail sale."),
         new("pos.stock_movements",               SyncOwner.Branch, "Stock moved by this branch's sales."),
+        new("pos.branch_stock",                  SyncOwner.Branch, "How much of each product this branch holds - changed by the branch's own sales, returns and adjustments."),
 
         // ── Cloud-owned: configuration set at head office ──────────────────────────────────────
         new("restaurant.BranchInstructions",     SyncOwner.Cloud, "Requests from head office to a branch (void / refund a bill). The branch applies them."),

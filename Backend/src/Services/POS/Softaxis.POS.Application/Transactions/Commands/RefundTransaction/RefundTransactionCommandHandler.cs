@@ -73,7 +73,7 @@ public sealed class RefundTransactionCommandHandler(
 
             // Cross-schema lookup (pos.products OR inventory.products). For stock
             // restoration only — pricing uses the original transaction snapshot.
-            var product = await productLookup.GetByIdForSaleAsync(req.ProductId, ct);
+            var product = await productLookup.GetByIdForSaleAsync(req.ProductId, session.BranchId, ct);
 
             var lineResult = POSLineItem.Create(
                 refundTxn.Id,

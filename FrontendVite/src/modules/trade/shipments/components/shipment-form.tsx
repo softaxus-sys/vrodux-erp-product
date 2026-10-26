@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence } from "framer-motion";
+import { getTenantCurrency } from "@/hooks/use-currency";
 import { FileSpreadsheet, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,7 +59,7 @@ export function ShipmentForm({ shipment, defaultDirection = "import", onClose, o
     originCountry: shipment?.originCountry ?? "", originPort: shipment?.originPort ?? "",
     destinationCountry: shipment?.destinationCountry ?? "", destinationPort: shipment?.destinationPort ?? "",
     etd: shipment?.etd ?? "", eta: shipment?.eta ?? "", freeDays: text(shipment?.freeDays),
-    currency: shipment?.currency ?? "USD", exchangeRate: String(shipment?.exchangeRate ?? 1), notes: shipment?.notes ?? "",
+    currency: shipment?.currency ?? getTenantCurrency(), exchangeRate: String(shipment?.exchangeRate ?? 1), notes: shipment?.notes ?? "",
   });
   const [items, setItems] = React.useState<ItemRow[]>(shipment?.items.map(i => ({
     description: i.description, hsCode: i.hsCode ?? "", originCountry: i.originCountry ?? "", quantity: String(i.quantity),

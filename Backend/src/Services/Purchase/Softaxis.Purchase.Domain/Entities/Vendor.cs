@@ -18,7 +18,7 @@ public sealed class Vendor
         Address       = address?.Trim();
         TaxNumber     = taxNumber?.Trim();
         PaymentTerms  = paymentTerms ?? "Net 30";
-        Currency      = currency ?? "PKR";
+        Currency      = currency ?? Softaxis.BuildingBlocks.Domain.Multitenancy.TenantCurrency.Resolve();
         Notes         = notes?.Trim();
         Status        = "active";
         Rating        = 0;
@@ -35,7 +35,7 @@ public sealed class Vendor
     public string? Address       { get; private set; }
     public string? TaxNumber     { get; private set; }
     public string  PaymentTerms  { get; private set; } = "Net 30";
-    public string  Currency      { get; private set; } = "PKR";
+    public string  Currency      { get; private set; } = Softaxis.BuildingBlocks.Domain.Multitenancy.TenantCurrency.Resolve();
     public string? Notes         { get; private set; }
     public string  Status        { get; private set; } = "active"; // active | inactive | blocked
     public decimal Rating        { get; private set; }
@@ -58,7 +58,7 @@ public sealed class Vendor
         Address       = address?.Trim();
         TaxNumber     = taxNumber?.Trim();
         PaymentTerms  = paymentTerms ?? "Net 30";
-        Currency      = currency ?? "PKR";
+        Currency      = currency ?? Softaxis.BuildingBlocks.Domain.Multitenancy.TenantCurrency.Resolve();
         Notes         = notes?.Trim();
         Status        = status;
         Rating        = Math.Clamp(rating, 0, 5);

@@ -32,8 +32,8 @@ function deriveCountry(country?: string, currency?: string): string {
   if (c === "gb" || c.includes("kingdom"))                         return "gb";
   if (c === "us" || c.includes("united states"))                   return "us";
   if (c.length === 2 && /^[a-z]{2}$/.test(c))                     return c; // already a code
-  // Fallback: derive from currency
-  return CURRENCY_TO_COUNTRY[(currency ?? "").toUpperCase()] ?? "pk";
+  // Fallback: derive from currency. No country is invented when neither is known.
+  return CURRENCY_TO_COUNTRY[(currency ?? "").toUpperCase()] ?? "";
 }
 
 export function useTenantBootstrap() {
@@ -49,14 +49,17 @@ export function useTenantBootstrap() {
         const regional = await appSettingsApi.getCategory("regional");
         if (cancelled) return;
 
-        const currency  = regional.currency  ?? "";
-        const timezone  = regional.timezone  ?? "";
-        const rawCountry = regional.country  ?? "";
-        const country   = deriveCountry(rawCountry, currency);
-        const vatRate   = parseFloat(regional.vatRate ?? "0") || 0;
-
         const { tenant, setTenant } = useAuthStore.getState();
         if (!tenant) return;
+
+        // The tenant's own values (from its JWT: set at signup / Settings) are the baseline. Saved
+        // regional settings refine them only where they actually hold a value - an empty or missing
+        // row must never replace the tenant's currency or country with a default.
+        const currency  = (regional.currency ?? "").trim().toUpperCase().slice(0, 3) || tenant.currency;
+        const timezone  = (regional.timezone ?? "").trim() || tenant.timezone;
+        const rawCountry = (regional.country ?? "").trim();
+        const country   = rawCountry ? (deriveCountry(rawCountry, currency) || tenant.country) : tenant.country;
+        const vatRate   = parseFloat(regional.vatRate ?? "0") || 0;
 
         // Only update if something actually differs — avoids noisy re-renders
         if (

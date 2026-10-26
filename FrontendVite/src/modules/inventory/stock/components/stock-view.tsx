@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useInventoryProducts } from "@/hooks/inventory/use-inventory-products";
+import { useBranches } from "@/hooks/identity/use-branches";
 import type { ProductSummaryDto } from "@/lib/inventory/types";
 import { StockDrawer } from "./stock-drawer";
 import { AddStockItemForm } from "./add-stock-item-form";
@@ -64,7 +65,11 @@ export function StockView() {
   const openAdjust = (p: ProductSummaryDto) => { setDrawerOpen(false); setAdjustItemId(p.id); };
   const closeForm = () => { setShowAddForm(false); setEditingId(null); };
 
+  // Stock is held per branch: picking one shows what THAT branch holds; "All branches" is the head-office total.
+  const { data: branchList } = useBranches();
+  const [branchId, setBranchId] = React.useState<string>("");
   const { data, isLoading } = useInventoryProducts({
+    branchId: branchId || undefined,
     page,
     pageSize: 50,
     search:   search || undefined,
@@ -152,6 +157,13 @@ export function StockView() {
             onChange={e => { setSearch(e.target.value); setPage(1); }}
             className="pl-9 h-9 text-sm" />
         </div>
+        {(branchList?.length ?? 0) > 0 && (
+          <select value={branchId} onChange={e => { setBranchId(e.target.value); setPage(1); }}
+            className="h-9 px-3 rounded-lg border border-border bg-card text-sm" aria-label="Branch">
+            <option value="">All branches (total)</option>
+            {branchList!.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        )}
         <div className="flex items-center gap-1.5 flex-wrap">
           {STATUS_FILTERS.map(f => (
             <button key={f} onClick={() => { setStatusFilter(f); setPage(1); }}

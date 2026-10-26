@@ -36,8 +36,8 @@ public sealed class CreateBranchCommandHandler(
             cmd.City ?? "", cmd.Country ?? "Pakistan", cmd.Flag ?? "🇵🇰",
             cmd.Address, cmd.Phone, cmd.Email,
             cmd.Manager, cmd.Staff,
-            cmd.Status ?? "active", cmd.Currency ?? "PKR",
-            cmd.Timezone ?? "Asia/Karachi (UTC+5)", cmd.OpenedDate,
+            cmd.Status ?? "active", cmd.Currency ?? Softaxis.BuildingBlocks.Domain.Multitenancy.TenantCurrency.Resolve(),
+            cmd.Timezone ?? "UTC", cmd.OpenedDate,
             tenantScope);
 
         branchRepo.Add(branch);

@@ -86,6 +86,7 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
         Guid?   categoryId = null,
         bool?   isActive   = null,
         bool?   isLowStock = null,
+        Guid?   branchId   = null,
         CancellationToken ct = default)
     {
         // LIKE pattern — null means "no search filter"
@@ -124,13 +125,13 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
                         p.CostPrice,
                         p.TaxRate,
                         p.Unit,
-                        p.StockQuantity,
+                        pq.Qty            AS StockQuantity,
                         p.ReorderLevel,
                         p.IsActive,
                         p.TrackInventory,
                         CAST(
                             CASE WHEN p.TrackInventory = 1
-                                      AND p.StockQuantity <= p.ReorderLevel
+                                      AND pq.Qty <= p.ReorderLevel
                                       AND p.ReorderLevel  > 0
                             THEN 1 ELSE 0 END
                         AS bit)           AS IsLowStock,
@@ -138,6 +139,14 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
                         p.CreatedAt
                     FROM  [pos].[products]          p
                     INNER JOIN [pos].[product_categories] c ON c.Id = p.CategoryId
+                    CROSS APPLY (
+                        SELECT CASE
+                            WHEN {branchId} IS NOT NULL
+                                 AND EXISTS (SELECT 1 FROM [pos].[branch_stock] x WHERE x.ProductId = p.Id AND x.IsDeleted = 0)
+                            THEN ISNULL((SELECT TOP 1 m.StockQuantity FROM [pos].[branch_stock] m
+                                         WHERE m.ProductId = p.Id AND m.BranchId = {branchId} AND m.IsDeleted = 0), 0)
+                            ELSE p.StockQuantity END AS Qty
+                    ) pq
                     WHERE p.IsDeleted = 0 AND ({bypass} = 1 OR p.TenantId = {tenant})
 
                     UNION ALL
@@ -158,13 +167,13 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
                         p.CostPrice,
                         p.TaxRate,
                         p.Unit,
-                        p.StockQuantity,
+                        iq.Qty            AS StockQuantity,
                         p.ReorderLevel,
                         p.IsActive,
                         p.TrackInventory,
                         CAST(
                             CASE WHEN p.TrackInventory = 1
-                                      AND p.StockQuantity <= p.ReorderLevel
+                                      AND iq.Qty <= p.ReorderLevel
                                       AND p.ReorderLevel  > 0
                             THEN 1 ELSE 0 END
                         AS bit)           AS IsLowStock,
@@ -174,6 +183,18 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
                     INNER JOIN [inventory].[product_categories] c ON c.Id = p.CategoryId
                     LEFT  JOIN [inventory].[brands]             b ON b.Id = p.BrandId
                     LEFT  JOIN [inventory].[units_of_measure]   u ON u.Id = p.UnitOfMeasureId
+                    CROSS APPLY (
+                        SELECT CASE
+                            WHEN {branchId} IS NOT NULL
+                                 AND EXISTS (SELECT 1 FROM [inventory].[warehouses] w WHERE w.BranchId = {branchId} AND w.IsDeleted = 0)
+                            THEN ISNULL((
+                                SELECT TOP 1 ps.Quantity FROM [inventory].[product_stock] ps
+                                WHERE ps.ProductId = p.Id
+                                  AND ps.WarehouseId = (SELECT TOP 1 w2.Id FROM [inventory].[warehouses] w2
+                                                        WHERE w2.BranchId = {branchId} AND w2.IsDeleted = 0
+                                                        ORDER BY CASE WHEN w2.IsDefault = 1 THEN 0 ELSE 1 END, w2.CreatedAt)), 0)
+                            ELSE p.StockQuantity END AS Qty
+                    ) iq
                     WHERE p.IsDeleted = 0 AND ({bypass} = 1 OR p.TenantId = {tenant})
                 ),
                 Filtered AS (

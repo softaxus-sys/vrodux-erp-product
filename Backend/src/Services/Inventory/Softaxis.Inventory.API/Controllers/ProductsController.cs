@@ -29,9 +29,10 @@ public sealed class ProductsController(ISender sender) : BaseApiController(sende
         [FromQuery] Guid?   categoryId = null,
         [FromQuery] bool?   isActive   = null,
         [FromQuery] bool?   isLowStock = null,
+        [FromQuery] Guid?   branchId   = null,
         CancellationToken ct = default)
         => HandleResult(await Sender.Send(
-            new GetProductsQuery(page, pageSize, search, categoryId, isActive, isLowStock), ct));
+            new GetProductsQuery(page, pageSize, search, categoryId, isActive, isLowStock, branchId), ct));
 
     // ── GET /api/inventory/products/dashboard ────────────────────────────────
     /// <summary>Per-category stock and valuation, aggregated in SQL for the dashboard charts.</summary>

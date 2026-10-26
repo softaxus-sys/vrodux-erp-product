@@ -9,7 +9,9 @@ public sealed record AdjustStockCommand(
     decimal Quantity,
     string  AdjustmentType,
     string? Reference,
-    string? Notes) : ICommand<StockMovementDto>;
+    string? Notes,
+    /// <summary>Adjust this branch's own stock instead of head-office stock.</summary>
+    Guid?   BranchId = null) : ICommand<StockMovementDto>;
 
 public sealed class AdjustStockCommandValidator : AbstractValidator<AdjustStockCommand>
 {

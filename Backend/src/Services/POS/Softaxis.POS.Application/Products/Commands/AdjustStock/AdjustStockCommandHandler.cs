@@ -11,6 +11,7 @@ namespace Softaxis.POS.Application.Products.Commands.AdjustStock;
 public sealed class AdjustStockCommandHandler(
     IProductRepository       productRepo,
     IStockMovementRepository stockRepo,
+    ICrossSchemaProductService productLookup,
     ICurrentUser             currentUser,
     IUnitOfWork              uow)
     : ICommandHandler<AdjustStockCommand, StockMovementDto>
@@ -24,6 +25,17 @@ public sealed class AdjustStockCommandHandler(
         if (!Enum.TryParse<StockAdjustmentType>(cmd.AdjustmentType, ignoreCase: true, out var adjustType))
             return Result.Failure<StockMovementDto>(Error.Custom("Stock.InvalidType",
                 $"Invalid adjustment type '{cmd.AdjustmentType}'."));
+
+        // A branch's own stock: that branch's row changes, head office's figure does not.
+        if (cmd.BranchId is Guid branchId)
+        {
+            var balance = await productLookup.AdjustBranchStockAsync(
+                product.Id, branchId, cmd.Quantity, adjustType.ToString(), cmd.Reference, cmd.Notes,
+                currentUser.Id ?? Guid.Empty, ct);
+            return Result.Success(new StockMovementDto(
+                Guid.NewGuid(), product.Id, product.Name, adjustType.ToString(), cmd.Quantity,
+                balance, cmd.Reference, DateTime.UtcNow, cmd.Notes));
+        }
 
         var adjustResult = product.AdjustStock(cmd.Quantity, adjustType, cmd.Reference);
         if (adjustResult.IsFailure)

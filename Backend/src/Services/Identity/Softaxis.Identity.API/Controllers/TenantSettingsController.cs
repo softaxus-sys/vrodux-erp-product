@@ -21,6 +21,11 @@ public sealed class TenantSettingsController(ISender sender) : BaseApiController
     public async Task<IActionResult> UpdateCurrency([FromBody] UpdateCurrencyRequest req, CancellationToken ct)
         => HandleResult(await Sender.Send(new UpdateTenantCurrencyCommand(req.Currency), ct));
 
+    /// <summary>Change the tenant's country.</summary>
+    [HttpPut("country")]
+    public async Task<IActionResult> UpdateCountry([FromBody] UpdateCountryRequest req, CancellationToken ct)
+        => HandleResult(await Sender.Send(new UpdateTenantCountryCommand(req.Country), ct));
+
     /// <summary>This tenant's own object-storage usage against their plan's budget — drives the
     /// "approaching your storage limit" banner.</summary>
     [HttpGet("storage")]
@@ -28,4 +33,5 @@ public sealed class TenantSettingsController(ISender sender) : BaseApiController
         => HandleResult(await Sender.Send(new GetTenantStorageUsageQuery(), ct));
 
     public sealed record UpdateCurrencyRequest(string Currency);
+    public sealed record UpdateCountryRequest(string Country);
 }

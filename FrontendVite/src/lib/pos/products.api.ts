@@ -74,11 +74,14 @@ export const productsApi = {
     id: string,
     quantity: number,
     adjustmentType: string,
-    notes?: string
+    notes?: string,
+    /** Adjust this branch's own stock instead of head-office stock. */
+    branchId?: string,
   ): Promise<StockMovementDto> =>
     apiClient.post<StockMovementDto>(`${BASE}/${id}/stock-adjustment`, {
       quantity,
       adjustmentType,
       notes,
+      branchId,
     }),
 };

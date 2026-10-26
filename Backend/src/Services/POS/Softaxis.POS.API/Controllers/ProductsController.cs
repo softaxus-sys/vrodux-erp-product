@@ -27,9 +27,10 @@ public sealed class ProductsController(ISender sender) : BaseApiController(sende
         [FromQuery] bool? lowStock = null,
         [FromQuery] string? sortBy = null,
         [FromQuery] bool sortDesc = false,
+        [FromQuery] Guid? branchId = null,
         CancellationToken ct = default)
         => HandleResult(await Sender.Send(
-            new GetProductsQuery(page, pageSize, search, categoryId, isActive, lowStock, sortBy, sortDesc), ct));
+            new GetProductsQuery(page, pageSize, search, categoryId, isActive, lowStock, sortBy, sortDesc, branchId), ct));
 
     /// <summary>Get product by ID.</summary>
     [RequirePermission("pos.products.view")]
@@ -69,11 +70,12 @@ public sealed class ProductsController(ISender sender) : BaseApiController(sende
     [HttpPost("{id:guid}/stock-adjustment")]
     public async Task<IActionResult> AdjustStock(Guid id, [FromBody] AdjustStockRequest req, CancellationToken ct = default)
         => HandleResult(await Sender.Send(
-            new AdjustStockCommand(id, req.Quantity, req.AdjustmentType, req.Reference, req.Notes), ct), successCode: 201);
+            new AdjustStockCommand(id, req.Quantity, req.AdjustmentType, req.Reference, req.Notes, req.BranchId), ct), successCode: 201);
 }
 
 public sealed record AdjustStockRequest(
     decimal Quantity,
     string  AdjustmentType,
     string? Reference,
-    string? Notes);
+    string? Notes,
+    Guid?   BranchId = null);

@@ -21,6 +21,14 @@ public sealed class PosDashboardController(ISender sender) : BaseApiController(s
         CancellationToken ct = default)
         => HandleResult(await Sender.Send(new GetPosOverviewQuery(from, to, utcOffsetMinutes), ct));
 
+    /// <summary>What each branch holds of each product (reported by the branch servers).</summary>
+    [RequireAnyPermission("pos.reports.view", "pos.products.view")]
+    [HttpGet("branch-stock")]
+    public async Task<IActionResult> GetBranchStock(
+        [FromQuery] Guid? productId = null, [FromQuery] Guid? branchId = null, [FromQuery] string? search = null,
+        CancellationToken ct = default)
+        => HandleResult(await Sender.Send(new GetBranchStockQuery(productId, branchId, search), ct));
+
     /// <summary>Every product that is out of stock or at/below its reorder level — the buying list.</summary>
     [RequireAnyPermission("pos.reports.view", "pos.products.view")]
     [HttpGet("low-stock")]

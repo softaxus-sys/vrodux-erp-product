@@ -63,21 +63,28 @@ const AED_DENOMINATIONS: Denomination[] = [
   { value: 0.25, label: "0.25",  type: "coin" },
 ];
 
-const CURRENCY_TO_COUNTRY_SHIFT: Record<string, string> = {
-  AED: "ae", PKR: "pk", SAR: "sa", OMR: "om",
-  INR: "in", GBP: "gb", USD: "us",
-};
+// Notes and coins follow the CURRENCY being counted, not the country: a UAE tenant operating in USD
+// counts dollars. Currencies without their own table get a neutral decimal set rather than another
+// country's notes.
+const GENERIC_DENOMINATIONS: Denomination[] = [
+  { value: 100,  label: "100",  type: "note" },
+  { value: 50,   label: "50",   type: "note" },
+  { value: 20,   label: "20",   type: "note" },
+  { value: 10,   label: "10",   type: "note" },
+  { value: 5,    label: "5",    type: "note" },
+  { value: 2,    label: "2",    type: "coin" },
+  { value: 1,    label: "1",    type: "coin" },
+  { value: 0.5,  label: "0.50", type: "coin" },
+  { value: 0.25, label: "0.25", type: "coin" },
+  { value: 0.1,  label: "0.10", type: "coin" },
+];
 
-function getDenominations(country?: string | null, currency?: string | null): Denomination[] {
-  // Resolve country code — check stored string first, then fall back to currency
-  const c = (country ?? "").toLowerCase().trim();
-  const isUAE =
-    c === "ae" || c.includes("uae") || c.includes("emirates") ||
-    (!!currency && CURRENCY_TO_COUNTRY_SHIFT[currency.toUpperCase()] === "ae");
-
-  if (isUAE) return AED_DENOMINATIONS;
-  // TODO: add SAR, OMR, GBP, INR denominations when needed
-  return PKR_DENOMINATIONS;
+function getDenominations(_country?: string | null, currency?: string | null): Denomination[] {
+  switch ((currency ?? "").toUpperCase()) {
+    case "AED": return AED_DENOMINATIONS;
+    case "PKR": return PKR_DENOMINATIONS;
+    default:    return GENERIC_DENOMINATIONS;
+  }
 }
 
 function fmtMoney(n: number, currency: string) {
@@ -742,7 +749,7 @@ function CloseShiftPanel({
                 {varianceAbs > 0 && (
                   <div className={cn(
                     "flex items-start gap-2 px-3 py-2.5 rounded-xl border text-xs",
-                    varianceAbs > 500 || (currency === "AED" && varianceAbs > 50)
+                    varianceAbs > 500 || (currency !== "PKR" && varianceAbs > 50)
                       ? "bg-destructive/10 border-destructive/30 text-destructive"
                       : "bg-warning/10 border-warning/30 text-warning"
                   )}>

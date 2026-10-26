@@ -583,8 +583,8 @@ export const MASTER_REGISTRY: MasterDef[] = [
       { key: "email",      label: "Email",         type: "email",   placeholder: "branch@company.com" },
       { key: "manager",    label: "Manager",       type: "text",    placeholder: "Manager name" },
       { key: "staff",      label: "Staff Count",   type: "number",  placeholder: "0", defaultValue: 0 },
-      { key: "currency",   label: "Currency",      type: "text",    placeholder: "PKR" },
-      { key: "timezone",   label: "Timezone",      type: "text",    placeholder: "Asia/Karachi" },
+      { key: "currency",   label: "Currency",      type: "text",    placeholder: "e.g. USD" },
+      { key: "timezone",   label: "Timezone",      type: "text",    placeholder: "e.g. Asia/Dubai" },
       { key: "status",     label: "Status",        type: "select",  defaultValue: "Active",
         options: [
           { label: "Active",   value: "Active"   },

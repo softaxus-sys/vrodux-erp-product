@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Softaxis.BuildingBlocks.Infrastructure.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 using Softaxis.POS.Application.Abstractions;
+using Softaxis.POS.Application.Stock;
 using Softaxis.POS.Domain.Repositories;
 using Softaxis.POS.Infrastructure.Persistence;
 using Softaxis.POS.Infrastructure.Persistence.Repositories;
@@ -68,6 +69,7 @@ public static class InfrastructureExtensions
         services.AddSingleton<Softaxis.POS.Infrastructure.Services.ICreditMailSender, Softaxis.POS.Infrastructure.Services.SmtpCreditMailSender>();
         services.AddHostedService<Softaxis.POS.Infrastructure.Services.CreditReminderBackgroundService>();
         services.AddScoped<ILowStockReadService,         LowStockReadService>();
+        services.AddScoped<IBranchStockReadService,      BranchStockReadService>();
         services.AddScoped<ICrossSchemaProductService,   CrossSchemaProductService>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
 

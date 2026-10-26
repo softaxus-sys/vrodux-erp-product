@@ -55,7 +55,7 @@ public sealed class Branch
     public string? Manager    { get; private set; }
     public int     Staff      { get; private set; }
     public string  Status     { get; private set; } = "active";    // active | inactive
-    public string  Currency   { get; private set; } = "PKR";
+    public string  Currency   { get; private set; } = Softaxis.BuildingBlocks.Domain.Multitenancy.TenantCurrency.Resolve();
     public string  Timezone   { get; private set; } = "Asia/Karachi (UTC+5)";
     public string? OpenedDate { get; private set; }                // ISO date string
 

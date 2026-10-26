@@ -22,6 +22,9 @@ export const tenantSettingsApi = {
   updateCurrency: (currency: string): Promise<{ id: string; currency?: string | null }> =>
     apiClient.put(`${BASE}/currency`, { currency }),
 
+  updateCountry: (country: string): Promise<{ id: string; country?: string | null }> =>
+    apiClient.put(`${BASE}/country`, { country }),
+
   getStorageUsage: (): Promise<TenantStorageStatusDto> =>
     apiClient.get(`${BASE}/storage`),
 };

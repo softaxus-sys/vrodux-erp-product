@@ -303,6 +303,13 @@ public sealed class Tenant : AuditableEntity<Guid>
     /// Set the tenant's operating currency. Accepts a 3-letter code or a "USD - US Dollar" label
     /// (the leading token is taken). Null/blank leaves it unset (USD default applies downstream).
     /// </summary>
+    /// <summary>The tenant's own country (name or ISO code). Drives tax regime and statutory documents.</summary>
+    public void SetCountry(string? country)
+    {
+        Country   = string.IsNullOrWhiteSpace(country) ? null : country.Trim();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void SetCurrency(string? currency)
     {
         var code = currency?.Trim();

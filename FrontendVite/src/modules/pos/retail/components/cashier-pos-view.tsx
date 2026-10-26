@@ -251,7 +251,7 @@ export function CashierPOSView() {
           txnNumber:      txn.transactionNumber,
           cashierName:    user?.name,
           currency,
-          taxLabel:       tenant?.country?.toLowerCase().includes("uae") ? "VAT" : "GST",
+          taxLabel:       /pakistan|^pk$/i.test(tenant?.country ?? "") ? "GST" : "VAT",
           cart,
           subtotal,
           discountAmount: 0,

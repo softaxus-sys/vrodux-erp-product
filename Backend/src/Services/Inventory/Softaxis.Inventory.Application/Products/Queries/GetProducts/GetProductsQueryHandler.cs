@@ -18,6 +18,7 @@ public sealed class GetProductsQueryHandler(IProductReadService readService)
             query.CategoryId,
             query.IsActive,
             query.IsLowStock,
+            query.BranchId,
             ct);
 
         return Result.Success(result);

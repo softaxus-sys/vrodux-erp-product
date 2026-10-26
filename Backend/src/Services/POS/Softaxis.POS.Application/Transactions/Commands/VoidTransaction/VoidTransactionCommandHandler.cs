@@ -11,6 +11,7 @@ namespace Softaxis.POS.Application.Transactions.Commands.VoidTransaction;
 public sealed class VoidTransactionCommandHandler(
     IPOSTransactionRepository  txnRepo,
     ICrossSchemaProductService productLookup,
+    IPOSSessionRepository      sessionRepo,
     ICustomerRepository        customerRepo,
     ICustomerWalletTransactionRepository walletRepo,
     ICurrentUser               currentUser,
@@ -70,9 +71,11 @@ public sealed class VoidTransactionCommandHandler(
         // be of a product living in EITHER pos.products or inventory.products. This previously used
         // the pos-schema repository only, so voiding a sale of an inventory-schema product silently
         // never put the stock back. Refund already did this correctly; void did not.
+        // Stock goes back to the branch whose shift made the sale.
+        var saleSession = await sessionRepo.GetByIdAsync(transaction.SessionId, ct);
         foreach (var lineItem in transaction.LineItems)
         {
-            var product = await productLookup.GetByIdForSaleAsync(lineItem.ProductId, ct);
+            var product = await productLookup.GetByIdForSaleAsync(lineItem.ProductId, saleSession?.BranchId, ct);
             if (product is null || !product.TrackInventory) continue;
 
             await productLookup.RestoreStockAsync(

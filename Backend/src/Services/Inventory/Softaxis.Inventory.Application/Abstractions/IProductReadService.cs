@@ -17,6 +17,7 @@ public interface IProductReadService
         Guid?   categoryId = null,
         bool?   isActive   = null,
         bool?   isLowStock = null,
+        Guid?   branchId   = null,
         CancellationToken ct = default);
 
     /// <summary>

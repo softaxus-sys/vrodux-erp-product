@@ -18,6 +18,9 @@ public sealed class StockMovement : Entity<Guid>
     public DateTime            CreatedAt      { get; private set; }
     public string?             Notes          { get; private set; }
 
+    /// <summary>The branch whose stock this moved. Null for head-office (central) stock.</summary>
+    public Guid?               BranchId       { get; private set; }
+
     // Navigation
     public Product Product { get; private set; } = default!;
 
@@ -31,7 +34,8 @@ public sealed class StockMovement : Entity<Guid>
         Guid createdBy,
         string? reference = null,
         Guid? transactionId = null,
-        string? notes = null)
+        string? notes = null,
+        Guid? branchId = null)
         => new()
         {
             Id             = Guid.NewGuid(),
@@ -43,6 +47,7 @@ public sealed class StockMovement : Entity<Guid>
             Reference      = reference?.Trim(),
             TransactionId  = transactionId,
             Notes          = notes?.Trim(),
+            BranchId       = branchId,
             CreatedAt      = DateTime.UtcNow
         };
 }

@@ -187,7 +187,6 @@ export function buildEscPosReceipt(p: EscPosReceiptParams): Uint8Array {
     .println()
     .println("Powered by VroduxERP")
     .println("www.vrodux.com")
-    .println("WhatsApp: +971 56 938 3079 / +92 314 9511674")
     .feed(4)
     .cut();
 

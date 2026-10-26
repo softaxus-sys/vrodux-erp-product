@@ -46,3 +46,29 @@ public sealed class UpdateTenantCurrencyCommandHandler(
         return Result.Success(TenantMappings.ToDto(tenant));
     }
 }
+
+/// <summary>Self-service: the tenant admin changes their own tenant's country (tax regime, receipts).</summary>
+public sealed record UpdateTenantCountryCommand(string Country) : ICommand<TenantDto>;
+
+public sealed class UpdateTenantCountryValidator : AbstractValidator<UpdateTenantCountryCommand>
+{
+    public UpdateTenantCountryValidator() => RuleFor(x => x.Country).NotEmpty().MaximumLength(100);
+}
+
+public sealed class UpdateTenantCountryCommandHandler(
+    ITenantContext tenantContext, ITenantRepository tenantRepo, IUnitOfWork uow)
+    : ICommandHandler<UpdateTenantCountryCommand, TenantDto>
+{
+    public async Task<Result<TenantDto>> Handle(UpdateTenantCountryCommand cmd, CancellationToken ct)
+    {
+        if (tenantContext.TenantId is not { } tenantId)
+            return Result.Failure<TenantDto>(Error.Custom("Tenant.NotResolved", "No tenant context on this request."));
+        var tenant = await tenantRepo.GetByIdAsync(tenantId, ct);
+        if (tenant is null)
+            return Result.Failure<TenantDto>(Error.Custom("Tenant.NotFound", "Tenant not found."));
+        tenant.SetCountry(cmd.Country);
+        tenantRepo.Update(tenant);
+        await uow.SaveChangesAsync(ct);
+        return Result.Success(TenantMappings.ToDto(tenant));
+    }
+}

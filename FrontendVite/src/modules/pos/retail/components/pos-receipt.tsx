@@ -14,6 +14,7 @@ import { Printer, RotateCcw, X, CheckCircle2, QrCode, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
+import { useCompanyBranding } from "@/hooks/use-company-name";
 import { useHardware }  from "@/contexts/hardware-context";
 import { buildEscPosReceipt } from "@/lib/pos/receipt-escpos";
 import QRCode from "qrcode";
@@ -109,13 +110,13 @@ const RECEIPT_CONFIGS: Record<string, ReceiptConfig> = {
     currency:     "PKR",
     taxLabel:     "GST",
     taxRate:      17,
-    regNumber:    "NTN: 0000000-0 | STRN: 0000000000000",
+    regNumber:    "",
     regLabel:     "NTN / STRN",
     invoiceTitle: () => "TAX INVOICE",
     locale:       "en-PK",
     legalFooter:  [
       "Valid Tax Invoice under Sales Tax Act 1990.",
-      "GST collected at 17% as per applicable law.",
+      "GST collected as per applicable law.",
       "Retain this receipt for your records.",
       "Complaints: complaints@fbr.gov.pk | 051-111-772-772",
     ],
@@ -126,9 +127,9 @@ const RECEIPT_CONFIGS: Record<string, ReceiptConfig> = {
     currency:     "AED",
     taxLabel:     "VAT",
     taxRate:      5,
-    regNumber:    "TRN: 100-000000-0-00003",
+    regNumber:    "",
     regLabel:     "TRN",
-    invoiceTitle: (total) => total >= 10000 ? "TAX INVOICE" : "SIMPLIFIED TAX INVOICE",
+    invoiceTitle: () => "TAX INVOICE",
     locale:       "en-AE",
     legalFooter:  [
       "Tax Invoice issued per Federal Decree-Law No.8 of 2017.",
@@ -139,6 +140,20 @@ const RECEIPT_CONFIGS: Record<string, ReceiptConfig> = {
     poweredBy:    "FTA VAT Compliant POS System",
     dateLocale:   "en-AE",
   },
+};
+
+// Any country without its own legal layout: neutral wording, no regulator text, no invented numbers.
+const GENERIC_CONFIG: ReceiptConfig = {
+  currency:     "",
+  taxLabel:     "Tax",
+  taxRate:      0,
+  regNumber:    "",
+  regLabel:     "Tax no.",
+  invoiceTitle: () => "TAX INVOICE",
+  locale:       "en",
+  legalFooter:  [],
+  poweredBy:    "",
+  dateLocale:   "en",
 };
 
 const CURRENCY_TO_COUNTRY_RECEIPT: Record<string, string> = {
@@ -165,7 +180,8 @@ function getCountryCode(country?: string | null, currency?: string | null): stri
     const fromCurrency = CURRENCY_TO_COUNTRY_RECEIPT[currency.toUpperCase()];
     if (fromCurrency) return fromCurrency;
   }
-  return "pk";
+  // Unknown country: a neutral receipt, never another country's tax regime.
+  return "";
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -259,8 +275,8 @@ function PakistanReceipt({
   cart, subtotal, discountAmount, discountLabel, taxAmount, total,
   paymentMethod, payments, credit, tendered, txnNumber, cashierName,
   serviceFee = 0, fbrStatus, fbrInvoiceNumber,
-  cfg, companyName,
-}: PosReceiptProps & { cfg: ReceiptConfig; companyName: string }) {
+  cfg, companyName, address,
+}: PosReceiptProps & { cfg: ReceiptConfig; companyName: string; address: string }) {
   const change = Math.max(0, tendered - total);
   // Per-item GST (each line item is taxed individually)
   const taxableBase = subtotal - discountAmount;
@@ -271,8 +287,8 @@ function PakistanReceipt({
       {/* ── Store header ── */}
       <div className="text-center space-y-0.5 pb-2">
         <p className="text-sm font-black uppercase tracking-widest">{companyName}</p>
-        <p className="text-[10px] text-gray-500">Retail Store · Pakistan</p>
-        <p className="text-[10px] text-gray-500">{cfg.regNumber}</p>
+        {address && <p className="text-[10px] text-gray-500 whitespace-pre-line">{address}</p>}
+        {cfg.regNumber && <p className="text-[10px] text-gray-500">{cfg.regNumber}</p>}
       </div>
       <Divider />
 
@@ -378,11 +394,11 @@ function PakistanReceipt({
 function UAEReceipt({
   cart, subtotal, discountAmount, discountLabel, taxAmount, total,
   paymentMethod, payments, credit, tendered, txnNumber, cashierName,
-  cfg, companyName,
-}: PosReceiptProps & { cfg: ReceiptConfig; companyName: string }) {
+  cfg, companyName, address, isUae,
+}: PosReceiptProps & { cfg: ReceiptConfig; companyName: string; address: string; isUae: boolean }) {
   const change     = Math.max(0, tendered - total);
   const exclVAT    = total - taxAmount;
-  const isFullTaxInvoice = total >= 10000; // AED
+  const isFullTaxInvoice = false; // the AED 10,000 threshold is a UAE rule on the AED amount, not on the tenant currency
 
   return (
     <div className="font-mono text-[11px] text-gray-800 dark:text-gray-200 space-y-0">
@@ -390,11 +406,11 @@ function UAEReceipt({
       {/* ── Store header ── */}
       <div className="text-center space-y-0.5 pb-2">
         <p className="text-sm font-black uppercase tracking-widest">{companyName}</p>
-        <p className="text-[10px] text-gray-500">Dubai · United Arab Emirates</p>
-        <p className="text-[10px] font-bold">{cfg.regNumber}</p>
+        {address && <p className="text-[10px] text-gray-500 whitespace-pre-line">{address}</p>}
+        {cfg.regNumber && <p className="text-[10px] font-bold">{cfg.regNumber}</p>}
         {isFullTaxInvoice && (
           <p className="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded px-2 py-0.5 inline-block">
-            TAX INVOICE (Mandatory — Amount ≥ AED 10,000)
+            TAX INVOICE
           </p>
         )}
       </div>
@@ -416,8 +432,8 @@ function UAEReceipt({
       <div className="flex text-[9px] font-bold text-gray-500 uppercase">
         <span className="flex-1">Description</span>
         <span className="w-7 text-center">Qty</span>
-        <span className="w-16 text-right">Excl VAT</span>
-        <span className="w-14 text-right">VAT 5%</span>
+        <span className="w-16 text-right">Excl {cfg.taxLabel}</span>
+        <span className="w-14 text-right">{cfg.taxLabel}</span>
       </div>
       <div className="border-t border-gray-300 dark:border-gray-600 mt-0.5 mb-1" />
 
@@ -443,11 +459,11 @@ function UAEReceipt({
 
       {/* ── Totals — UAE mandatory split ── */}
       <div className="space-y-1">
-        <Row label={`Taxable Amount (excl. VAT)`}    value={fmtMoney(exclVAT, cfg.currency)} />
+        <Row label={`Taxable Amount (excl. ${cfg.taxLabel})`}    value={fmtMoney(exclVAT, cfg.currency)} />
         {discountAmount > 0 && (
           <Row label={discountLabel ? `Discount (${discountLabel})` : "Discount Applied"} value={`– ${fmtMoney(discountAmount, cfg.currency)}`} green />
         )}
-        <Row label={`VAT @${cfg.taxRate}% (Output Tax)`} value={fmtMoney(taxAmount, cfg.currency)} />
+        <Row label={`${cfg.taxLabel} @${cfg.taxRate}%`} value={fmtMoney(taxAmount, cfg.currency)} />
         <Divider dashed={false} />
         <Row label={`TOTAL DUE (${cfg.currency})`} value={fmtMoney(total, cfg.currency)} bold />
       </div>
@@ -466,8 +482,8 @@ function UAEReceipt({
 
       <Divider />
 
-      {/* ── FTA verification ── */}
-      <div className="text-center space-y-1">
+      {/* ── FTA verification (UAE only) ── */}
+      {isUae && <div className="text-center space-y-1">
         <div className="inline-flex flex-col items-center gap-1 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2">
           <QrCode className="h-10 w-10 text-gray-400" />
           <p className="text-[9px] text-gray-400">Scan to verify (FTA e-Services)</p>
@@ -475,9 +491,9 @@ function UAEReceipt({
             tax.gov.ae/verify/{txnNumber}
           </p>
         </div>
-      </div>
+      </div>}
 
-      <Divider />
+      {isUae && <Divider />}
 
       {/* ── VAT note for B2B ── */}
       {isFullTaxInvoice && (
@@ -494,7 +510,7 @@ function UAEReceipt({
         {cfg.legalFooter.map((line, i) => (
           <p key={i} className="text-[9px] text-gray-400 leading-tight">{line}</p>
         ))}
-        <p className="text-[9px] text-gray-400 mt-1 font-semibold">{cfg.poweredBy}</p>
+        {cfg.poweredBy && <p className="text-[9px] text-gray-400 mt-1 font-semibold">{cfg.poweredBy}</p>}
       </div>
 
       <Divider />
@@ -503,7 +519,6 @@ function UAEReceipt({
       <div className="text-center space-y-0.5">
         <p className="text-[9px] text-gray-400 font-semibold">Powered by VroduxERP</p>
         <p className="text-[9px] text-gray-400">www.vrodux.com</p>
-        <p className="text-[9px] text-gray-400">WhatsApp: +971 56 938 3079 / +92 314 9511674</p>
       </div>
     </div>
   );
@@ -517,14 +532,21 @@ export function PosReceipt(props: PosReceiptProps) {
   const [thermalPrinting, setThermalPrinting] = React.useState(false);
   const printRef = React.useRef<HTMLDivElement>(null);
 
+  const branding = useCompanyBranding();
   const countryCode = getCountryCode(tenant?.country, tenant?.currency);
-  const baseCfg     = RECEIPT_CONFIGS[countryCode] ?? RECEIPT_CONFIGS["pk"];
-  // Always use tenant's actual currency — never let the static config override it
+  const baseCfg     = RECEIPT_CONFIGS[countryCode] ?? GENERIC_CONFIG;
+  // Everything the receipt states about the business comes from the tenant: its currency, its
+  // saved company profile and tax number, and the tax rate actually charged on this sale.
+  const taxable = props.subtotal - props.discountAmount;
+  const effectiveRate = taxable > 0 ? Math.round((props.taxAmount / taxable) * 10000) / 100 : baseCfg.taxRate;
   const cfg: ReceiptConfig = {
     ...baseCfg,
-    currency: tenant?.currency || baseCfg.currency,
+    currency: tenant?.currency || getTenantCurrency(),
+    taxRate:  effectiveRate,
+    regNumber: branding.taxNumber ? `${baseCfg.regLabel}: ${branding.taxNumber}` : "",
   };
-  const companyName = tenant?.branding?.companyName ?? "Vrodux Retail";
+  const companyName = branding.name || tenant?.branding?.companyName || tenant?.name || "";
+  const address     = branding.address;
   const cashierName = props.cashierName ?? user?.name;
 
   const buildEscData = () => buildEscPosReceipt({
@@ -559,7 +581,7 @@ export function PosReceipt(props: PosReceiptProps) {
     }
   };
 
-  const receiptProps = { ...props, cashierName, cfg, companyName };
+  const receiptProps = { ...props, cashierName, cfg, companyName, address };
 
   return (
     <motion.div
@@ -596,15 +618,15 @@ export function PosReceipt(props: PosReceiptProps) {
               ? "bg-white/20 text-white"
               : "bg-white/20 text-white"
           )}>
-            {countryCode === "ae" ? "🇦🇪 FTA VAT Compliant" : "🇵🇰 FBR POS Compliant"}
+            {countryCode === "ae" ? "🇦🇪 FTA VAT Compliant" : countryCode === "pk" ? "🇵🇰 FBR POS Compliant" : "Payment received"}
           </span>
         </div>
 
         {/* Receipt body — scrollable */}
         <div className="overflow-y-auto flex-1 px-5 py-4 bg-white dark:bg-zinc-950" ref={printRef}>
-          {countryCode === "ae"
-            ? <UAEReceipt {...receiptProps} />
-            : <PakistanReceipt {...receiptProps} />
+          {countryCode === "pk"
+            ? <PakistanReceipt {...receiptProps} />
+            : <UAEReceipt {...receiptProps} isUae={countryCode === "ae"} />
           }
         </div>
 

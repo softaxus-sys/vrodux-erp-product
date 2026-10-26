@@ -11,6 +11,8 @@ export interface GetProductsParams {
   categoryId?: string;
   isActive?: boolean;
   isLowStock?: boolean;
+  /** Show this branch's own stock instead of head-office totals. */
+  branchId?: string;
 }
 
 export interface StockByCategoryDto {
@@ -40,6 +42,7 @@ export const inventoryProductsApi = {
     if (params.categoryId)              qs.set("categoryId", params.categoryId);
     if (params.isActive !== undefined)  qs.set("isActive",   String(params.isActive));
     if (params.isLowStock !== undefined) qs.set("isLowStock", String(params.isLowStock));
+    if (params.branchId)                qs.set("branchId",   params.branchId);
     return apiClient.get<PagedResult<ProductSummaryDto>>(`${BASE}?${qs}`);
   },
 

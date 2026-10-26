@@ -282,7 +282,7 @@ public sealed class SyncOfflineDayCommandHandler(
         var list = new List<NegativeStockDto>();
         foreach (var id in productIds)
         {
-            var p = await productLookup.GetByIdForSaleAsync(id, ct);
+            var p = await productLookup.GetByIdForSaleAsync(id, null, ct);
             if (p is { TrackInventory: true } && p.StockQuantity < 0)
                 list.Add(new NegativeStockDto(p.Id, p.Name, p.StockQuantity));
         }

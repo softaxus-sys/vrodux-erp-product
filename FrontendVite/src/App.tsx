@@ -123,6 +123,7 @@ const BranchAccessPage         = lazyWithRetry(() => import("@/pages/pos/branch-
 const PosCustomersPage         = lazyWithRetry(() => import("@/pages/pos/customers"));
 const PosCreditPage            = lazyWithRetry(() => import("@/pages/pos/credit"));
 const PosLowStockPage          = lazyWithRetry(() => import("@/pages/pos/low-stock"));
+const PosBranchStockPage       = lazyWithRetry(() => import("@/pages/pos/branch-stock"));
 
 // ── Recipe ────────────────────────────────────────────────────────────────────
 const RecipesPage          = lazyWithRetry(() => import("@/pages/recipe/recipes"));
@@ -532,6 +533,7 @@ export function App() {
             <Route path="/pos/customers"   element={<PosCustomersPage />} />
             <Route path="/pos/credit"      element={<PosCreditPage />} />
             <Route path="/pos/low-stock"   element={<PosLowStockPage />} />
+            <Route path="/pos/branch-stock" element={<PosBranchStockPage />} />
           </Route>
 
           {/* Lead Generation - available to every workspace; each screen is gated by its own leadgen.* permission. */}
@@ -623,7 +625,7 @@ export function App() {
           <Route element={<ModuleGuard module="hospitality" />}>
             <Route path="/hospitality/bookings"     element={<BookingsPage />} />
             <Route path="/hospitality/rooms"        element={<RoomsPage />} />
-            <Route path="/hospitality/housekeeping" element={<HousekeepingPage />} />
+            <Route path="/hospitality/housekeeping" element={<HousekeepingPage />} />
             <Route path="/hospitality/front-desk"   element={<HotelFrontDeskPage />} />
             <Route path="/hospitality/calendar"     element={<HotelCalendarPage />} />
             <Route path="/hospitality/rates"        element={<HotelRatesPage />} />

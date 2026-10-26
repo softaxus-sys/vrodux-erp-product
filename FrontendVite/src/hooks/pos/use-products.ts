@@ -6,6 +6,7 @@ import type { ProductSummaryDto as InvProductSummaryDto } from "@/lib/inventory/
 import type { PagedResult } from "@/lib/api-client";
 import { toast } from "sonner";
 import { usePosOffline } from "@/contexts/pos-offline-context";
+import { useBranchStore } from "@/store/branch.store";
 
 /** Map Inventory ProductSummaryDto → POS ProductSummaryDto (superset → subset). */
 function mapInvToPos(p: InvProductSummaryDto): ProductSummaryDto {
@@ -53,10 +54,12 @@ export function useProducts(params: GetProductsParams = {}) {
  */
 export function useAllPOSProducts() {
   const off = usePosOffline();
+  // A branch's till shows that branch's own stock.
+  const branchId = useBranchStore(s => s.currentBranchId) ?? undefined;
   return useQuery<PagedResult<ProductSummaryDto>>({
-    queryKey: off ? [...productKeys.list({ isActive: true, pageSize: 500 }), "offline"] : productKeys.list({ isActive: true, pageSize: 500 }),
+    queryKey: off ? [...productKeys.list({ isActive: true, pageSize: 500 }), "offline"] : [...productKeys.list({ isActive: true, pageSize: 500 }), branchId ?? "all"],
     queryFn:  off ? () => offlineProductsPage(off, {}) : async () => {
-      const result = await inventoryProductsApi.getAll({ isActive: true, pageSize: 500 });
+      const result = await inventoryProductsApi.getAll({ isActive: true, pageSize: 500, branchId });
       return { ...result, items: result.items.map(mapInvToPos) };
     },
     staleTime: 60_000,
@@ -103,8 +106,9 @@ export function usePaginatedPOSProducts(params: {
   categoryId?: string;
 }) {
   const off = usePosOffline();
+  const branchId = useBranchStore(s => s.currentBranchId) ?? undefined;
   return useInfiniteQuery({
-    queryKey: [...productKeys.all, "paginated", params, off ? "offline" : "live"] as const,
+    queryKey: [...productKeys.all, "paginated", params, off ? "offline" : "live", branchId ?? "all"] as const,
     queryFn: async ({ pageParam }) => {
       // Offline: the whole local catalogue is already in memory, so it comes back as one page.
       if (off) return offlineProductsPage(off, params);
@@ -114,6 +118,7 @@ export function usePaginatedPOSProducts(params: {
         search:     params.search     || undefined,
         categoryId: params.categoryId || undefined,
         isActive:   true,
+        branchId,
       });
       return { ...result, items: result.items.map(mapInvToPos) };
     },
@@ -167,12 +172,14 @@ export function useAdjustStock() {
       quantity,
       adjustmentType,
       notes,
+      branchId,
     }: {
       id: string;
       quantity: number;
       adjustmentType: string;
       notes?: string;
-    }) => productsApi.adjustStock(id, quantity, adjustmentType, notes),
+      branchId?: string;
+    }) => productsApi.adjustStock(id, quantity, adjustmentType, notes, branchId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: productKeys.all });
       toast.success("Stock adjusted.");

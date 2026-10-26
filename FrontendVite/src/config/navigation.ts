@@ -680,7 +680,7 @@ export const navigationConfig: NavGroup[] = [
           { id: "hotel-calendar", label: "Room Calendar", href: "/hospitality/calendar", icon: "CalendarDays" },
           { id: "bookings", label: "Reservations", href: "/hospitality/bookings", icon: "CalendarCheck" },
           { id: "rooms", label: "Rooms", href: "/hospitality/rooms", icon: "BedDouble" },
-          { id: "housekeeping", label: "Housekeeping", href: "/hospitality/housekeeping", icon: "SprayCan" },
+          { id: "housekeeping", label: "Housekeeping", href: "/hospitality/housekeeping", icon: "SprayCan" },
           { id: "hotel-rates", label: "Rates", href: "/hospitality/rates", icon: "Tags" },
           { id: "hotel-guests", label: "Guests", href: "/hospitality/guests", icon: "Contact" },
           { id: "hotel-settings", label: "Hotel Settings", href: "/hospitality/settings", icon: "Settings2" },
@@ -703,6 +703,7 @@ export const navigationConfig: NavGroup[] = [
           { id: "pos-customers",   label: "Customers",       href: "/pos/customers",   icon: "Users",           module: "pos", requiresPermission: "pos.customers.view" },
           { id: "pos-credit",      label: "Credit Control",  href: "/pos/credit",      icon: "HandCoins",       module: "pos", requiresPermission: "pos.customers.view" },
           { id: "pos-low-stock",   label: "Low Stock",       href: "/pos/low-stock",   icon: "PackageCheck",    module: "pos", requiresPermission: "pos.products.view" },
+          { id: "pos-branch-stock", label: "Stock by Branch", href: "/pos/branch-stock", icon: "Server",         module: "pos", branchServersOnly: true, requiresPermission: "pos.products.view" },
           // Each restaurant screen also names the permission its job needs, so a rider sees Delivery,
           // a cook sees the Kitchen Display, and neither sees the rest.
           { id: "restaurant-pos",  label: "Restaurant POS",  href: "/pos/restaurant",  icon: "UtensilsCrossed", module: "restaurant", requiresPermission: "restaurant.orders.create" },

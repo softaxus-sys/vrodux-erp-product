@@ -90,7 +90,7 @@ public sealed class CreateSaleCommandHandler(
         var allowOutOfStock = posSettings?.AllowOutOfStockSales ?? false;
         foreach (var req in cmd.LineItems)
         {
-            var product = await productLookup.GetByIdForSaleAsync(req.ProductId, ct);
+            var product = await productLookup.GetByIdForSaleAsync(req.ProductId, session.BranchId, ct);
             if (product is null)
                 return Result.Failure<POSTransactionDto>(Error.NotFoundById("Product", req.ProductId));
 

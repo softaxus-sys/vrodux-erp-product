@@ -767,6 +767,20 @@ export function GeneralSettingsView() {
         }
       }
 
+      // ── Persist the country onto the TENANT too. Restaurant tax, statutory receipts and the
+      //    JWT country claim all read the tenant's own country; saving it only to app_settings
+      //    left a UAE selection showing Pakistan's FBR tax screen.
+      const pickedCountry = findCountry(regional.country ?? "");
+      const tenantCountry = useAuthStore.getState().tenant?.country;
+      if (pickedCountry && findCountry(tenantCountry ?? "")?.code !== pickedCountry.code) {
+        try {
+          await tenantSettingsApi.updateCountry(pickedCountry.name);
+          await refreshSession();
+        } catch {
+          toast.warning("Settings saved, but the country could not be applied tenant-wide.");
+        }
+      }
+
       // Update server ref so Discard can revert instantly
       serverRef.current = { company, regional, appearance, notifications, security };
 
