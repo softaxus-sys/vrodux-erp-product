@@ -140,6 +140,9 @@ public sealed class Tenant : AuditableEntity<Guid>
         // Hotels, tour operators and travel agencies. "Hospitality & Tourism" signs up as hospitality_tourism.
         ["hospitality_tourism"] = "hospitality",
         ["travel_tourism"]      = "hospitality",
+        // Restaurants, cafes and food businesses. "Food & Beverage" signs up as food_beverage.
+        ["food_beverage"]       = "restaurant",
+        ["restaurant"]          = "restaurant",
     };
 
     /// <summary>The Industry-Pack module code for a given industry, or null.</summary>
@@ -232,7 +235,7 @@ public sealed class Tenant : AuditableEntity<Guid>
                 {
                     // The CRM verticals build on CRM. Manufacturing does not — it builds on
                     // Inventory, which is added below. Library and Trade build on nothing.
-                    if (pack is not ("manufacturing" or "library" or "trade") && !list.Contains("crm")) list.Add("crm");
+                    if (pack is not ("manufacturing" or "library" or "trade" or "restaurant") && !list.Contains("crm")) list.Add("crm");
                     if (!list.Contains(pack))   list.Add(pack);
                 }
             }
@@ -243,6 +246,12 @@ public sealed class Tenant : AuditableEntity<Guid>
             if (list.Contains("manufacturing", StringComparer.OrdinalIgnoreCase)
                 && !list.Contains("inventory", StringComparer.OrdinalIgnoreCase))
                 list.Add("inventory");
+
+            // Restaurant sells through the POS (its API is licensed as POS and orders post to the open
+            // shift) and keeps stock in Inventory, so both come with it - manual grant included.
+            if (list.Contains("restaurant", StringComparer.OrdinalIgnoreCase))
+                foreach (var dep in new[] { "pos", "inventory" })
+                    if (!list.Contains(dep, StringComparer.OrdinalIgnoreCase)) list.Add(dep);
 
             // Settings and Users are how a tenant administers itself — invite colleagues, set roles,
             // manage billing. Locking them behind a plan, an onboarding checkbox, or even a manual

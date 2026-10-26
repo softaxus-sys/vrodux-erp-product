@@ -88,7 +88,9 @@ export const INDUSTRY_MODULE_DEFAULTS: Record<string, string[]> = {
   manufacturing:    [...CORE_MODULE_CODES, "manufacturing"],
   library:          [...CORE_MODULE_CODES, "library"],
   import_export:    [...CORE_MODULE_CODES, "trade"],
-  custom:           [],
+  food_beverage:    [...CORE_MODULE_CODES, "pos", "restaurant"],
+  hospitality_tourism: [...CORE_MODULE_CODES, "hospitality", "pos"],
+  custom:          [],
 };
 
 /** Safe lookup — an unrecognised industry value starts the picker from the Generic bundle. */
