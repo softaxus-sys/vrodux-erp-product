@@ -91,7 +91,13 @@ public sealed record ListingDto(
     string? OwnerPhoneAlt,
 
     /// <summary>When the current tenancy ends (yyyy-MM-dd) — what the vacancy alert counts down to.</summary>
-    string? RentedUntil = null);
+    string? RentedUntil = null,
+    /// <summary>When the listing was parked (UTC); null for an active listing.</summary>
+    DateTime? ParkedAt = null,
+    string? ParkedReason = null,
+    string? ParkedByName = null,
+    /// <summary>Whether THIS caller may edit, park or delete it — the owning agent or an administrator.</summary>
+    bool CanModify = true);
 
 /// <summary>The choices behind the stock list's multi-select filters.</summary>
 public sealed record ListingFilterOptionsDto(

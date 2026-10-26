@@ -3,21 +3,25 @@ import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
 import {
   Search, Building2, Plus, UploadCloud, Home, Tag, KeyRound,
-  Camera, Megaphone, Wallet, Sparkles, Loader2, X,
+  Camera, Megaphone, Wallet, Sparkles, Loader2, X, Archive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
+import { ExportMenu } from "@/components/ui/export-menu";
+import { toCsv, downloadFile } from "@/lib/csv";
+import { exportPdf } from "@/lib/pdf";
+import { toast } from "sonner";
 import { Can, useCan } from "@/components/auth/can";
 import { SpreadsheetImportModal } from "@/components/ui/spreadsheet-import-modal";
-import { cn, formatCurrency, fitTextClass } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import {
   useListings, useListingsSummary, useImportRentalStock, useProperty,
   useBulkSetQasroListing, useQasroIntegration, useListingFilterOptions,
 } from "@/hooks/real-estate/use-re";
 import { MultiSelectFilter, type FilterOption } from "./multi-select-filter";
-import type { ListingDto, PropertyDto, UnitStatus } from "@/lib/real-estate/re.api";
+import { reApi, type ListingDto, type ListingParams, type PropertyDto, type UnitStatus } from "@/lib/real-estate/re.api";
 import { useRowSelection } from "@/modules/crm/shared/components/team-filing-bar";
 import { LISTING_IMPORT_FIELDS } from "./listing-import-fields";
 import { attachBuildingPhotos } from "./listing-import-photos";
@@ -97,6 +101,9 @@ export function ListingsView() {
   const [minPrice, setMinPrice]   = React.useState("");
   const [maxPrice, setMaxPrice]   = React.useState("");
   const [page, setPage]           = React.useState(1);
+  // Parked listings are off the market but kept (they usually come back), so they get their own view.
+  const [parkedView, setParkedView] = React.useState(false);
+  const [exporting, setExporting] = React.useState(false);
   const setFilter = (key: FilterKey, values: string[]) => setFilters(f => ({ ...f, [key]: values }));
 
   const [showForm, setShowForm]   = React.useState(false);
@@ -131,13 +138,13 @@ export function ListingsView() {
 
   // Filtering narrows in SQL. Doing it in the browser cannot survive paging — it would filter
   // within one page and under-report everything.
-  React.useEffect(() => { setPage(1); }, [debounced, debouncedPrice, purpose, filters, propertyId]);
+  React.useEffect(() => { setPage(1); }, [debounced, debouncedPrice, purpose, filters, propertyId, parkedView]);
 
   // An empty list is sent as nothing at all, so "no filter" keeps one cache entry.
   const some = <T,>(a: T[]) => (a.length > 0 ? a : undefined);
-  const { data: paged, isFetching } = useListings({
+  const queryParams: ListingParams = {
     search: debounced || undefined,
-    purpose, propertyId, page, pageSize: PAGE_SIZE,
+    purpose, propertyId, parked: parkedView || undefined,
     propertyIds:   some(filters.buildings),
     bedrooms:      some(filters.beds.map(Number)),
     propertyTypes: some(filters.types),
@@ -147,7 +154,8 @@ export function ListingsView() {
     agents:        some(filters.agents),
     minPrice:      debouncedPrice.min,
     maxPrice:      debouncedPrice.max,
-  });
+  };
+  const { data: paged, isFetching } = useListings({ ...queryParams, page, pageSize: PAGE_SIZE });
 
   const { data: options } = useListingFilterOptions();
   const FILTER_DEFS: { key: FilterKey; label: string; options: FilterOption[] }[] = [
@@ -194,6 +202,72 @@ export function ListingsView() {
     catch { /* hook toasts */ }
   };
 
+  // Export covers everything the current filters match, not just the page on screen. The server has
+  // already masked the unit number and owner details this user may not see, so the file cannot
+  // contain more than the table does.
+  const fetchAllMatching = async () => {
+    const all: ListingDto[] = [];
+    for (let p = 1; p <= 100; p++) {
+      const r = await reApi.getListings({ ...queryParams, page: p, pageSize: 200 });
+      all.push(...r.items);
+      if (p >= r.totalPages) break;
+    }
+    return all;
+  };
+
+  const exportRows = (rows: ListingDto[]) => rows.map(l => {
+    const price = l.purpose === "sale" ? l.salePrice : l.rentPerYear;
+    return {
+      "Building": l.propertyName,
+      "Unit": l.hasConfidentialAccess ? (l.unitNumber ?? "") : "Restricted",
+      "Location": l.city || l.emirate || "",
+      "Type": l.propertyType,
+      "Beds": l.bedsLabel || (l.bedrooms != null ? String(l.bedrooms) : ""),
+      "Area": l.areaLabel || (l.area > 0 ? `${l.area} sqft` : ""),
+      "Purpose": l.purpose ?? "",
+      "Price": price > 0 ? price : (l.priceLabel ?? ""),
+      "Furnishing": l.furnishing?.replace(/_/g, " ") ?? "",
+      "Status": statusOf(l.status).label,
+      "Agent": l.agentName ?? "",
+      "Listed on": l.listedOn ?? "",
+      "Rented until": l.rentedUntil ?? "",
+      "Owner": l.hasConfidentialAccess ? (l.ownerName ?? "") : "Restricted",
+      "Owner phone": l.hasConfidentialAccess ? (l.ownerPhone ?? "") : "Restricted",
+      ...(parkedView ? {
+        "Parked on": l.parkedAt ? l.parkedAt.slice(0, 10) : "",
+        "Parked reason": l.parkedReason ?? "",
+        "Parked by": l.parkedByName ?? "",
+      } : {}),
+    } as Record<string, string | number>;
+  });
+
+  const runExport = async (kind: "csv" | "pdf") => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const rows = exportRows(await fetchAllMatching());
+      if (rows.length === 0) { toast.info("Nothing to export with these filters."); return; }
+      const headers = Object.keys(rows[0]);
+      const stamp = new Date().toISOString().slice(0, 10);
+      const name = parkedView ? "parked_properties" : "properties";
+      if (kind === "csv") {
+        downloadFile(`${name}_${stamp}.csv`, toCsv(rows, headers));
+      } else {
+        exportPdf({
+          title: parkedView ? "Parked Properties" : "Properties & Units",
+          subtitle: `${rows.length} listing${rows.length === 1 ? "" : "s"}${hasFilters || debounced ? " (filtered)" : ""}`,
+          columns: headers,
+          rows: rows.map(r => headers.map(h => String(r[h] ?? ""))),
+          landscape: true,
+        });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const STAT_CARDS = [
     { label: "Listings",   value: (summary?.total ?? 0).toLocaleString(),      icon: Home,      color: "text-primary bg-primary/10" },
     { label: "Buildings",  value: (summary?.buildings ?? 0).toLocaleString(),  icon: Building2, color: "text-blue-600 bg-blue-500/10" },
@@ -226,6 +300,7 @@ export function ListingsView() {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
+          <ExportMenu onCsv={() => runExport("csv")} onPdf={() => runExport("pdf")} disabled={exporting || totalCount === 0} />
           <Can permission="real-estate.units.create">
             <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowImport(true)}>
               <UploadCloud className="h-4 w-4" /> Import
@@ -239,7 +314,23 @@ export function ListingsView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* Active stock vs parked (off the market, kept for later). */}
+      <div className="inline-flex rounded-lg bg-muted/40 p-0.5">
+        {([false, true] as const).map(v => (
+          <button key={String(v)} onClick={() => setParkedView(v)}
+            className={cn("px-4 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-all",
+              parkedView === v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+            {v && <Archive className="h-3.5 w-3.5" />}{v ? "Parked" : "Active"}
+          </button>
+        ))}
+      </div>
+      {parkedView && (
+        <p className="text-sm text-muted-foreground -mt-3">
+          Listings taken off the market but kept, with the date they were parked. Open one to bring it back.
+        </p>
+      )}
+
+      <div className={cn("grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3", parkedView && "hidden")}>
         {STAT_CARDS.map((s, i) => {
           const Icon = s.icon;
           return (
@@ -397,7 +488,7 @@ export function ListingsView() {
                     />
                   </th>
                 )}
-                {["Building / unit", "Location", "Type", "Beds", "Area", "Price", "Furnishing", ...(showOwner ? ["Owner"] : []), "Agent", "Status"].map(h => (
+                {["Building / unit", "Location", "Type", "Beds", "Area", "Price", "Furnishing", ...(showOwner ? ["Owner"] : []), "Agent", parkedView ? "Parked" : "Status"].map(h => (
                   <th key={h} className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
@@ -410,6 +501,7 @@ export function ListingsView() {
                   <td colSpan={(showOwner ? 10 : 9) + (qasroConnected && canEditProperties ? 1 : 0)} className="px-4 py-12 text-center text-sm text-muted-foreground">
                     {debounced || purpose !== "all" || hasFilters || propertyId
                       ? "No listings match these filters."
+                      : parkedView ? "Nothing is parked. Park a listing from its drawer to keep it for later without deleting it."
                       : "No listings yet. Add one, or import your stock sheet."}
                   </td>
                 </tr>
@@ -476,9 +568,16 @@ export function ListingsView() {
                     </td>}
                     <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{l.agentName || "—"}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full", statusOf(l.status).className)}>
-                        {statusOf(l.status).label}
-                      </span>
+                      {parkedView ? (
+                        <div>
+                          <p className="text-xs font-semibold">{l.parkedAt ? formatDate(l.parkedAt) : "—"}</p>
+                          {l.parkedReason && <p className="text-[11px] text-muted-foreground max-w-[180px] truncate" title={l.parkedReason}>{l.parkedReason}</p>}
+                        </div>
+                      ) : (
+                        <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full", statusOf(l.status).className)}>
+                          {statusOf(l.status).label}
+                        </span>
+                      )}
                     </td>
                   </motion.tr>
                 ))

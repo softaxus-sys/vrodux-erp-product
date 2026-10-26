@@ -76,6 +76,8 @@ public sealed class RealEstateConfigurations :
         b.Property(x => x.ListedOn).HasMaxLength(10);
         b.Property(x => x.RentedUntil).HasMaxLength(10);
         b.Property(x => x.VacancyAlertKey).HasMaxLength(40);
+        b.Property(x => x.ParkedReason).HasMaxLength(500);
+        b.Property(x => x.ParkedByName).HasMaxLength(200);
         b.Property(x => x.BedsLabel).HasMaxLength(200);
         b.Property(x => x.PriceLabel).HasMaxLength(500);
         b.Property(x => x.AreaLabel).HasMaxLength(200);

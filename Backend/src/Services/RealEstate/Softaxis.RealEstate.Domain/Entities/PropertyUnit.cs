@@ -122,6 +122,16 @@ public sealed class PropertyUnit
     /// </summary>
     public string? VacancyAlertKey { get; private set; }
 
+    /// <summary>
+    /// When the listing was parked — taken off the active stock list but kept, because most come back
+    /// (a tenant leaves, an owner re-lists next year). Null = active. Unlike <see cref="IsDeleted"/>
+    /// nothing is lost and it can be restored.
+    /// </summary>
+    public DateTime? ParkedAt { get; private set; }
+    public string? ParkedReason { get; private set; }
+    public Guid? ParkedByUserId { get; private set; }
+    public string? ParkedByName { get; private set; }
+
     public bool IsDeleted { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
@@ -238,5 +248,19 @@ public sealed class PropertyUnit
     }
 
     public void Vacate() { CurrentTenantId = null; CurrentTenantName = null; Status = "vacant"; UpdatedAt = DateTime.UtcNow; }
+    public void Park(string? reason, Guid? byUserId, string? byName)
+    {
+        ParkedAt = DateTime.UtcNow; ParkedReason = Trim(reason);
+        ParkedByUserId = byUserId; ParkedByName = Trim(byName);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Back on the active list. The reason and date are cleared; the history is the audit log's job.</summary>
+    public void Unpark()
+    {
+        ParkedAt = null; ParkedReason = null; ParkedByUserId = null; ParkedByName = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 }

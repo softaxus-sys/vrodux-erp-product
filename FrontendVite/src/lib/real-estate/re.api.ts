@@ -175,6 +175,12 @@ export interface ListingDto {
   listedOn: string | null;
   /** yyyy-MM-dd. When the current tenancy ends — what the vacancy alert counts down to. */
   rentedUntil?: string | null;
+  /** When the listing was parked (ISO, UTC). Null for an active listing. */
+  parkedAt?: string | null;
+  parkedReason?: string | null;
+  parkedByName?: string | null;
+  /** Whether the signed-in user may edit, park or delete it: the owning agent or an administrator. */
+  canModify?: boolean;
   /** The layout as the sheet words it — "2bhk+maid". The parsed count is `bedrooms`. */
   bedsLabel: string | null;
   /** The price cell as written, conditions and all. The parsed figures are rent/sale above. */
@@ -299,6 +305,8 @@ export type UpdateListingInput = Omit<CreateListingInput, "propertyId"> & {
 };
 
 export interface ListingParams {
+  /** True = the parked listings instead of the active stock list. */
+  parked?: boolean;
   page?: number;
   pageSize?: number;
   search?: string;
@@ -970,6 +978,7 @@ export const reApi = {
     many("agents", p.agents);
     if (p.minPrice !== undefined) q.set("minPrice", String(p.minPrice));
     if (p.maxPrice !== undefined) q.set("maxPrice", String(p.maxPrice));
+    if (p.parked) q.set("parked", "true");
     return rawApiClient.get(`${BASE}/listings?${q}`);
   },
   getListingFilterOptions: (): Promise<ListingFilterOptionsDto> =>
@@ -985,6 +994,10 @@ export const reApi = {
   updateListing: (id: string, data: UpdateListingInput): Promise<ListingDto> =>
     rawApiClient.put(`${BASE}/listings/${id}`, data),
   deleteListing: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/listings/${id}`),
+  /** Takes a listing off the active list but keeps it, with the date and reason. */
+  parkListing:   (id: string, reason?: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/listings/${id}/park`, { reason: reason?.trim() || null }),
+  unparkListing: (id: string): Promise<void> => rawApiClient.post(`${BASE}/listings/${id}/unpark`),
 
   getUnits: (p: RePageParams & { propertyId?: string } = {}): Promise<PagedResult<UnitDto>> => {
     const qs = new URLSearchParams();

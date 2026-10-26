@@ -200,3 +200,17 @@ public sealed class UpdateListingValidator : AbstractValidator<UpdateListingComm
             .WithMessage("The rented-until date must be yyyy-MM-dd.");
     }
 }
+
+/// <summary>
+/// Takes a listing off the active stock list without deleting it. Nothing is lost: the date it was
+/// parked and the reason are kept, and it can be restored later.
+/// </summary>
+public sealed record ParkListingCommand(Guid Id, string? Reason) : ICommand;
+
+public sealed class ParkListingCommandValidator : AbstractValidator<ParkListingCommand>
+{
+    public ParkListingCommandValidator() => RuleFor(x => x.Reason).MaximumLength(500);
+}
+
+/// <summary>Puts a parked listing back on the active list.</summary>
+public sealed record UnparkListingCommand(Guid Id) : ICommand;

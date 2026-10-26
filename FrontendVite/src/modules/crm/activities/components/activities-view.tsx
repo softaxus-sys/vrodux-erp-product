@@ -18,7 +18,10 @@ type FilterKey = typeof FILTERS[number];
 export function ActivitiesView() {
   const { t } = useTranslation("crm");
   const [filter, setFilter] = React.useState<FilterKey>("open");
-  const { data: summary } = useActivitiesSummary();
+  // Default to the user's own tasks: for an admin the unfiltered list is every task in the workspace,
+  // so something handed to an agent read as sitting in the admin's own activity.
+  const [mine, setMine] = React.useState(true);
+  const { data: summary } = useActivitiesSummary(mine);
   const complete = useCompleteActivity();
   const reopen = useReopenActivity();
 
@@ -39,9 +42,9 @@ export function ActivitiesView() {
 
   // Back to page one whenever the filter changes — page 3 of the previous filter is meaningless
   // against a different result set, and often past its end.
-  React.useEffect(() => { setPage(1); }, [filter]);
+  React.useEffect(() => { setPage(1); }, [filter, mine]);
 
-  const { data: paged, isFetching } = useActivitiesPaged({ ...params, page, pageSize: 30 });
+  const { data: paged, isFetching } = useActivitiesPaged({ ...params, mine, page, pageSize: 30 });
   const items      = paged?.items ?? [];
   const totalCount = paged?.totalCount ?? 0;
   const totalPages = paged?.totalPages ?? 1;
@@ -79,6 +82,16 @@ export function ActivitiesView() {
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="inline-flex rounded-lg bg-muted/40 p-0.5 me-2">
+          {([true, false] as const).map(m => (
+            <button key={String(m)} onClick={() => setMine(m)}
+              className={cn("px-3 py-1 rounded-md text-xs font-medium transition-all",
+                mine === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+              {m ? t("activity.view.scopeMine", { defaultValue: "Assigned to me" })
+                 : t("activity.view.scopeAll", { defaultValue: "Everyone I can see" })}
+            </button>
+          ))}
+        </div>
         {FILTERS.map(f => (
           <button key={f} onClick={() => setFilter(f)}
             className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",

@@ -8,7 +8,9 @@ public sealed record GetActivitiesQuery(
     string? RelatedToType, Guid? RelatedToId, bool? Completed, string? Type)
     : IQuery<IReadOnlyList<ActivityDto>>;
 
-public sealed record GetActivitiesSummaryQuery : IQuery<ActivitiesSummaryDto>;
+/// <param name="Mine">True = only activities assigned to the caller. Without it an admin's list is
+/// every task in the workspace, so a task handed to an agent reads as the admin's own.</param>
+public sealed record GetActivitiesSummaryQuery(bool Mine = false) : IQuery<ActivitiesSummaryDto>;
 
 /// <summary>
 /// The activities list screen: filtering, searching and paging in SQL.
@@ -31,7 +33,9 @@ public sealed record GetActivitiesPagedQuery(
     // browser only works while the whole list is loaded; under paging it would filter within a
     // single page and silently under-report.
     string? DueBefore     = null,
-    string? DueOn         = null
+    string? DueOn         = null,
+    // Only activities assigned to the caller (AssignedToUserId), whatever else they may see.
+    bool    Mine          = false
 ) : IQuery<PagedResult<ActivityDto>>;
 
 /// <summary>

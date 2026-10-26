@@ -33,18 +33,19 @@ public sealed class ActivitiesController(ISender sender) : CrmControllerBase
         [FromQuery] bool? completed = null, [FromQuery] string? type = null,
         [FromQuery] string? search = null,
         [FromQuery] string? dueBefore = null, [FromQuery] string? dueOn = null,
+        [FromQuery] bool mine = false,
         CancellationToken ct = default)
     {
         var result = await sender.Send(new GetActivitiesPagedQuery(
-            page, pageSize, relatedToType, relatedToId, completed, type, search, dueBefore, dueOn), ct);
+            page, pageSize, relatedToType, relatedToId, completed, type, search, dueBefore, dueOn, mine), ct);
         return OkOrError(result);
     }
 
     [HttpGet("summary")]
-    [RequirePermission("crm.leads.view")]
-    public async Task<IActionResult> GetSummary(CancellationToken ct)
+    [RequireAnyPermission("crm.leads.view", "crm.leads-team.view", "crm.leads-assigned.view")]
+    public async Task<IActionResult> GetSummary([FromQuery] bool mine = false, CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetActivitiesSummaryQuery(), ct);
+        var result = await sender.Send(new GetActivitiesSummaryQuery(mine), ct);
         return OkOrError(result);
     }
 

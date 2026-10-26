@@ -239,6 +239,24 @@ export function useDeleteListing() {
   });
 }
 
+export function useParkListing() {
+  const invalidate = useInvalidateListings();
+  return useMutation({
+    mutationFn: (v: { id: string; reason?: string }) => reApi.parkListing(v.id, v.reason),
+    onSuccess: () => { invalidate(); toast.success("Listing parked. You can bring it back from the Parked tab."); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUnparkListing() {
+  const invalidate = useInvalidateListings();
+  return useMutation({
+    mutationFn: (id: string) => reApi.unparkListing(id),
+    onSuccess: () => { invalidate(); toast.success("Listing restored to the active list."); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useUnits(params: RePageParams & { propertyId?: string } = {}) {
   return useQuery({
     queryKey: [QK, "units", params],
