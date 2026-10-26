@@ -15,8 +15,12 @@ import {
 import { ApiError, apiClient } from "@/lib/api-client";
 import { authApi } from "@/lib/auth.api";
 import { unregisterPushAsync } from "@/lib/push";
+import Constants from "expo-constants";
 import { useAuthStore } from "@/store/auth.store";
-import { Badge, Button, DetailRow, ErrorState, ListItemCard, LoadingState, SectionCard } from "@/components/ui";
+import { usePrefsStore, type ThemeMode } from "@/store/prefs.store";
+import { Walkthrough } from "@/components/onboarding/Walkthrough";
+import { openFeedbackEmail, openStoreReview, requestInAppReview } from "@/lib/store-review";
+import { Badge, Button, Chip, DetailRow, ErrorState, ListItemCard, LoadingState, SectionCard } from "@/components/ui";
 import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { TwoFactorSetupDto } from "@/types/settings";
 import type { SessionDto } from "@/types/auth";
@@ -44,14 +48,78 @@ export default function SettingsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ProfileSection />
+      <AppearanceSection />
       <ChangePasswordSection />
       <TwoFactorSection />
       <DevicesSection />
+      <HelpSection />
       <DeleteAccountSection />
       <View style={styles.signOutRow}>
         <Button label="Sign out" variant="outline" icon="log-out" onPress={handleLogout} fullWidth />
       </View>
     </ScrollView>
+  );
+}
+
+// ── Appearance ───────────────────────────────────────────────────────────────────────────────
+
+const THEME_OPTIONS: { mode: ThemeMode; label: string }[] = [
+  { mode: "system", label: "System default" },
+  { mode: "light", label: "Light" },
+  { mode: "dark", label: "Dark" },
+];
+
+/** Light, dark, or follow the phone. Saved on this device, so it survives restarts and sign-outs. */
+function AppearanceSection() {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
+  const mode = usePrefsStore((s) => s.themeMode);
+  const setMode = usePrefsStore((s) => s.setThemeMode);
+  return (
+    <SectionCard title="Appearance">
+      <Text style={styles.helpText}>Choose how the app looks. "System default" follows your phone's setting.</Text>
+      <View style={styles.chipRow}>
+        {THEME_OPTIONS.map((o) => (
+          <Chip key={o.mode} label={o.label} active={mode === o.mode} onPress={() => setMode(o.mode)} />
+        ))}
+      </View>
+    </SectionCard>
+  );
+}
+
+// ── Help & feedback ──────────────────────────────────────────────────────────────────────────
+
+function HelpSection() {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
+  const email = useAuthStore((s) => s.user?.email);
+  const [tourOpen, setTourOpen] = useState(false);
+  const version = Constants.expoConfig?.version ?? "";
+
+  async function rate() {
+    // The in-app dialog is rate-limited by the OS and can silently do nothing, so a button the person
+    // pressed goes straight to the store page, which always works.
+    await openStoreReview();
+  }
+
+  async function feedback() {
+    try {
+      await openFeedbackEmail(version, email);
+    } catch {
+      Alert.alert("No email app found", "Send your feedback to support@vrodux.com.");
+    }
+  }
+
+  return (
+    <SectionCard title="Help & feedback">
+      <View style={styles.helpButtons}>
+        <Button label="Take the tour" icon="compass" variant="outline" onPress={() => setTourOpen(true)} fullWidth />
+        <Button label="Rate Vrodux ERP" icon="star" variant="outline" onPress={rate} fullWidth />
+        <Button label="Send feedback" icon="message-square" variant="outline" onPress={feedback} fullWidth />
+      </View>
+      {version ? <Text style={styles.helpText}>Version {version}</Text> : null}
+      <Walkthrough visible={tourOpen} onFinish={() => setTourOpen(false)} />
+    </SectionCard>
   );
 }
 
@@ -485,6 +553,9 @@ function createStyles(colors: AppColors) {
   return StyleSheet.create({
     container: { padding: spacing.lg, gap: spacing.lg },
     signOutRow: { marginTop: spacing.sm },
+    helpText: { fontSize: fontSize.sm, color: colors.mutedForeground },
+    chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
+    helpButtons: { gap: spacing.sm, marginBottom: spacing.sm },
 
     formGap: { gap: spacing.sm },
     actionsRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },

@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useColorScheme } from "react-native";
 import { darkColors, lightColors, type AppColors } from "@/theme/colors";
+import { usePrefsStore } from "@/store/prefs.store";
 
 interface ThemeContextValue {
   colors: AppColors;
@@ -19,7 +20,9 @@ const ThemeContext = createContext<ThemeContextValue>({ colors: lightColors, isD
  */
 export function AppThemeProvider({ children }: { children: ReactNode }) {
   const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  // The person's own choice wins; "system" follows the phone, and is what everyone starts on.
+  const mode = usePrefsStore((s) => s.themeMode);
+  const isDark = mode === "system" ? scheme === "dark" : mode === "dark";
   const value = useMemo<ThemeContextValue>(
     () => ({ colors: isDark ? darkColors : lightColors, isDark }),
     [isDark],

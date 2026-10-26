@@ -7,6 +7,9 @@ import { Feather } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import { useAuthStore } from "@/store/auth.store";
 import { registerForPushAsync } from "@/lib/push";
+import { usePrefsStore } from "@/store/prefs.store";
+import { Walkthrough } from "@/components/onboarding/Walkthrough";
+import { requestInAppReview } from "@/lib/store-review";
 import LoginScreen from "@/screens/LoginScreen";
 import TwoFactorScreen from "@/screens/TwoFactorScreen";
 import HomeScreen from "@/screens/HomeScreen";
@@ -116,6 +119,28 @@ function AuthenticatedApp({ navigationRef }: { navigationRef: ReturnType<typeof 
   const [aiOpen, setAiOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
+  // First-run tour: shown once per device after the first sign-in, skippable, replayable from Settings.
+  const prefsReady = usePrefsStore((s) => s.hasHydrated);
+  const walkthroughSeen = usePrefsStore((s) => s.walkthroughSeen);
+  const setWalkthroughSeen = usePrefsStore((s) => s.setWalkthroughSeen);
+
+  // Ask for a rating once, on a later launch rather than the first one -- after the person has had the
+  // chance to get something done -- and never while the tour is on screen. The OS rate-limits the dialog
+  // itself, so this is a request, not a guarantee.
+  useEffect(() => {
+    if (!prefsReady) return;
+    const { incrementLaunchCount } = usePrefsStore.getState();
+    incrementLaunchCount();
+    const timer = setTimeout(() => {
+      const p = usePrefsStore.getState();
+      if (p.walkthroughSeen && !p.reviewPrompted && p.launchCount >= 8) {
+        p.setReviewPrompted();
+        requestInAppReview();
+      }
+    }, 20_000);
+    return () => clearTimeout(timer);
+  }, [prefsReady]);
+
   // Register this device's push token once per authenticated session, and route a tapped OS
   // notification straight to its lead -- same destination the in-app bell list uses (see
   // openLeadDetail above). Never blocks anything: both are best-effort (see push.ts).
@@ -138,6 +163,7 @@ function AuthenticatedApp({ navigationRef }: { navigationRef: ReturnType<typeof 
     <View style={{ flex: 1 }}>
       <AppTabs onOpenNotifications={() => setNotificationsOpen(true)} />
       <FloatingAiButton onPress={() => setAiOpen(true)} />
+      <Walkthrough visible={prefsReady && !walkthroughSeen} onFinish={() => setWalkthroughSeen(true)} />
       <Modal visible={aiOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setAiOpen(false)}>
         <AiAssistantScreen onClose={() => setAiOpen(false)} />
       </Modal>

@@ -1142,3 +1142,10 @@ and per-device refresh tokens / "my devices" session management, see Settings ab
   The hotel overview now asks only for what the user may read, so a tour agency doesn't see errors.
 - Not on the phone: branch-server admin, tax/FBR/platform settings, branch prices, restaurant offline mode,
   creating packages or tour bookings.
+
+### Tester feedback (1.1.0)
+- **First-run walkthrough** (6 slides, skippable, shown once per device after first sign-in; replay from Settings → Help & feedback).
+- **Theme**: Settings → Appearance — System default / Light / Dark, saved on the device (`store/prefs.store.ts`).
+- **Rate the app**: Settings → Help & feedback opens the Play Store page; a one-time in-app review request is made on a later
+  launch (8th, after the tour, once) via `expo-store-review` (new native module). **Send feedback** opens an email to support.
+- Not code: Play Store screenshots, listing testimonials.
