@@ -20,6 +20,7 @@ import { MultiSelectFilter, type FilterOption } from "./multi-select-filter";
 import type { ListingDto, PropertyDto, UnitStatus } from "@/lib/real-estate/re.api";
 import { useRowSelection } from "@/modules/crm/shared/components/team-filing-bar";
 import { LISTING_IMPORT_FIELDS } from "./listing-import-fields";
+import { attachBuildingPhotos } from "./listing-import-photos";
 import { ListingForm } from "./listing-form";
 import { ListingDrawer } from "./listing-drawer";
 import { RestrictedBadge } from "./confidential-field";
@@ -528,7 +529,17 @@ export function ListingsView() {
         description="One row per unit being marketed. Only the building is required — the buildings named are created as the file is read."
         fields={LISTING_IMPORT_FIELDS}
         noun="listings"
-        onImport={rows => importStock.mutateAsync(rows)}
+        onImport={async rows => {
+          const outcome = await importStock.mutateAsync(rows);
+          const photos = await attachBuildingPhotos(rows);
+          if (photos.added + photos.failed + photos.skippedBuildings === 0) return outcome;
+          const bits = [
+            photos.added > 0 ? `${photos.added} photo${photos.added === 1 ? "" : "s"} added to galleries` : "",
+            photos.failed > 0 ? `${photos.failed} photo${photos.failed === 1 ? "" : "s"} could not be fetched` : "",
+            photos.skippedBuildings > 0 ? `${photos.skippedBuildings} building${photos.skippedBuildings === 1 ? "" : "s"} already had photos` : "",
+          ].filter(Boolean).join(", ");
+          return { ...outcome, note: [outcome.note, bits].filter(Boolean).join(" · ") };
+        }}
       />
     </div>
   );
