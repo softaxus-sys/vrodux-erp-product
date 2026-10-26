@@ -106,7 +106,7 @@ function HelpSection() {
     try {
       await openFeedbackEmail(version, email);
     } catch {
-      Alert.alert("No email app found", "Send your feedback to support@vrodux.com.");
+      Alert.alert("No email app found", "Send your feedback to vrodux@softaxis.ae.");
     }
   }
 

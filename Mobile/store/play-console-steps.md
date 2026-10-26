@@ -11,7 +11,7 @@ Things in `<angle brackets>` are for you to fill in.
 1. **The upload file**: `rFEm2rMQD2QlI_epUP9s5e8FBoZUJACjJx8BBc79rdQ.aab`
    Link: https://expo.dev/artifacts/eas/rFEm2rMQD2QlI_epUP9s5e8FBoZUJACjJx8BBc79rdQ.aab (right-click → save, keep the .aab ending).
 2. **A reviewer login** (Step 4 explains how to make one).
-3. **A support email** you are happy to show publicly, e.g. `support@vrodux.com`.
+3. **A support email** you are happy to show publicly, e.g. `vrodux@softaxis.ae`.
 4. **Pages that must open in a browser**: https://vrodux.com/privacy, https://vrodux.com/terms, https://vrodux.com/delete-account (this last one must be live before Step 7).
 5. **12 or more friends/colleagues with Gmail addresses** who will test for 14 days.
 6. **Pictures** (Step 9): app icon 512×512, a 1024×500 banner, 2+ phone screenshots.

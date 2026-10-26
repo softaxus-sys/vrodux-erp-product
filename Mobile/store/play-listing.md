@@ -72,7 +72,7 @@ You need a Vrodux ERP account from your company. Don't have one? Start a free tr
 
 **Category:** Business  
 **Tags:** Business, Productivity (pick what Play offers; "ERP/CRM" are not available as tags)  
-**Contact email (public):** **YOU** — e.g. support@vrodux.com  
+**Contact email (public):** **YOU** — e.g. vrodux@softaxis.ae  
 **Website:** https://vrodux.com  
 **Privacy policy URL:** https://vrodux.com/privacy  
 **Phone (optional):** **YOU**
@@ -191,8 +191,8 @@ Recommended wording for the page (publish on vrodux.com):
 Delete your Vrodux ERP account or data
 
 Vrodux accounts belong to a company workspace.
-• To remove your own login: ask your workspace administrator (Settings → Users), or email support@vrodux.com from the address on the account.
-• To delete the whole workspace and all its data: the workspace owner emails support@vrodux.com from the owner address, stating the workspace name. We verify ownership and complete deletion within 30 days.
+• To remove your own login: ask your workspace administrator (Settings → Users), or email vrodux@softaxis.ae from the address on the account.
+• To delete the whole workspace and all its data: the workspace owner emails vrodux@softaxis.ae from the owner address, stating the workspace name. We verify ownership and complete deletion within 30 days.
 What is deleted: the user account, sign-in sessions, device and push tokens, and (for a workspace deletion) all business records.
 What may be kept: records we must keep for legal, tax or fraud-prevention reasons (for example billing records), for the legally required period.
 ```

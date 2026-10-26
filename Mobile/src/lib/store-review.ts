@@ -3,7 +3,7 @@ import * as StoreReview from "expo-store-review";
 
 /** The app's Play Store listing -- also where "Rate" falls back to when the in-app dialog isn't available. */
 export const ANDROID_PACKAGE = "com.softaxis.vroduxerp";
-export const SUPPORT_EMAIL = "support@vrodux.com";
+export const SUPPORT_EMAIL = "vrodux@softaxis.ae";
 
 /**
  * Asks for a rating with the platform's own in-app review dialog. The OS decides whether to show it
