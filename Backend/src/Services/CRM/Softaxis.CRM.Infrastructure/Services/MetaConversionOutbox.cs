@@ -163,7 +163,7 @@ internal sealed class MetaConversionOutbox(CrmDbContext db, ILogger<MetaConversi
             if (MetaLeadRef.From(source) is not { } meta) return;
             var settings = await ReadySettingsAsync(meta.IntegrationId, ct);
             if (settings is null) return;
-            Queue(MetaConversionBuilder.ForLead(settings, lead, meta, lead.Status, DateTime.UtcNow), lead);
+            await QueueAsync(MetaConversionBuilder.ForLead(settings, lead, meta, lead.Status, DateTime.UtcNow), lead, ct);
         }
         catch (Exception ex) { logger.LogWarning(ex, "Meta conversions: could not queue the 'new lead' event for {Lead}.", lead.Id); }
     }
@@ -176,7 +176,7 @@ internal sealed class MetaConversionOutbox(CrmDbContext db, ILogger<MetaConversi
             if (source is null) return;
             var settings = await ReadySettingsAsync(source.IntegrationId, ct);
             if (settings is null) return;
-            Queue(MetaConversionBuilder.ForLead(settings, lead, source, status, at), lead);
+            await QueueAsync(MetaConversionBuilder.ForLead(settings, lead, source, status, at), lead, ct);
         }
         catch (Exception ex) { logger.LogWarning(ex, "Meta conversions: could not queue a status event for lead {Lead}.", lead.Id); }
     }
@@ -193,7 +193,7 @@ internal sealed class MetaConversionOutbox(CrmDbContext db, ILogger<MetaConversi
             if (source is null) return;
             var settings = await ReadySettingsAsync(source.IntegrationId, ct);
             if (settings is null) return;
-            Queue(MetaConversionBuilder.ForDeal(settings, lead, source, deal, stage, at), lead: null);
+            await QueueAsync(MetaConversionBuilder.ForDeal(settings, lead, source, deal, stage, at), lead: null, ct);
         }
         catch (Exception ex) { logger.LogWarning(ex, "Meta conversions: could not queue a stage event for deal {Deal}.", deal.Id); }
     }
@@ -218,9 +218,29 @@ internal sealed class MetaConversionOutbox(CrmDbContext db, ILogger<MetaConversi
             .FirstOrDefaultAsync(s => s.IntegrationId == integrationId && s.Enabled
                                       && s.DatasetId != null && s.AccessToken != null, ct);
 
-    private void Queue(MetaConversionEvent? ev, Lead? lead)
+    /// <summary>
+    /// Each event name is reported once per lead (and once per opportunity for stage events). Meta counts every
+    /// event it receives, so a rep flipping a lead Contacted → New → Contacted would otherwise report
+    /// "Contacted" twice and inflate the figures. A failed or skipped event does not count as reported, so the
+    /// stage can still be sent when it comes round again.
+    /// </summary>
+    private async Task<bool> AlreadyReportedAsync(MetaConversionEvent ev, CancellationToken ct)
+    {
+        // Rows added earlier in this same unit of work are not in the database yet.
+        if (db.MetaConversionEvents.Local.Any(e => e.IntegrationId == ev.IntegrationId && e.LeadId == ev.LeadId
+                && e.DealId == ev.DealId && e.EventName == ev.EventName))
+            return true;
+
+        return await db.MetaConversionEvents.AsNoTracking().AnyAsync(e =>
+            e.IntegrationId == ev.IntegrationId && e.LeadId == ev.LeadId && e.DealId == ev.DealId
+            && e.EventName == ev.EventName
+            && e.Status != MetaConversionStatus.Failed && e.Status != MetaConversionStatus.Skipped, ct);
+    }
+
+    private async Task QueueAsync(MetaConversionEvent? ev, Lead? lead, CancellationToken ct)
     {
         if (ev is null) return;
+        if (await AlreadyReportedAsync(ev, ct)) return;
         db.MetaConversionEvents.Add(ev);
 
         // The intake path runs from an anonymous webhook, where the ambient tenant is not what stamps new

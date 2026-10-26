@@ -305,7 +305,13 @@ internal sealed class CatchUpMetaConversionsHandler(CrmDbContext db) : ICommandH
         {
             var src = refs[lead.Id];
             var before = queued.Count;
-            void Add(MetaConversionEvent? e) { if (e is not null) queued.Add(e); }
+            // One report per event name per lead (per opportunity for stage events), same rule as the live path.
+            void Add(MetaConversionEvent? e)
+            {
+                if (e is null) return;
+                if (queued.Any(q => q.LeadId == e.LeadId && q.DealId == e.DealId && q.EventName == e.EventName)) return;
+                queued.Add(e);
+            }
 
             var history = statusHistory.Where(h => h.LeadId == lead.Id).OrderBy(h => h.CreatedAt).ToList();
 
