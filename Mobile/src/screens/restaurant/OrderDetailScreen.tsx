@@ -127,10 +127,21 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
           <View style={styles.statsRow}>
             <Stat label="Subtotal" value={formatCompactValue(o.subTotal, currency)} />
             {o.discountAmount > 0 ? <Stat label="Discount" value={`-${formatCompactValue(o.discountAmount, currency)}`} /> : null}
-            <Stat label="Tax" value={formatCompactValue(o.taxAmount, currency)} />
+            <Stat label={o.taxRate ? `${o.taxLabel ?? "Tax"} ${o.taxRate}%` : (o.taxLabel ?? "Tax")} value={formatCompactValue(o.taxAmount, currency)} />
+            {o.serviceFee ? <Stat label="Service" value={formatCompactValue(o.serviceFee, currency)} /> : null}
             {o.tipAmount > 0 ? <Stat label="Tip" value={formatCompactValue(o.tipAmount, currency)} /> : null}
             <Stat label="Total" value={formatCompactValue(o.total + o.tipAmount, currency)} tone="primary" />
           </View>
+          {o.externalSource ? (
+            <Text style={styles.subtitle}>
+              From {o.externalSource}{o.externalOrderCode ? ` · ${o.externalOrderCode}` : ""}{o.externalStatus ? ` · ${o.externalStatus}` : ""}
+            </Text>
+          ) : null}
+          {o.fbrStatus ? (
+            <Text style={styles.subtitle}>
+              FBR: {o.fbrStatus}{o.fbrInvoiceNumber ? ` · ${o.fbrInvoiceNumber}` : ""}{o.fbrError ? ` · ${o.fbrError}` : ""}
+            </Text>
+          ) : null}
           {o.outstanding > 0.01 ? (
             <Text style={styles.outstanding}>Outstanding: {formatCompactValue(o.outstanding, currency)}</Text>
           ) : null}

@@ -109,6 +109,7 @@ export type POSStackParamList = {
   NewSale: { sessionId: string };
   TransactionAction: { transactionId: string; mode: "void" | "refund" };
   CashMovement: { sessionId: string };
+  BranchStock: undefined;
 };
 
 export type RestaurantStackParamList = {
@@ -210,6 +211,10 @@ export type HospitalityStackParamList = {
   BookingsList: undefined;
   HousekeepingList: undefined;
   NewBooking: undefined;
+  ToursHome: undefined;
+  TourBookingsList: undefined;
+  TourBookingDetail: { bookingId: string; bookingNumber: string };
+  TourPackages: undefined;
 };
 
 export type ExtraStackParamList = {

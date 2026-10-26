@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useOpenSession } from "@/hooks/use-pos";
-import { useAuthStore } from "@/store/auth.store";
+import { hasModuleAccess, useAuthStore } from "@/store/auth.store";
+import { BranchSwitcher } from "@/components/restaurant/BranchPicker";
+import { useCurrentBranch } from "@/hooks/use-branches";
 import type { POSStackParamList } from "@/navigation/types";
 import { Button } from "@/components/ui";
 import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
@@ -28,11 +30,20 @@ export default function OpenShiftScreen({ navigation }: Props) {
   const [openingCash, setOpeningCash] = useState("0");
 
   const openSession = useOpenSession();
+  // A restaurant shift belongs to a branch (orders are refused from a shift at another one).
+  // Retail-only workspaces never see this.
+  const isRestaurant = hasModuleAccess("restaurant");
+  const { branchId, options } = useCurrentBranch();
+  const needsBranch = isRestaurant && options.length > 0;
 
   function handleOpen() {
     const cash = Number(openingCash);
     openSession.mutate(
-      { registerId: registerId.trim() || defaultRegister, openingCash: Number.isFinite(cash) ? cash : 0 },
+      {
+        registerId: registerId.trim() || defaultRegister,
+        openingCash: Number.isFinite(cash) ? cash : 0,
+        branchId: needsBranch ? branchId : null,
+      },
       { onSuccess: () => navigation.goBack() },
     );
   }
@@ -44,6 +55,8 @@ export default function OpenShiftScreen({ navigation }: Props) {
         No cash drawer? Leave starting cash at 0 -- it's fully supported, and the shift will simply
         report zero variance when you close it.
       </Text>
+
+      {needsBranch ? <BranchSwitcher /> : null}
 
       <View style={styles.field}>
         <Text style={styles.label}>Register</Text>
@@ -77,7 +90,7 @@ export default function OpenShiftScreen({ navigation }: Props) {
       <Button
         label={openSession.isPending ? "Opening…" : "Open Shift"}
         icon="unlock"
-        disabled={!registerId.trim() || openSession.isPending}
+        disabled={!registerId.trim() || openSession.isPending || (needsBranch && !branchId)}
         loading={openSession.isPending}
         onPress={handleOpen}
         fullWidth

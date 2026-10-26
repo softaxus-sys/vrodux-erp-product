@@ -14,6 +14,7 @@ import {
 import { formatCompactValue } from "@/lib/crm-helpers";
 import { hasPermission, useAuthStore } from "@/store/auth.store";
 import { ErrorState, LoadingState, MenuCard } from "@/components/ui";
+import { BranchGate, BranchSwitcher } from "@/components/restaurant/BranchPicker";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { RestaurantStackParamList } from "@/navigation/types";
 
@@ -21,7 +22,15 @@ type Props = NativeStackScreenProps<RestaurantStackParamList, "RestaurantHome">;
 
 /** Full order-taking + front-of-house + kitchen coordination -- see types/restaurant.ts's
  *  top-of-file note for the scope reversal and what's still deliberately desktop-only. */
-export default function RestaurantHomeScreen({ navigation }: Props) {
+export default function RestaurantHomeScreen(props: Props) {
+  return (
+    <BranchGate>
+      <RestaurantHome {...props} />
+    </BranchGate>
+  );
+}
+
+function RestaurantHome({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
@@ -39,6 +48,7 @@ export default function RestaurantHomeScreen({ navigation }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <BranchSwitcher />
       <Text style={styles.sectionLabel}>Today</Text>
       {owner.isLoading ? (
         <LoadingState size="small" />

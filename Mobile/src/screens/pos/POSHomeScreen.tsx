@@ -3,7 +3,7 @@ import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useActiveSessions, usePosDashboard } from "@/hooks/use-pos";
 import { formatCompactValue } from "@/lib/crm-helpers";
-import { POS_SESSIONS_CREATE } from "@/lib/pos.api";
+import { POS_BRANCH_STOCK_VIEW, POS_SESSIONS_CREATE } from "@/lib/pos.api";
 import { hasPermission, useAuthStore } from "@/store/auth.store";
 import type { POSSessionSummaryDto } from "@/types/pos";
 import type { POSStackParamList } from "@/navigation/types";
@@ -21,6 +21,7 @@ export default function POSHomeScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const canOpenShift = hasPermission(POS_SESSIONS_CREATE);
+  const canBranchStock = hasPermission(...POS_BRANCH_STOCK_VIEW);
 
   const dashboard = usePosDashboard();
   const sessions = useActiveSessions();
@@ -95,6 +96,15 @@ export default function POSHomeScreen({ navigation }: Props) {
           tint={colors.primary}
           onPress={() => navigation.navigate("POSTransactionsList")}
         />
+        {canBranchStock ? (
+          <MenuCard
+            icon="server"
+            title="Stock by Branch"
+            subtitle="What each branch holds, as last reported"
+            tint={colors.info}
+            onPress={() => navigation.navigate("BranchStock")}
+          />
+        ) : null}
       </View>
     </ScrollView>
   );

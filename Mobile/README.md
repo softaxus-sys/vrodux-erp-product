@@ -1125,3 +1125,20 @@ and per-device refresh tokens / "my devices" session management, see Settings ab
   flatter per-feature `hr.self.*` pattern with no tiers (`HR_SELF_*` in `hr.api.ts`).
 - `@/*` → `src/*` path alias, same as the web app (via `babel-plugin-module-resolver` here, since
   Metro doesn't read `tsconfig.json` paths on its own).
+
+## Release 1.1.0 — catching up with the web (2026-10)
+
+- **Branches (restaurant).** The API now requires a branch for restaurant orders and for the shift they ride on
+  (workspaces that have branches). `store/branch.store.ts` + `hooks/use-branches.ts` keep the branch this phone works
+  at (restricted users start on their assigned one; a one-branch workspace is chosen automatically); every restaurant
+  read carries it and takeaway/delivery orders send it. `BranchGate` asks on first use, `BranchSwitcher` changes it, and
+  Open Shift records the branch for restaurant workspaces.
+- **Live Orders fixed.** The orders endpoint returns a page (`{ items }`); the app read it as a bare list.
+  Non-table orders also show their type instead of "Table".
+- **Order totals** show the tax profile (label and rate), service fee, delivery-platform source and FBR status.
+- **Stock by Branch** (POS) — what each branch server last reported; read-only.
+- **Tours** (Hospitality) — dashboard with what needs attention, packages and open departures, tour bookings with
+  detail (travellers, services, payment schedule), confirm / complete / cancel / reopen and record a payment.
+  The hotel overview now asks only for what the user may read, so a tour agency doesn't see errors.
+- Not on the phone: branch-server admin, tax/FBR/platform settings, branch prices, restaurant offline mode,
+  creating packages or tour bookings.

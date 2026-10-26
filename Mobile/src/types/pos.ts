@@ -12,6 +12,7 @@ export interface POSSessionSummaryDto {
   openedAt: string;
   totalTransactions: number;
   netSales: number;
+  branchId?: string | null;
 }
 
 export interface POSSessionDto {
@@ -130,6 +131,9 @@ export interface PosDashboardDto {
 export interface OpenSessionRequest {
   registerId: string;
   openingCash: number;
+  /** The branch the shift belongs to. Restaurant tills need one (the server refuses orders from a
+   *  shift at another branch); retail leaves it unset. */
+  branchId?: string | null;
 }
 
 export interface CloseSessionRequest {
@@ -176,4 +180,17 @@ export interface CartLine {
   name: string;
   unitPrice: number;
   quantity: number;
+}
+
+export interface BranchStockRowDto {
+  productId: string;
+  productName: string;
+  sku: string | null;
+  unit: string;
+  reorderLevel: number;
+  branchId: string;
+  branchName: string;
+  stockQuantity: number;
+  /** When the branch server last reported this figure. */
+  asOf: string | null;
 }
