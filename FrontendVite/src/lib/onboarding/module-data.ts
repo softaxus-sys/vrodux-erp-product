@@ -11,7 +11,7 @@ import {
 export type ModuleId =
   | "pos" | "inventory" | "sales" | "purchase"
   | "finance" | "hr" | "crm"
-  | "hospitality" | "real-estate" | "construction"
+  | "restaurant" | "hospitality" | "real-estate" | "construction"
   | "healthcare" | "education" | "visa" | "manufacturing" | "library" | "trade";
 
 export interface ModuleDef {
@@ -124,6 +124,18 @@ export const MODULES: ModuleDef[] = [
     category: "operations",
   },
   // ── Industry Packs ────────────────────────────────────────────────────────
+  {
+    id: "restaurant",
+    label: "Restaurant",
+    description: "Floor & tables, kitchen display, menu, delivery & loyalty",
+    icon: Utensils,
+    color: "bg-rose-500/10",
+    iconColor: "text-rose-500",
+    requires: ["pos"],
+    recommends: ["inventory", "purchase", "hr"],
+    triggersBusinessType: false,
+    category: "industry",
+  },
   {
     id: "hospitality",
     label: "Hospitality & Tourism",

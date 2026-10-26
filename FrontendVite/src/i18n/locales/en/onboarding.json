@@ -228,6 +228,10 @@
       "label": "CRM",
       "desc": "Leads, pipeline, customers & activities"
     },
+    "restaurant": {
+      "label": "Restaurant",
+      "desc": "Floor & tables, kitchen display, menu & delivery"
+    },
     "hospitality": {
       "label": "Hospitality & Tourism",
       "desc": "Rooms, bookings & housekeeping"
