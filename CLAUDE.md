@@ -8945,3 +8945,15 @@ selected module needs. `ecommerce` is in the rules but in no picker until the mo
   its POS rows disappeared, and its product list and barcode lookup were served from Inventory.
 - **Not verified:** a real till sale on the branch after the move (the SQL equivalent was exercised), the two-branch case with both
   branches running, the cloud-mirror (on-prem→cloud) path after these changes beyond unit tests.
+
+### Step 4 — retiring the old POS-table paths (gated; only the gate is built)
+- **Why nothing was removed:** every remaining reference to `[pos].[products]` exists to serve a workspace that has not been moved yet
+  (Inventory's product list UNION and its update/delete/activate/stock raw SQL, `CrossSchemaProductService`, the POS reports/low-stock/
+  branch-stock reads, POS purchase orders/vendors) and the gateway's `Requires["inventory"] = ["pos"]` schema rule exists because of
+  those. Removing any of it while a live workspace still has POS products would break its till, so it waits for the moves.
+- **The gate:** `GET api/admin/catalogue-move` (SuperAdminOnly) lists every workspace with live POS products (name, product counts,
+  whether it runs branch servers or is a cloud mirror). **When it is empty on every deployment (cloud and each on-prem box), the
+  cleanup can be done in one change:** drop the UNION halves and POS fall-throughs, make `CrossSchemaProductService` Inventory-only,
+  remove `Requires["inventory"] = ["pos"]`, and move POS vendors/purchase orders onto Inventory/Purchase. Also needed first: a
+  decision on those POS purchase orders and vendors, which still read POS tables with no Inventory equivalent wired.
+- Verified: builds; the overview SQL runs against the dev schema (returns no rows there). Not run through the API or shown in the UI.

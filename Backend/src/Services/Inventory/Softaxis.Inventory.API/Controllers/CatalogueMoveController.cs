@@ -16,6 +16,11 @@ namespace Softaxis.Inventory.API.Controllers;
 [Tags("Catalogue move")]
 public sealed class CatalogueMoveController(ISender sender) : BaseApiController(sender)
 {
+    /// <summary>Workspaces whose products still live in the POS tables. Empty = the old POS-schema paths can be removed.</summary>
+    [HttpGet]
+    public async Task<IActionResult> Overview(CancellationToken ct)
+        => HandleResult(await Sender.Send(new GetCatalogueMoveOverviewQuery(), ct));
+
     /// <summary>Where the workspace's catalogue lives today, and any earlier move.</summary>
     [HttpGet("{tenantId:guid}")]
     public async Task<IActionResult> Status(Guid tenantId, CancellationToken ct)

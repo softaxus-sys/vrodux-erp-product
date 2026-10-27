@@ -44,3 +44,15 @@ public sealed record PreviewCatalogueMoveQuery(Guid TenantId) : IQuery<Catalogue
 
 /// <param name="MovedBy">The super admin who ran it — kept on the record.</param>
 public sealed record RunCatalogueMoveCommand(Guid TenantId, string MovedBy) : ICommand<CatalogueMoveRecordDto>;
+
+/// <summary>One workspace whose products still live in the POS tables.</summary>
+public sealed record StillOnPosDto(
+    Guid TenantId, string Name, int PosProducts, int InventoryProducts, bool RunsBranchServers, bool IsCloudMirror);
+
+/// <summary>
+/// Every workspace that still has live products in the POS tables. The old POS-schema read/write paths (and the
+/// Inventory→POS schema dependency) can only be removed when this list is empty.
+/// </summary>
+public sealed record CatalogueMoveOverviewDto(int WorkspacesOnPos, IReadOnlyList<StillOnPosDto> Workspaces);
+
+public sealed record GetCatalogueMoveOverviewQuery : IQuery<CatalogueMoveOverviewDto>;

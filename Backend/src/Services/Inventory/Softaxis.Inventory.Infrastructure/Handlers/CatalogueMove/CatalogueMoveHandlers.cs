@@ -375,3 +375,30 @@ internal sealed class RunCatalogueMoveHandler(InventoryDbContext db)
         }
     }
 }
+
+internal sealed class GetCatalogueMoveOverviewHandler(InventoryDbContext db)
+    : IQueryHandler<GetCatalogueMoveOverviewQuery, CatalogueMoveOverviewDto>
+{
+    private sealed class Row
+    {
+        public Guid TenantId { get; set; } public string Name { get; set; } = "";
+        public int PosProducts { get; set; } public int InventoryProducts { get; set; }
+        public bool BranchServersEnabled { get; set; } public bool IsMirror { get; set; }
+    }
+
+    public async Task<Result<CatalogueMoveOverviewDto>> Handle(GetCatalogueMoveOverviewQuery q, CancellationToken ct)
+    {
+        var rows = await db.Database.SqlQueryRaw<Row>("""
+            SELECT t.Id AS TenantId, t.Name, t.BranchServersEnabled, t.IsMirror,
+                   (SELECT COUNT(*) FROM [pos].[products] p WHERE p.TenantId = t.Id AND p.IsDeleted = 0) AS PosProducts,
+                   (SELECT COUNT(*) FROM [inventory].[products] i WHERE i.TenantId = t.Id AND i.IsDeleted = 0) AS InventoryProducts
+            FROM [identity].[tenants] t
+            WHERE t.IsDeleted = 0
+              AND EXISTS (SELECT 1 FROM [pos].[products] p WHERE p.TenantId = t.Id AND p.IsDeleted = 0)
+            ORDER BY t.Name
+            """).ToListAsync(ct);
+
+        var list = rows.Select(r => new StillOnPosDto(r.TenantId, r.Name, r.PosProducts, r.InventoryProducts, r.BranchServersEnabled, r.IsMirror)).ToList();
+        return Result.Success(new CatalogueMoveOverviewDto(list.Count, list));
+    }
+}
