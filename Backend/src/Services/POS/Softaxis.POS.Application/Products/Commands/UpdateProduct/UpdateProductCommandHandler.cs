@@ -1,5 +1,6 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.POS.Application.Abstractions;
 using Softaxis.POS.Application.DTOs;
 using Softaxis.POS.Domain.Repositories;
 
@@ -8,11 +9,14 @@ namespace Softaxis.POS.Application.Products.Commands.UpdateProduct;
 public sealed class UpdateProductCommandHandler(
     IProductRepository         productRepo,
     IProductCategoryRepository categoryRepo,
-    IUnitOfWork                uow)
+    IUnitOfWork                uow,
+    ICatalogueGateway          catalogue)
     : ICommandHandler<UpdateProductCommand, ProductDto>
 {
     public async Task<Result<ProductDto>> Handle(UpdateProductCommand cmd, CancellationToken ct)
     {
+        if (await catalogue.UsesInventoryAsync(ct)) return await catalogue.UpdateAsync(cmd, ct);
+
         var product = await productRepo.GetByIdAsync(cmd.Id, ct);
         if (product is null)
             return Result.Failure<ProductDto>(Error.NotFoundById("Product", cmd.Id));

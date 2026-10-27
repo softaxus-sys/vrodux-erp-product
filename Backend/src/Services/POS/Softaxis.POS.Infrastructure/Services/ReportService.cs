@@ -203,11 +203,9 @@ public sealed class ReportService(POSDbContext db) : IReportService
             .ToListAsync(ct);
 
         var productIds = items.Select(i => i.ProductId).Distinct().ToList();
-        var productInfo = await db.Products
-            .Include(pr => pr.Category)
-            .Where(pr => productIds.Contains(pr.Id))
-            .AsNoTracking()
-            .ToDictionaryAsync(pr => pr.Id, pr => (Cat: pr.Category?.Name ?? "—", pr.CostPrice, pr.CategoryId), ct);
+        // Looked up in both schemas: the till sells Inventory-catalogue products too.
+        var productInfo = (await ProductInfoLookup.GetAsync(db, productIds, ct))
+            .ToDictionary(kv => kv.Key, kv => (Cat: kv.Value.CategoryName ?? "—", kv.Value.CostPrice, kv.Value.CategoryId));
 
         if (p.CategoryId != null)
             items = items.Where(i =>
@@ -260,11 +258,8 @@ public sealed class ReportService(POSDbContext db) : IReportService
             .ToListAsync(ct);
 
         var productIds = items.Select(i => i.ProductId).Distinct().ToList();
-        var categoryByProductId = await db.Products
-            .Include(pr => pr.Category)
-            .Where(pr => productIds.Contains(pr.Id))
-            .AsNoTracking()
-            .ToDictionaryAsync(pr => pr.Id, pr => pr.Category?.Name ?? "Uncategorised", ct);
+        var categoryByProductId = (await ProductInfoLookup.GetAsync(db, productIds, ct))
+            .ToDictionary(kv => kv.Key, kv => kv.Value.CategoryName ?? "Uncategorised");
 
         var totalRevenue = items.Sum(i => i.LineTotal);
         var cols = new[] { "Category", "Transactions", "Units Sold", "Revenue", "Contribution %", "Avg Price" };
@@ -637,11 +632,8 @@ public sealed class ReportService(POSDbContext db) : IReportService
             .ToListAsync(ct);
 
         var productIds = items.Select(i => i.ProductId).Distinct().ToList();
-        var categoryByProductId = await db.Products
-            .Include(pr => pr.Category)
-            .Where(pr => productIds.Contains(pr.Id))
-            .AsNoTracking()
-            .ToDictionaryAsync(pr => pr.Id, pr => pr.Category?.Name ?? "—", ct);
+        var categoryByProductId = (await ProductInfoLookup.GetAsync(db, productIds, ct))
+            .ToDictionary(kv => kv.Key, kv => kv.Value.CategoryName ?? "—");
 
         var cols = new[] { "Date", "Product", "Category", "Supply Type", "Amount (AED)", "VAT Rate" };
 
@@ -829,11 +821,8 @@ public sealed class ReportService(POSDbContext db) : IReportService
             .ToListAsync(ct);
 
         var productIds = items.Select(i => i.ProductId).Distinct().ToList();
-        var categoryByProductId = await db.Products
-            .Include(pr => pr.Category)
-            .Where(pr => productIds.Contains(pr.Id))
-            .AsNoTracking()
-            .ToDictionaryAsync(pr => pr.Id, pr => pr.Category?.Name ?? "Services", ct);
+        var categoryByProductId = (await ProductInfoLookup.GetAsync(db, productIds, ct))
+            .ToDictionary(kv => kv.Key, kv => kv.Value.CategoryName ?? "Services");
 
         var cols = new[] { "Invoice #", "Date", "Service Type", "Taxable Value (PKR)", "SST 13% (PKR)", "Total (PKR)", "SRB Filed" };
 

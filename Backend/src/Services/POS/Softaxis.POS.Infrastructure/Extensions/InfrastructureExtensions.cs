@@ -71,6 +71,7 @@ public static class InfrastructureExtensions
         services.AddScoped<ILowStockReadService,         LowStockReadService>();
         services.AddScoped<IBranchStockReadService,      BranchStockReadService>();
         services.AddScoped<ICrossSchemaProductService,   CrossSchemaProductService>();
+        services.AddScoped<ICatalogueGateway,            InventoryCatalogueGateway>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
 
         // FBR (Pakistan) POS integration: client, reporter, and the retry queue.

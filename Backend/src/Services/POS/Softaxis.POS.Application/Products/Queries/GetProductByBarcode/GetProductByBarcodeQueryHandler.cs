@@ -1,15 +1,18 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.POS.Application.Abstractions;
 using Softaxis.POS.Application.DTOs;
 using Softaxis.POS.Domain.Repositories;
 
 namespace Softaxis.POS.Application.Products.Queries.GetProductByBarcode;
 
-public sealed class GetProductByBarcodeQueryHandler(IProductRepository productRepo)
+public sealed class GetProductByBarcodeQueryHandler(IProductRepository productRepo, ICatalogueGateway catalogue)
     : IQueryHandler<GetProductByBarcodeQuery, ProductSummaryDto>
 {
     public async Task<Result<ProductSummaryDto>> Handle(GetProductByBarcodeQuery query, CancellationToken ct)
     {
+        if (await catalogue.UsesInventoryAsync(ct)) return await catalogue.GetByBarcodeAsync(query.Barcode, ct);
+
         var product = await productRepo.GetByBarcodeAsync(query.Barcode, ct);
         if (product is null)
             return Result.Failure<ProductSummaryDto>(

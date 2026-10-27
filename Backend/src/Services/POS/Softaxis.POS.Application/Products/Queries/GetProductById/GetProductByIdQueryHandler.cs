@@ -1,15 +1,18 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.POS.Application.Abstractions;
 using Softaxis.POS.Application.DTOs;
 using Softaxis.POS.Domain.Repositories;
 
 namespace Softaxis.POS.Application.Products.Queries.GetProductById;
 
-public sealed class GetProductByIdQueryHandler(IProductRepository productRepo)
+public sealed class GetProductByIdQueryHandler(IProductRepository productRepo, ICatalogueGateway catalogue)
     : IQueryHandler<GetProductByIdQuery, ProductDto>
 {
     public async Task<Result<ProductDto>> Handle(GetProductByIdQuery query, CancellationToken ct)
     {
+        if (await catalogue.UsesInventoryAsync(ct)) return await catalogue.GetByIdAsync(query.Id, ct);
+
         var product = await productRepo.GetByIdAsync(query.Id, ct);
         if (product is null)
             return Result.Failure<ProductDto>(Error.NotFoundById("Product", query.Id));

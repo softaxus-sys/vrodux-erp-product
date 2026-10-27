@@ -61,7 +61,7 @@ Others: Restaurant `GetInventoryDashboardHandler`, Recipe `RecipeStockService`, 
    slug / SEO title / meta / online name & description; a `PublishedOnline` flag; weight and dimensions;
    per-channel price and availability in their own tables. Existing products stay valid as "template with no
    variants".
-2. **Catalogue facade for POS.** Same `Barcode` rules, same DTOs, same permissions; the handlers read and write
+2. **Catalogue facade for POS — BUILT (see CLAUDE.md Module 89, step 2).** Same `Barcode` rules, same DTOs, same permissions; the handlers read and write
    Inventory. Behind a per-tenant switch so a tenant can be moved and moved back.
 3. **Per-tenant move.** `pos.products` → `inventory.products` **keeping the same Id** (sale lines, offline
    queues and sync references only store ids); categories matched by name per tenant; `pos.branch_stock` →

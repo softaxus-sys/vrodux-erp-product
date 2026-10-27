@@ -8858,3 +8858,30 @@ selected module needs. `ecommerce` is in the rules but in no picker until the mo
   (bucket) path, the mirror sync of the new tables.
 - **Not built (next):** step 2 POS facade over Inventory, step 3 per-tenant move + dry-run report, step 4 retire the
   UNION queries, then channels/Shopify/storefront/builder (see the roadmap in the doc).
+
+### Step 2 — the till's product screens served from Inventory (done; legacy workspaces untouched)
+- **Rule:** a workspace is "on Inventory" when it has **no live product of its own in the POS schema**
+  (`InventoryCatalogueGateway.UsesInventoryAsync`, one EXISTS per request). So a new workspace starts on
+  Inventory with no setup, and a workspace that still has `pos.products` rows behaves exactly as before until it
+  is moved (step 3). The POS UI, routes (`/api/products`, `/api/catalogue/import`), DTOs and permissions are unchanged.
+- **Where:** `POS.Application/Abstractions/ICatalogueGateway` — seven POS handlers (create, update, delete, get by
+  id, get by barcode, list, adjust stock) and the catalogue-pack import call it first. `POS.Infrastructure`
+  implements it over Inventory (project reference to `Inventory.Application`). The rules live in Inventory as
+  `TillCatalogue` commands (`Inventory.Infrastructure/Handlers/TillCatalogue`): barcode/SKU uniqueness with the
+  till's error codes (`Product.BarcodeTaken`/`SKUTaken`), 50-char barcode, brand/unit-of-measure preserved on a
+  till edit, stock never negative at head office, branch adjustments go to the branch's own warehouse, bulk
+  pack import in slices of 500 with categories created by name.
+- **POS read paths fixed for Inventory-only catalogues:** `ReportService` looked up category and cost in
+  `pos.products` only (category/product/tax reports showed "Uncategorised" and zero cost for Inventory products) —
+  now `ProductInfoLookup` reads both schemas; `BranchStockReadService` now also lists per-branch warehouse stock
+  (`inventory.product_stock`). `LowStockReadService` already read both.
+- **Verified:** 56 scripted API checks against a local gateway + LocalDB with one workspace with no POS products and
+  one legacy workspace: create/duplicates/validation, list/get/barcode, update keeps brand, adjust stock (types,
+  negative refused, branch warehouse), a sale then category + product reports, delete, pack import (idempotent),
+  branch-stock screen, and the legacy workspace's creates/adjustments still landing in `pos.products`. Existing
+  POS unit tests (14) pass. Test tenants/data removed afterwards.
+- **Known limits (step 4 work):** the till list ignores `SortBy` (always by name; no screen sends it); POS purchase
+  orders/vendors and POS stock-movement history screens still read POS tables; Inventory's own update/delete/activate
+  still fall through to `pos.products` rows by raw SQL (removed with the move); an Inventory screen can still create a
+  duplicate barcode (only the till path enforces uniqueness); the stock-adjustment history lives in
+  `inventory.stock_movements` for these workspaces, not `pos.stock_movements`.

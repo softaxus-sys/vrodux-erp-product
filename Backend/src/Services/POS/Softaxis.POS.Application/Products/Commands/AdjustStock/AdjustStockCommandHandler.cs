@@ -13,11 +13,14 @@ public sealed class AdjustStockCommandHandler(
     IStockMovementRepository stockRepo,
     ICrossSchemaProductService productLookup,
     ICurrentUser             currentUser,
-    IUnitOfWork              uow)
+    IUnitOfWork              uow,
+    ICatalogueGateway        catalogue)
     : ICommandHandler<AdjustStockCommand, StockMovementDto>
 {
     public async Task<Result<StockMovementDto>> Handle(AdjustStockCommand cmd, CancellationToken ct)
     {
+        if (await catalogue.UsesInventoryAsync(ct)) return await catalogue.AdjustStockAsync(cmd, ct);
+
         var product = await productRepo.GetByIdAsync(cmd.ProductId, ct);
         if (product is null)
             return Result.Failure<StockMovementDto>(Error.NotFoundById("Product", cmd.ProductId));

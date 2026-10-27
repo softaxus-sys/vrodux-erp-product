@@ -1,5 +1,6 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.POS.Application.Abstractions;
 using Softaxis.POS.Application.DTOs;
 using Softaxis.POS.Domain.Entities;
 using Softaxis.POS.Domain.Repositories;
@@ -10,11 +11,15 @@ public sealed class CreateProductCommandHandler(
     IProductRepository         productRepo,
     IProductCategoryRepository categoryRepo,
     IStockMovementRepository   stockRepo,
-    IUnitOfWork                uow)
+    IUnitOfWork                uow,
+    ICatalogueGateway          catalogue)
     : ICommandHandler<CreateProductCommand, ProductDto>
 {
     public async Task<Result<ProductDto>> Handle(CreateProductCommand cmd, CancellationToken ct)
     {
+        // A workspace whose catalogue lives in Inventory is served from there, same shapes and rules.
+        if (await catalogue.UsesInventoryAsync(ct)) return await catalogue.CreateAsync(cmd, ct);
+
         // Categories are managed in Master Data (Inventory); copy one into POS on first use.
         var category = await categoryRepo.GetOrMirrorFromInventoryAsync(cmd.CategoryId, ct);
         if (category is null)

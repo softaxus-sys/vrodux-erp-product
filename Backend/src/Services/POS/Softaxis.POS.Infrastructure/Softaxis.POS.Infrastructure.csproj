@@ -23,5 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\Softaxis.BuildingBlocks.Infrastructure\Softaxis.BuildingBlocks.Infrastructure.csproj" />
     <ProjectReference Include="..\Softaxis.POS.Application\Softaxis.POS.Application.csproj" />
+    <!-- A workspace whose catalogue lives in Inventory is served through Inventory's own commands and read service. -->
+    <ProjectReference Include="..\..\Inventory\Softaxis.Inventory.Application\Softaxis.Inventory.Application.csproj" />
   </ItemGroup>
 </Project>
