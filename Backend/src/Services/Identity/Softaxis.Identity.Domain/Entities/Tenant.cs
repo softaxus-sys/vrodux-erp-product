@@ -240,18 +240,11 @@ public sealed class Tenant : AuditableEntity<Guid>
                 }
             }
 
-            // Manufacturing keeps no stock of its own — components and finished goods are
-            // Inventory products. A tenant sold Manufacturing alone would have nowhere to create
-            // them, so Inventory comes with it, manual grant included.
-            if (list.Contains("manufacturing", StringComparer.OrdinalIgnoreCase)
-                && !list.Contains("inventory", StringComparer.OrdinalIgnoreCase))
-                list.Add("inventory");
-
-            // Restaurant sells through the POS (its API is licensed as POS and orders post to the open
-            // shift) and keeps stock in Inventory, so both come with it - manual grant included.
-            if (list.Contains("restaurant", StringComparer.OrdinalIgnoreCase))
-                foreach (var dep in new[] { "pos", "inventory" })
-                    if (!list.Contains(dep, StringComparer.OrdinalIgnoreCase)) list.Add(dep);
+            // Inventory is the single source of truth for products and stock. POS, Restaurant POS
+            // (which sells through the POS), Manufacturing and E-commerce all work on what Inventory
+            // holds, so each brings it - and whatever it sits on - along, manual grant included. See
+            // ModuleDependencies for the rules and the frontend copies that must match.
+            ModuleDependencies.Close(list);
 
             // Settings and Users are how a tenant administers itself — invite colleagues, set roles,
             // manage billing. Locking them behind a plan, an onboarding checkbox, or even a manual

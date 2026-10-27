@@ -62,6 +62,7 @@
     "inventory": "Inventory",
     "warehouses": "Warehouses",
     "stock": "Stock Items",
+    "inv-listings": "Online Listings",
     "movements": "Movements",
     "transfers": "Transfers",
     "inv-categories": "Categories",

@@ -8815,3 +8815,46 @@ most restaurant entities) but which only tagged new records and scoped four list
 - Existing self-signup tenants stay verified (they were pre-verified) — not shown as awaiting.
 - ⚠️ When SMTP is unconfigured the email service only logs the link, so Re-invite reports "sent".
 - Build: Identity.API 0 errors · frontend `tsc` 0 errors. **Not runtime-tested.** No migration.
+
+---
+
+## Module 89 — One product catalogue: Inventory is the source of truth (steps 0–1 built)
+
+Plan and reasoning: `docs/product-catalogue-unification.md` (read it first). Goal: POS, Restaurant POS and
+E-commerce all sell what Inventory holds; the POS screens stay exactly as they are but will read/write
+Inventory; live tenants move one at a time later (steps 2–4 not built yet).
+
+### Step 0 — Inventory is mandatory (done)
+`Identity.Domain/Entities/ModuleDependencies.cs` is the one rule table (`pos→inventory`,
+`restaurant→pos`, `manufacturing→inventory`, `ecommerce→inventory`); `Tenant.ResolvedModules` closes the
+list over it, so the JWT `modules` claim always carries Inventory for those tenants (signup, super-admin
+grant, industry pack, manual grant). Gateway `LicensedModules.Requires` has `ecommerce→inventory`. The
+super-admin `module-selector.tsx` adds dependencies when a module is switched on and locks a module another
+selected module needs. `ecommerce` is in the rules but in no picker until the module has pages.
+
+### Step 1 — online listings on Inventory (done, additive only)
+- **Model:** `ProductTemplate` = what a customer sees (name, description, SEO, slug, tags, options JSON, published
+  flag, photo gallery). Each variant is an **ordinary `inventory.products` row** (`TemplateId`,
+  `VariantOptionsJson`, `SellOnline`, weight/dimensions) with its own SKU/barcode/price/stock, so POS,
+  Purchase, Sales, Finance and every stock path are unchanged. `ProductImage` belongs to the template, optionally
+  tied to one variant; bytes go to object storage (`IObjectStorage`) when configured, else the `Data` column.
+  Migration `AddProductTemplatesAndImages` (additive; existing products keep working).
+- **API** `api/inventory/product-templates` (gated `inventory.stock.*` until E-commerce has its own keys): list /
+  get / create / update / publish / delete, variants add/update/remove, photos add/get/reorder/cover/alt/delete,
+  `publish-check`. Handlers live in `Inventory.Infrastructure/Handlers/ProductTemplates` (gateway MediatR registers
+  that assembly; validators from `Inventory.Application` are registered too).
+- **Rules worth knowing:** max 3 options, 250 variants, 60 photos; choices are validated against the options and
+  stored spelled like the options; a product can be in one listing only; deleting a listing keeps its products;
+  a rename never changes the slug (links/SEO) — only an explicit slug does; the update command takes
+  `variantChoices` so option changes and variant choices are one atomic change; photos count toward the
+  storage quota (`TenantStorageQuota` now sums `inventory.product_images`).
+- **UI:** Inventory → **Online Listings** (`/inventory/listings`): list with tiles/filters, and an editor drawer
+  (basics, photos, options, variants incl. "create missing combinations" and "use an existing product", SEO with
+  Google preview, publishing with readiness check). en + ar strings under `inventory:listings`.
+- **Verified:** 61 scripted API checks against a local gateway + LocalDB (access control, validation, option/variant
+  rules, photos incl. cover promotion, publish rules, deletion keeps products, 0 NULL-tenant rows), and the list +
+  editor + create-with-generated-variants flow in a browser. Test data/tenant removed afterwards.
+- **Not verified:** photo upload/drag-drop and the Publish button through the browser, Arabic/RTL, object-storage
+  (bucket) path, the mirror sync of the new tables.
+- **Not built (next):** step 2 POS facade over Inventory, step 3 per-tenant move + dry-run report, step 4 retire the
+  UNION queries, then channels/Shopify/storefront/builder (see the roadmap in the doc).

@@ -112,7 +112,10 @@ try
             // SDK, which has no business being referenced from the Application layer.
             typeof(Softaxis.Identity.Infrastructure.Persistence.IdentityDbContext).Assembly,
             typeof(Softaxis.POS.Application.Products.Commands.CreateProduct.CreateProductCommand).Assembly,
-            typeof(Softaxis.Inventory.Application.Categories.Queries.GetCategories.GetCategoriesQuery).Assembly);
+            typeof(Softaxis.Inventory.Application.Categories.Queries.GetCategories.GetCategoriesQuery).Assembly,
+            // Inventory.Infrastructure carries the product-listing handlers (they use the DbContext and
+            // object storage, which the Application layer must not reference).
+            typeof(Softaxis.Inventory.Infrastructure.Persistence.InventoryDbContext).Assembly);
         cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
         cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
     });
@@ -121,6 +124,7 @@ try
     builder.Services.AddValidatorsFromAssemblies([
         typeof(Softaxis.Identity.Application.Auth.Commands.Login.LoginCommandValidator).Assembly,
         typeof(Softaxis.POS.Application.Products.Commands.CreateProduct.CreateProductCommand).Assembly,
+        typeof(Softaxis.Inventory.Application.ProductTemplates.CreateProductTemplateCommand).Assembly,
     ]);
 
     // ── Infrastructure — all 5 services ──────────────────────────────────────

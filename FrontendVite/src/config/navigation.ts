@@ -554,6 +554,13 @@ export const navigationConfig: NavGroup[] = [
             icon: "Boxes",
           },
           {
+            id: "inv-listings",
+            label: "Online Listings",
+            labelAr: "المنتجات على الإنترنت",
+            href: "/inventory/listings",
+            icon: "ShoppingBag",
+          },
+          {
             id: "movements",
             label: "Movements",
             labelAr: "حركات المخزون",

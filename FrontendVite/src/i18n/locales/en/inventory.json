@@ -448,5 +448,152 @@
     "importingBtn": "Importing…",
     "print": "Print {{count}} Labels",
     "shelfLabels": "Shelf Labels"
+  },
+  "listings": {
+    "loading": "Loading…",
+    "newTitle": "New online listing",
+    "newHint": "One name, one description, one set of photos — and the choices shoppers make.",
+    "close": "Close",
+    "cancel": "Cancel",
+    "save": "Save changes",
+    "create": "Create listing",
+    "status": {
+      "published": "Published",
+      "draft": "Draft"
+    },
+    "errors": {
+      "name": "Give the product a name.",
+      "category": "Choose a category.",
+      "optionValues": "Add at least one value to “{{name}}”, or remove the option.",
+      "optionName": "Name the option that has values.",
+      "noVariants": "Add at least one variant.",
+      "singleVariant": "A product with no options has a single variant. Add an option such as Size to offer more.",
+      "pickChoice": "Choose a value for every option on “{{name}}”."
+    },
+    "basics": {
+      "title": "Product",
+      "name": "Name",
+      "namePlaceholder": "e.g. Cotton T-Shirt",
+      "category": "Category",
+      "selectCategory": "Select category…",
+      "brand": "Brand",
+      "none": "None",
+      "short": "Short description",
+      "shortPlaceholder": "One line shown in lists and search results",
+      "description": "Description",
+      "descriptionPlaceholder": "Everything a customer needs to know before buying…",
+      "tags": "Tags",
+      "tagsPlaceholder": "comma separated — summer, cotton, men"
+    },
+    "photos": {
+      "title": "Photos",
+      "hint": "The first photo is the cover. Tie a photo to a variant to show it only for that choice.",
+      "cover": "Cover",
+      "makeCover": "Make cover",
+      "remove": "Remove",
+      "moveEarlier": "Move earlier",
+      "moveLater": "Move later",
+      "altPlaceholder": "Describe the photo",
+      "altLabel": "Photo description",
+      "forVariant": "Shown for",
+      "allVariants": "All variants",
+      "addFirst": "Add photos — drop files here or click",
+      "addMore": "Add more",
+      "uploading": "Uploading…",
+      "notImage": "{{name}} is not an image.",
+      "tooLarge": "{{name}} is larger than {{mb}} MB.",
+      "tooMany": "A product can have up to {{max}} photos.",
+      "readFailed": "Could not read that file.",
+      "savedWithoutPhotos": "The listing was created, but the photos could not be uploaded. Add them from the listing."
+    },
+    "options": {
+      "title": "Options",
+      "hint": "What shoppers choose between — Size, Colour, Material. Leave empty for a product with a single version.",
+      "add": "Add an option",
+      "namePlaceholder": "Option name, e.g. Size",
+      "valuePlaceholder": "Type a value and press Enter",
+      "removeOption": "Remove this option",
+      "removeValue": "Remove {{value}}"
+    },
+    "variants": {
+      "title": "Variants",
+      "hintSingle": "This product has a single version. Its price and stock are the same as any Inventory item.",
+      "hintMany": "Each combination is a real Inventory item with its own SKU, price and stock.",
+      "setForAll": "Set for all new rows",
+      "apply": "Apply",
+      "price": "Price",
+      "cost": "Cost",
+      "stock": "Stock",
+      "sku": "SKU",
+      "weight": "Weight (g)",
+      "existingNote": "Existing product — price {{price}}, stock {{stock}} (left as it is)",
+      "hide": "Hidden online",
+      "show": "Offered online",
+      "removeRow": "Remove row",
+      "removeFromListing": "Take out of this listing",
+      "editElsewhere": "Price, cost and stock are edited in Stock Items; they are shown here as they stand.",
+      "searchExisting": "Search your products by name or SKU…",
+      "noProducts": "No matching products.",
+      "inStock": "{{count}} in stock",
+      "generate": "Create {{count}} missing combinations",
+      "tooMany": "A listing can have at most {{max}} variants.",
+      "addNew": "Add a variant",
+      "addExisting": "Use an existing product"
+    },
+    "seo": {
+      "title": "Search engines",
+      "hint": "How this product appears on Google. Leave blank to use the name and description.",
+      "slug": "Page address",
+      "slugNote": "Changing the address breaks links that already point at the old one.",
+      "seoTitle": "Page title",
+      "meta": "Meta description",
+      "preview": "Search result preview",
+      "untitled": "Product title",
+      "noDescription": "The description appears here."
+    },
+    "publish": {
+      "title": "Publishing",
+      "hint": "A published listing is ready for your online channels. Drafts are never shown to customers.",
+      "ready": "Ready to publish.",
+      "live": "This listing is live.",
+      "publish": "Publish",
+      "unpublish": "Unpublish",
+      "published": "Listing published.",
+      "unpublished": "Listing unpublished.",
+      "channelsNote": "Connecting a store or storefront comes next — publishing only marks the listing as ready."
+    },
+    "delete": {
+      "action": "Delete this listing",
+      "confirm": "Delete the listing and its photos? The products in it are kept, with their stock and history.",
+      "yes": "Delete listing"
+    },
+    "page": {
+      "title": "Online Listings",
+      "subtitle": "Products you sell online — one page per product, with its sizes, colours and photos.",
+      "new": "New listing",
+      "total": "Listings",
+      "published": "Published",
+      "drafts": "Drafts",
+      "search": "Search by name, tag or SKU…",
+      "filter": {
+        "all": "All",
+        "published": "Published",
+        "draft": "Drafts"
+      },
+      "allCategories": "All categories",
+      "loadFailed": "Could not load the listings.",
+      "retry": "Try again",
+      "noMatch": "No listings match.",
+      "empty": "No online listings yet",
+      "emptyHint": "Create a listing to group an item’s sizes and colours, add photos and get it ready for your online store.",
+      "cols": {
+        "product": "Product",
+        "category": "Category",
+        "variants": "Variants",
+        "price": "Price",
+        "stock": "Stock",
+        "status": "Status"
+      }
+    }
   }
 }

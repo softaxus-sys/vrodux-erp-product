@@ -26,6 +26,15 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(x => x.IsActive).IsRequired();
         builder.Property(x => x.TrackInventory).IsRequired();
         builder.Property(x => x.ImageUrl).HasMaxLength(500);
+
+        // Online selling — see ProductTemplate. Defaults keep every existing row exactly as it was.
+        builder.Property(x => x.VariantOptionsJson).HasMaxLength(1000);
+        builder.Property(x => x.SellOnline).IsRequired().HasDefaultValue(true);
+        builder.Property(x => x.WeightGrams).HasPrecision(18, 2);
+        builder.Property(x => x.LengthCm).HasPrecision(18, 2);
+        builder.Property(x => x.WidthCm).HasPrecision(18, 2);
+        builder.Property(x => x.HeightCm).HasPrecision(18, 2);
+        builder.HasIndex(x => x.TemplateId);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);
 

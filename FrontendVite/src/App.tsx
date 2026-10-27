@@ -80,6 +80,7 @@ const PurchaseBillsPage    = lazyWithRetry(() => import("@/pages/purchase/bills"
 // ── Inventory ─────────────────────────────────────────────────────────────────
 const WarehousesPage       = lazyWithRetry(() => import("@/pages/inventory/warehouses"));
 const StockPage            = lazyWithRetry(() => import("@/pages/inventory/stock"));
+const ListingsPage         = lazyWithRetry(() => import("@/pages/inventory/listings"));
 const MovementsPage        = lazyWithRetry(() => import("@/pages/inventory/movements"));
 const TransfersPage        = lazyWithRetry(() => import("@/pages/inventory/transfers"));
 const CategoriesPage       = lazyWithRetry(() => import("@/pages/inventory/master/categories"));
@@ -476,6 +477,7 @@ export function App() {
           <Route element={<ModuleGuard module="inventory" />}>
             <Route path="/inventory/warehouses"        element={<WarehousesPage />} />
             <Route path="/inventory/stock"             element={<StockPage />} />
+            <Route path="/inventory/listings"          element={<ListingsPage />} />
             <Route path="/inventory/movements"         element={<MovementsPage />} />
             <Route path="/inventory/transfers"         element={<TransfersPage />} />
             <Route path="/inventory/master/categories" element={<CategoriesPage />} />
