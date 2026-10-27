@@ -17,6 +17,11 @@ namespace Softaxis.BuildingBlocks.Infrastructure.Sync;
 ///
 /// <para>See <c>docs/on-premises-cloud-mirror.md</c> §6.</para>
 /// </summary>
+/// <summary>How a batch should be applied when it is not a plain mirror.</summary>
+/// <param name="InsertOnly">Insert rows that are absent; never overwrite or delete. Used for opening balances sent down to a branch.</param>
+/// <param name="AdjustProductTotals">After a stock row is written, move the product's total by the change. Used when a branch pushes its warehouse stock to the cloud.</param>
+public sealed record ApplyOptions(bool InsertOnly = false, bool AdjustProductTotals = false);
+
 public sealed class SyncReceiveStore(string connectionString, ILogger logger)
 {
     private const string Schema        = "sync";
@@ -71,8 +76,10 @@ public sealed class SyncReceiveStore(string connectionString, ILogger logger)
     /// recognised from the ledger and acknowledged without touching a row.
     /// </summary>
     public async Task<SyncPushResponse> ApplyAsync(
-        SyncPushRequest request, IReadOnlyList<SyncTable> catalogue, CancellationToken ct = default)
+        SyncPushRequest request, IReadOnlyList<SyncTable> catalogue, CancellationToken ct = default,
+        ApplyOptions? options = null)
     {
+        options ??= new ApplyOptions();
         var errors = new List<string>();
 
         var table = catalogue.FirstOrDefault(t =>
@@ -115,7 +122,7 @@ public sealed class SyncReceiveStore(string connectionString, ILogger logger)
 
         // Drain what an earlier batch could not place yet. Doing it first means a parent that has
         // just arrived immediately unblocks its children, without waiting for a run to finish.
-        var (drainedOk, drainedStillStuck) = await DrainDeferredAsync(conn, request.TenantId, catalogue, columns, table, ct);
+        var (drainedOk, drainedStillStuck) = await DrainDeferredAsync(conn, request.TenantId, catalogue, columns, table, options, ct);
         applied  += drainedOk;
         deferred += drainedStillStuck;
 
@@ -125,7 +132,7 @@ public sealed class SyncReceiveStore(string connectionString, ILogger logger)
             {
                 if (ct.IsCancellationRequested) break;
 
-                var outcome = await ApplyRowAsync(conn, tx, table, columns, request.TenantId, row, ct);
+                var outcome = await ApplyRowAsync(conn, tx, table, columns, request.TenantId, row, options, ct);
                 switch (outcome.Kind)
                 {
                     case RowOutcome.Applied:  applied++;  break;
@@ -161,7 +168,7 @@ public sealed class SyncReceiveStore(string connectionString, ILogger logger)
     private async Task<RowResult> ApplyRowAsync(
         SqlConnection conn, SqlTransaction tx, SyncTable table,
         IReadOnlyDictionary<string, ColumnInfo> columns, Guid tenantId, SyncRowDto row,
-        CancellationToken ct)
+        ApplyOptions options, CancellationToken ct)
     {
         if (row.Key.Count != table.KeyColumns.Count)
             return new RowResult(RowOutcome.Rejected,
@@ -184,6 +191,8 @@ public sealed class SyncReceiveStore(string connectionString, ILogger logger)
         {
             if (row.Op == "D")
             {
+                // An opening balance is a starting point, not a mirror: the receiver owns the row afterwards.
+                if (options.InsertOnly) return new RowResult(RowOutcome.Applied, null);
                 await DeleteAsync(conn, tx, table, row.Key, ct);
                 return new RowResult(RowOutcome.Applied, null);
             }
@@ -191,7 +200,10 @@ public sealed class SyncReceiveStore(string connectionString, ILogger logger)
             if (row.Data is null)
                 return new RowResult(RowOutcome.Rejected, $"{table.Name}: an upsert arrived with no row data.");
 
-            await UpsertAsync(conn, tx, table, columns, row, ct);
+            if (options.AdjustProductTotals && table.Name.Equals("inventory.product_stock", StringComparison.OrdinalIgnoreCase))
+                row = await StockTotals.ApplyAsync(conn, tx, table, row, tenantId, ct);
+
+            await UpsertAsync(conn, tx, table, columns, row, options.InsertOnly, ct);
             return new RowResult(RowOutcome.Applied, null);
         }
         catch (SqlException ex) when (IsForeignKeyViolation(ex))
@@ -209,7 +221,7 @@ public sealed class SyncReceiveStore(string connectionString, ILogger logger)
 
     private static async Task UpsertAsync(
         SqlConnection conn, SqlTransaction tx, SyncTable table,
-        IReadOnlyDictionary<string, ColumnInfo> columns, SyncRowDto row, CancellationToken ct)
+        IReadOnlyDictionary<string, ColumnInfo> columns, SyncRowDto row, bool insertOnly, CancellationToken ct)
     {
         var data = row.Data!;
         var keySet = table.KeyColumns.ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -221,7 +233,20 @@ public sealed class SyncReceiveStore(string connectionString, ILogger logger)
 
         // Update first, insert if nothing matched. Not MERGE - it has a long history of concurrency
         // surprises, and this is the only writer on the mirror.
-        var sql = setCols.Count > 0
+        // Opening balances: insert when the key is absent AND no row already covers the same natural key
+        // (a branch that sold before its first pull has its own row for the product and warehouse).
+        var natural = insertOnly ? BranchSyncCatalog.NaturalKeyOf(table.Name) : null;
+        var naturalGuard = natural is { Count: > 0 } && natural.All(c => data.ContainsKey(c))
+            ? " AND NOT EXISTS (SELECT 1 FROM " + table.Qualified + " WHERE " + string.Join(" AND ", natural.Select(c => $"[{c}] = @c_{c}")) + ")"
+            : "";
+
+        var sql = insertOnly
+            ? $"""
+               IF NOT EXISTS (SELECT 1 FROM {table.Qualified} WHERE {where}){naturalGuard}
+                   INSERT INTO {table.Qualified} ({string.Join(", ", writable.Select(c => $"[{c}]"))})
+                   VALUES ({string.Join(", ", writable.Select(c => $"@c_{c}"))});
+               """
+            : setCols.Count > 0
             ? $"""
                UPDATE {table.Qualified}
                SET    {string.Join(", ", setCols.Select(c => $"[{c}] = @c_{c}"))}
@@ -318,7 +343,7 @@ public sealed class SyncReceiveStore(string connectionString, ILogger logger)
     /// </summary>
     private async Task<(int Applied, int StillDeferred)> DrainDeferredAsync(
         SqlConnection conn, Guid tenantId, IReadOnlyList<SyncTable> catalogue,
-        IReadOnlyDictionary<string, ColumnInfo> columns, SyncTable table, CancellationToken ct)
+        IReadOnlyDictionary<string, ColumnInfo> columns, SyncTable table, ApplyOptions options, CancellationToken ct)
     {
         var held = new List<(long Id, SyncRowDto Row)>();
 
@@ -347,7 +372,7 @@ public sealed class SyncReceiveStore(string connectionString, ILogger logger)
         await using var tx = (SqlTransaction)await conn.BeginTransactionAsync(ct);
         foreach (var (id, row) in held)
         {
-            var outcome = await ApplyRowAsync(conn, tx, table, columns, tenantId, row, ct);
+            var outcome = await ApplyRowAsync(conn, tx, table, columns, tenantId, row, options, ct);
             if (outcome.Kind == RowOutcome.Applied)
             {
                 await using var del = conn.CreateCommand();

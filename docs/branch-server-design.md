@@ -110,7 +110,7 @@ splits, tips, delivery legs created at the branch, offline-sync ledger.
 POS: shifts (`pos_sessions`), transactions, cash movements, stock movements for the branch's
 warehouse, house-account charges and payments made at the branch.
 Compliance: FBR invoice status/numbers for the branch's bills.
-Inventory: the branch warehouse's stock quantities.
+Inventory: the branch warehouse's stock quantities and movements (rows keyed by the branch's own warehouse). The catalogue (products, categories, brands, units, warehouses) is cloud-owned; a branch's opening stock is sent down once, insert-only. See CLAUDE.md Module 89 step 3b.
 
 ### 4.2 Owned by the cloud (flows down)
 

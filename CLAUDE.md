@@ -8909,9 +8909,39 @@ selected module needs. `ecommerce` is in the rules but in no picker until the mo
   created), stock totals and per-warehouse buckets, flags kept, POS rows marked, record written, no NULL-tenant rows, then the
   till on the moved workspace (list, barcode, a sale, a new product, branch stock). Panel checked in a browser on a blocked
   workspace. Test data removed.
-- **Not built / still to do:** (1) **branch-server sync** — `BranchSyncCatalog` covers restaurant/pos/identity only; before a
-  branch-server workspace can move, `inventory` products (head-office-owned, flow down) and `product_stock`/warehouses
-  (branch-owned per branch) must be classified, with the catalogue test extended; (2) **no automatic move-back** — the POS
-  rows are kept, but stock changes made after the move live in Inventory; reversing means copying stock back by hand;
-  (3) the move does not rewrite `pos.stock_movements` history; (4) on-prem single-store installs should run it on the box
-  itself, after a backup.
+- **Not built / still to do:** (1) **no automatic move-back** — the POS rows are kept, but stock changes made after the move
+  live in Inventory; reversing means copying stock back by hand; (2) the move does not rewrite `pos.stock_movements`
+  history; (3) on-prem single-store installs should run it on the box itself, after a backup. (Branch-server workspaces
+  can now be moved — see step 3b.)
+
+### Step 3b — the branch-server sync carries Inventory (done; verified with a real cloud + branch pair)
+- **Catalogue:** `inventory` is a classified schema in `BranchSyncCatalog` (the live-table test covers it). **Down (cloud-owned):**
+  `products`, `product_categories`, `brands`, `units_of_measure`, `warehouses`, `product_templates`. **Up (branch-owned):**
+  `product_stock`, `stock_movements`. **Not synced:** `product_batches`, `stock_transfers`(+items), `product_images`,
+  `catalogue_moves`.
+- **Stock is owned by warehouse, not by branch** (the tables have no BranchId): `BranchSyncCatalog.WarehouseOwned`. A branch
+  pushes only rows of warehouses whose `BranchId` is its own (`BranchWarehouses`, local query) and never deletes; the cloud
+  re-checks every row and answers 403 for another branch's or the head-office warehouse, or a movement with no warehouse.
+  Head-office warehouse rows therefore never go up, and the branch only ever receives its own warehouse (`BranchPullFilter`).
+- **Opening balance:** `BranchSyncCatalog.OpeningBalances` (`product_stock`) is ALSO sent down, once, insert-only
+  (`ApplyOptions.InsertOnly`): a row the branch already holds — by id or by (product, warehouse) — is never overwritten and
+  deletes are ignored, because from then on the branch changes it. So a catalogue move's per-branch quantities reach the
+  branch, and a later head-office edit of a branch warehouse's quantity does NOT (change branch stock at the branch).
+- **Product total on the cloud:** `inventory.products.StockQuantity` moves by the CHANGE in the pushed row
+  (`StockTotals`, `ApplyOptions.AdjustProductTotals`, branch pushes only — the on-prem→cloud mirror is untouched), so a re-sent
+  row adds nothing. A branch row for a (product, warehouse) the cloud holds under another id updates that row instead of
+  inserting a second one (the unique index would refuse it and stop the branch syncing).
+- **Catalogue move:** the "runs branch servers" blocker is replaced by: every `ServerMode='local'` branch must have uploaded
+  in the last 15 minutes with no failures (`sync.branch_status`), else the move is refused and names the branch. A warning
+  says to move when tills are closed — a sale not yet uploaded is not in the opening balance.
+- **Known limits:** a branch that sells before its first pull starts that product from 0 (not the opening figure) — sync once
+  before trading; opening rows echo back up once after arriving (harmless, delta 0); stock transfers and batches are not carried.
+- **Verified (cloud on :5301 + branch on :5302, two LocalDB databases, real sync, then dropped):** first sync delivers exactly the
+  branch's slice (no other branch's warehouse or stock, no head-office stock, no move record); a branch sale moves the branch row
+  28 and the cloud total 100→98 while the head-office row stays 60; a stray head-office row/movement written at the branch is not
+  pushed; a head-office edit of the opening row (999) is not applied at the branch while a price change is; 12 attack/edge
+  pushes behave (403s, new-id natural-key update, re-send adds nothing, delete ignored); the move preview names a silent branch,
+  then with it settled the move ran, totals = head office + branches, the branch got the new products + its own opening stock,
+  its POS rows disappeared, and its product list and barcode lookup were served from Inventory.
+- **Not verified:** a real till sale on the branch after the move (the SQL equivalent was exercised), the two-branch case with both
+  branches running, the cloud-mirror (on-prem→cloud) path after these changes beyond unit tests.

@@ -51,6 +51,30 @@ internal static class CatalogueMoveSupport
     private static async Task<decimal> Dec(InventoryDbContext db, string sql, Guid t, CancellationToken ct) =>
         (await db.Database.SqlQueryRaw<DecRow>(sql, T(t)).ToListAsync(ct)).First().Value;
 
+    private sealed class NameRow { public string? Value { get; set; } }
+
+    /// <summary>
+    /// Branch-server branches of the workspace that have not uploaded within 15 minutes or are failing. When the
+    /// sync bookkeeping does not exist at all (no branch has ever synced), every branch-server branch is listed.
+    /// </summary>
+    private static async Task<List<string>> BranchesNotInContactAsync(InventoryDbContext db, Guid t, CancellationToken ct)
+    {
+        const string all = "SELECT br.Name AS Value FROM [identity].[branches] br WHERE br.TenantId = @t AND br.IsDeleted = 0 AND br.ServerMode = 'local'";
+        try
+        {
+            var rows = await db.Database.SqlQueryRaw<NameRow>(all + """
+                 AND NOT EXISTS (SELECT 1 FROM [sync].[branch_status] s
+                                 WHERE s.BranchId = br.Id AND s.LastUpOkAt > DATEADD(MINUTE, -15, SYSUTCDATETIME()) AND s.ConsecutiveFailures = 0)
+                """, T(t)).ToListAsync(ct);
+            return rows.Select(r => r.Value ?? "Unnamed branch").ToList();
+        }
+        catch (SqlException)
+        {
+            var rows = await db.Database.SqlQueryRaw<NameRow>(all, T(t)).ToListAsync(ct);
+            return rows.Select(r => r.Value ?? "Unnamed branch").ToList();
+        }
+    }
+
     public static async Task<CatalogueMoveStatusDto?> StatusAsync(InventoryDbContext db, Guid t, CancellationToken ct)
     {
         var tenant = (await db.Database.SqlQueryRaw<TenantRow>(
@@ -147,8 +171,16 @@ internal static class CatalogueMoveSupport
         var blockers = new List<string>();
         if (tenant.IsMirror)
             blockers.Add("This workspace is the cloud mirror of an on-premises installation. Move the catalogue on the on-premises server, not here.");
-        if (tenant.BranchServersEnabled)
-            blockers.Add("This workspace runs branch servers. Their sync does not carry Inventory yet, so moving the catalogue would leave the branch tills without products. Not available until that sync is extended.");
+        // Branch servers: the sync carries Inventory (catalogue down, a branch warehouse's stock up), but a branch
+        // that is not in touch cannot be seen to have received the move, and stock it sold but has not uploaded
+        // would be missing from the opening balances. Every branch server must have uploaded in the last 15 minutes.
+        var silentBranches = tenant.BranchServersEnabled
+            ? await BranchesNotInContactAsync(db, t, ct)
+            : [];
+        if (silentBranches.Count > 0)
+            blockers.Add("This workspace runs branch servers, and these have not uploaded in the last 15 minutes (or have errors): "
+                         + string.Join(", ", silentBranches)
+                         + ". Wait until every branch server has synced, then check again.");
         if (posProducts == 0)
             blockers.Add(invProducts > 0 ? "The catalogue is already in Inventory." : "There are no POS products to move.");
         if (deletedTwins > 0)
@@ -166,6 +198,8 @@ internal static class CatalogueMoveSupport
             warnings.Add("A warehouse is created for each branch that has none, named after the branch.");
         if (already > 0)
             warnings.Add($"{already} product(s) already exist in Inventory under the same id; they are left exactly as they are and not counted as moved.");
+        if (tenant.BranchServersEnabled)
+            warnings.Add("Branch servers: each branch receives the catalogue and its own warehouse's opening stock on its next sync. Do the move when the tills are closed - a sale a branch has made but not yet uploaded is not in the opening balance, and a branch cannot trade on Inventory stock until it has synced once.");
         warnings.Add("POS stock history stays where it is as read-only history. The POS rows are kept (marked as moved) and are not deleted.");
 
         var state = posProducts > 0 ? "on_pos" : invProducts > 0 ? "on_inventory" : "empty";

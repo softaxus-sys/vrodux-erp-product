@@ -35,7 +35,7 @@ public sealed record BranchSyncEntry(string Table, SyncOwner Owner, string Reaso
 public static class BranchSyncCatalog
 {
     /// <summary>Schemas this catalogue classifies. Other modules stay cloud-only for now.</summary>
-    public static readonly string[] Schemas = ["restaurant", "pos", "identity"];
+    public static readonly string[] Schemas = ["restaurant", "pos", "identity", "inventory"];
 
     public static readonly IReadOnlyList<BranchSyncEntry> All =
     [
@@ -137,6 +137,20 @@ public static class BranchSyncCatalog
         new("pos.purchase_order_items",          SyncOwner.NotSynced, "Back-office; stays in the cloud."),
         new("pos.sales_orders",                  SyncOwner.NotSynced, "Back-office; stays in the cloud."),
         new("pos.sales_order_items",             SyncOwner.NotSynced, "Back-office; stays in the cloud."),
+        // ── Inventory: the catalogue is head office's; a branch's own warehouse stock is the branch's ──
+        new("inventory.products",                SyncOwner.Cloud,     "Catalogue. The product's total quantity is recomputed on the cloud from the branch warehouses' changes."),
+        new("inventory.product_categories",      SyncOwner.Cloud,     "Catalogue."),
+        new("inventory.brands",                  SyncOwner.Cloud,     "Catalogue."),
+        new("inventory.units_of_measure",        SyncOwner.Cloud,     "Catalogue."),
+        new("inventory.warehouses",              SyncOwner.Cloud,     "Head office creates each branch's warehouse; rows with a BranchId reach only that branch."),
+        new("inventory.product_templates",       SyncOwner.Cloud,     "Online listing a variant product points at (foreign key)."),
+        new("inventory.product_stock",           SyncOwner.Branch,    "Stock held in the branch's own warehouse - changed by its sales. Head-office warehouse rows never go up."),
+        new("inventory.stock_movements",         SyncOwner.Branch,    "Movements in the branch's own warehouse. Head-office warehouse rows never go up."),
+        new("inventory.product_batches",         SyncOwner.NotSynced, "Batch and expiry tracking stays at head office."),
+        new("inventory.stock_transfers",         SyncOwner.NotSynced, "Transfers are head-office documents; not carried to branch servers yet."),
+        new("inventory.stock_transfer_items",    SyncOwner.NotSynced, "Lines of a transfer."),
+        new("inventory.product_images",          SyncOwner.NotSynced, "Online-listing photos are large and only the online store uses them."),
+        new("inventory.catalogue_moves",         SyncOwner.NotSynced, "Operator audit record of a catalogue move."),
         new("pos.sales_quotations",              SyncOwner.NotSynced, "Back-office; stays in the cloud."),
         new("pos.sales_quotation_items",         SyncOwner.NotSynced, "Back-office; stays in the cloud."),
         new("pos.vendors",                       SyncOwner.NotSynced, "Back-office; stays in the cloud."),
@@ -196,6 +210,32 @@ public static class BranchSyncCatalog
             ["identity.role_permissions"] = new(ScopeKind.ByParent, "identity.roles", "RoleId"),
             ["identity.team_members"]     = new(ScopeKind.ByParent, "identity.teams", "TeamId"),
         };
+
+/// <summary>
+    /// Branch-owned tables whose rows are keyed by a warehouse rather than carrying a BranchId. A row belongs to
+    /// the branch only if its warehouse does (<c>inventory.warehouses.BranchId</c>). Head-office warehouse rows
+    /// are never pushed up by a branch, and the cloud rejects a push that names another branch's warehouse.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> WarehouseOwned =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["inventory.product_stock"]   = "WarehouseId",
+            ["inventory.stock_movements"] = "WarehouseId",
+        };
+
+    /// <summary>
+    /// Branch-owned tables the cloud ALSO sends down, once, so a branch starts from the opening quantity head
+    /// office recorded (a catalogue move, a stock count). Applied insert-only: a row the branch already has
+    /// is never overwritten, because from then on the branch is the one changing it.
+    /// </summary>
+    public static readonly IReadOnlySet<string> OpeningBalances =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "inventory.product_stock" };
+
+    public static bool IsOpeningBalance(string schemaDotTable) => OpeningBalances.Contains(schemaDotTable);
+
+    /// <summary>Columns that identify a row to people regardless of its id (a unique index backs each).</summary>
+    public static IReadOnlyList<string>? NaturalKeyOf(string schemaDotTable) =>
+        schemaDotTable.Equals("inventory.product_stock", StringComparison.OrdinalIgnoreCase) ? ["ProductId", "WarehouseId"] : null;
 
     public static IEnumerable<BranchSyncEntry> OwnedBy(SyncOwner owner) =>
         All.Where(e => e.Owner == owner);

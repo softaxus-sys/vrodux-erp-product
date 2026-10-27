@@ -76,8 +76,31 @@ public sealed class BranchSyncController(
             }
         }
 
+        // Stock rows are keyed by warehouse. A branch may only write rows of its OWN warehouses - head
+        // office's rows and other branches' rows are not its to change. Deletes carry no warehouse, so they are not accepted.
+        if (BranchSyncCatalog.WarehouseOwned.TryGetValue(table.Name, out var warehouseColumn))
+        {
+            var mine = await filter.WarehousesOfAsync(cred.TenantId, cred.BranchId, ct);
+            foreach (var row in request.Rows)
+            {
+                if (row.Data is null) continue;
+                var ok = row.Data.TryGetValue(warehouseColumn, out var w) && w is not null
+                         && Guid.TryParse(w.ToString(), out var wid) && mine.Contains(wid);
+                if (!ok)
+                {
+                    logger.LogWarning("Branch sync: branch {Branch} sent a {Table} row for a warehouse that is not its own.",
+                        cred.BranchId, table.Name);
+                    return StatusCode(StatusCodes.Status403Forbidden,
+                        new { error = $"{table.Name}: a row is for a warehouse that does not belong to this branch." });
+                }
+            }
+            request = request with { Rows = request.Rows.Where(r => r.Data is not null).ToList() };
+        }
+
         await store.EnsureCreatedAsync(ct);
-        return Ok(await store.ApplyAsync(request with { LicenseKey = string.Empty }, catalogue, ct));
+        // A branch's warehouse stock moves the product's head-office total by the same amount.
+        var options = new ApplyOptions(AdjustProductTotals: table.Name.Equals("inventory.product_stock", StringComparison.OrdinalIgnoreCase));
+        return Ok(await store.ApplyAsync(request with { LicenseKey = string.Empty }, catalogue, ct, options));
     }
 
     // ── DOWN: the branch pulls what head office owns ──────────────────────────
@@ -92,7 +115,7 @@ public sealed class BranchSyncController(
         if (cred is null) return Unauthorized(new { error = "Unknown branch or wrong key." });
         BranchPresence.Seen(cred.BranchId);
 
-        var t = (await TablesAsync(SyncOwner.Cloud, ct))
+        var t = (await TablesAsync(SyncOwner.Cloud, ct, includeOpeningBalances: true))
             .FirstOrDefault(x => x.Name.Equals(table, StringComparison.OrdinalIgnoreCase));
         if (t is null)
             return StatusCode(StatusCodes.Status403Forbidden, new { error = $"'{table}' is not served to branches." });
@@ -165,9 +188,10 @@ public sealed class BranchSyncController(
         return await keys.AuthenticateAsync(branchId, key, Request.Headers["X-Branch-Machine"].FirstOrDefault(), ct);
     }
 
-    private async Task<IReadOnlyList<SyncTable>> TablesAsync(SyncOwner owner, CancellationToken ct)
+    private async Task<IReadOnlyList<SyncTable>> TablesAsync(SyncOwner owner, CancellationToken ct, bool includeOpeningBalances = false)
     {
         var names = BranchSyncCatalog.OwnedBy(owner).Select(e => e.Table).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (includeOpeningBalances) names.UnionWith(BranchSyncCatalog.OpeningBalances);
         var existing = await schema.ReadTablesAsync(BranchSyncCatalog.Schemas, ct);
         var tables = existing
             .Where(t => t.KeyColumns.Count > 0 && names.Contains($"{t.Schema}.{t.Table}"))
