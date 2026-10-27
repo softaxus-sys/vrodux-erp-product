@@ -8885,3 +8885,33 @@ selected module needs. `ecommerce` is in the rules but in no picker until the mo
   still fall through to `pos.products` rows by raw SQL (removed with the move); an Inventory screen can still create a
   duplicate barcode (only the till path enforces uniqueness); the stock-adjustment history lives in
   `inventory.stock_movements` for these workspaces, not `pos.stock_movements`.
+
+### Step 3 — moving a workspace's catalogue into Inventory (done; operator-run, one workspace at a time)
+- **Where:** Super-admin → tenant → **Products** tab (`catalogue-move-panel.tsx`), API `api/admin/catalogue-move/{tenantId}`
+  (`SuperAdminOnly`): `GET` status, `GET …/preview` (dry run, changes nothing), `POST …/run`. Code in
+  `Inventory.Infrastructure/Handlers/CatalogueMove` (raw SQL with explicit tenant ids — the caller has no tenant context
+  and the move spans two schemas). New table `inventory.catalogue_moves` (migration `AddCatalogueMoves`): one record per
+  move with the dry-run report as it stood.
+- **What the move does, in ONE transaction** (per-workspace `sp_getapplock`, `XACT_ABORT`): maps each POS category to the
+  Inventory category with the same id, else the same name, else creates it under its own id; copies every live
+  `pos.products` row into `inventory.products` **with the same id** (sale lines, offline queues and sync refs only store ids);
+  head-office stock goes into the workspace's head-office warehouse (created as "Main Warehouse" if none), each branch's
+  `pos.branch_stock` into that branch's warehouse (created, named after the branch, if none); product total = head office +
+  branches so it equals the sum of buckets; then marks the POS rows `IsDeleted` with `DeletedBy='moved-to-inventory'`
+  (kept, not dropped). A product already in Inventory under the same id is left untouched. After this the step-2 rule
+  (no live POS products) puts the workspace on Inventory automatically.
+- **Blocks the move** (dry run lists each reason): workspace is a cloud mirror of an on-prem install; **runs branch servers**
+  (their sync does not carry Inventory yet — see below); no POS products / already moved; a POS product's SKU or barcode is
+  used by a *different* Inventory product (listed pair by pair); a POS id that exists soft-deleted in Inventory. The run
+  re-checks everything at the moment it executes, and two simultaneous runs → one wins, one gets 409.
+- **Verified:** 51 scripted API checks (4 throwaway workspaces on LocalDB): access control, dry-run figures, clash /
+  branch-server / empty blockers, refused runs change nothing, concurrent runs, category matching (same id / same name /
+  created), stock totals and per-warehouse buckets, flags kept, POS rows marked, record written, no NULL-tenant rows, then the
+  till on the moved workspace (list, barcode, a sale, a new product, branch stock). Panel checked in a browser on a blocked
+  workspace. Test data removed.
+- **Not built / still to do:** (1) **branch-server sync** — `BranchSyncCatalog` covers restaurant/pos/identity only; before a
+  branch-server workspace can move, `inventory` products (head-office-owned, flow down) and `product_stock`/warehouses
+  (branch-owned per branch) must be classified, with the catalogue test extended; (2) **no automatic move-back** — the POS
+  rows are kept, but stock changes made after the move live in Inventory; reversing means copying stock back by hand;
+  (3) the move does not rewrite `pos.stock_movements` history; (4) on-prem single-store installs should run it on the box
+  itself, after a backup.

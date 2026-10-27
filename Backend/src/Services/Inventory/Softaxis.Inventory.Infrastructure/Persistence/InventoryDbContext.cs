@@ -19,6 +19,7 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     public DbSet<StockTransferItem> StockTransferItems => Set<StockTransferItem>();
     public DbSet<ProductTemplate> ProductTemplates => Set<ProductTemplate>();
     public DbSet<ProductImage>    ProductImages    => Set<ProductImage>();
+    public DbSet<CatalogueMove>   CatalogueMoves   => Set<CatalogueMove>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -19,6 +19,7 @@ import {
 } from "@/lib/admin/tenants.api";
 import { ModuleSelector, PLAN_DEFAULTS, industryModuleDefaults, moduleSetsEqual } from "./module-selector";
 import { INDUSTRY_OPTIONS } from "@/config/industry-packs";
+import { CatalogueMovePanel } from "./catalogue-move-panel";
 
 // ── License Panel ─────────────────────────────────────────────────────────────
 
@@ -405,7 +406,7 @@ function Card({ children, className }: { children: React.ReactNode; className?: 
 
 const PLANS: PlanType[] = [...ASSIGNABLE_PLANS];
 
-type TenantTab = "overview" | "modules" | "license" | "subscription" | "connections";
+type TenantTab = "overview" | "modules" | "catalogue" | "license" | "subscription" | "connections";
 
 export function TenantDetailPage() {
   const navigate = useNavigate();
@@ -548,6 +549,8 @@ export function TenantDetailPage() {
   const allTabs: { id: TenantTab; label: string; show?: boolean }[] = [
     { id: "overview",     label: "Overview" },
     { id: "modules",      label: "Modules" },
+    // Only a workspace with a till has a POS catalogue that could need moving.
+    { id: "catalogue",    label: "Products", show: tenant.resolvedModules.some(m => m === "pos" || m === "restaurant") },
     { id: "subscription", label: "Subscription", show: tenant.deploymentType === "Cloud" },
     { id: "license",      label: "License",      show: tenant.deploymentType === "OnPremises" },
     { id: "connections",  label: "Connections",  show: tenant.deploymentType === "OnPremises" },
@@ -804,6 +807,7 @@ export function TenantDetailPage() {
         )}
 
         {tab === "modules"      && <Card><ModulesPanel tenant={tenant} onUpdated={onUpdated} /></Card>}
+        {tab === "catalogue"    && <Card><CatalogueMovePanel tenantId={tenant.id} tenantName={tenant.name} /></Card>}
         {tab === "subscription" && tenant.deploymentType === "Cloud"      && <Card><CloudSubscriptionPanel tenant={tenant} onUpdated={onUpdated} /></Card>}
         {tab === "license"      && tenant.deploymentType === "OnPremises" && <Card><LicensePanel tenant={tenant} onUpdated={onUpdated} /></Card>}
         {tab === "connections"  && tenant.deploymentType === "OnPremises" && <Card><ConnectionStringsPanel tenant={tenant} onUpdated={onUpdated} /></Card>}

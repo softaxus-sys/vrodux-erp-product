@@ -77,6 +77,47 @@ namespace Softaxis.Inventory.Infrastructure.Persistence.Migrations
                     b.ToTable("brands", "inventory");
                 });
 
+            modelBuilder.Entity("Softaxis.Inventory.Domain.Entities.CatalogueMove", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AlreadyThere")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CategoriesCreated")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("MovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MovedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ProductsMoved")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Report")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StockBuckets")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("WarehousesCreated")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("catalogue_moves", "inventory");
+                });
+
             modelBuilder.Entity("Softaxis.Inventory.Domain.Entities.Product", b =>
                 {
                     b.Property<Guid>("Id")
