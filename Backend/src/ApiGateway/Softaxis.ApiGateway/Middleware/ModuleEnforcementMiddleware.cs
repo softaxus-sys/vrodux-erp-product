@@ -53,6 +53,7 @@ public sealed class ModuleEnforcementMiddleware(RequestDelegate next)
             ["/api/manufacturing/"]     = ModuleCodes.Manufacturing,
             ["/api/library/"]           = ModuleCodes.Library,
             ["/api/trade/"]             = ModuleCodes.Trade,
+            ["/api/ecommerce/"]         = ModuleCodes.Ecommerce,
             ["/api/leadgen/"]           = ModuleCodes.LeadGen,
             // Includes the public snippet.js / ping / rules endpoints — harmless, since those are
             // anonymous and line 94's "not authenticated" check already lets them pass through

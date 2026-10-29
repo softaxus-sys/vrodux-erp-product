@@ -39,6 +39,7 @@ export const ALL_MODULES: ModuleInfo[] = [
   { code: "b2b",                 label: "B2B",                   desc: "Proposals, contracts, support tickets"                  },
   { code: "visa",                label: "Visa Services",         desc: "Visa case management, document checklists"              },
   { code: "manufacturing",       label: "Manufacturing",        desc: "Bills of materials, production orders (adds Inventory)" },
+  { code: "ecommerce",           label: "E-commerce",            desc: "Sell Inventory products on Shopify and other stores (adds Inventory)" },
   { code: "library",             label: "Library",               desc: "Catalogue, members, lending and fines across branches"  },
   { code: "trade",               label: "Import / Export",       desc: "Shipments, trade documents, landed cost, LC and payments" },
   { code: "seo",                 label: "SEO AI Agent",         desc: "Autopilot site audits, AI-proposed SEO fixes (add-on)"  },
@@ -102,7 +103,7 @@ function ALL_MODULES_CODES(): string[] {
   return [
     "pos", "restaurant", "recipe", "inventory", "purchase", "sales", "crm", "finance", "hr",
     "reports", "project-management", "real-estate", "construction", "hospitality", "healthcare",
-    "education", "insurance", "b2b", "visa", "manufacturing", "library", "trade", "settings", "users",
+    "education", "insurance", "b2b", "visa", "manufacturing", "ecommerce", "library", "trade", "settings", "users",
   ];
 }
 
@@ -135,6 +136,7 @@ const CHIP_STYLE: Record<string, string> = {
   "b2b":                "bg-slate-100   border-slate-400   text-slate-700   dark:bg-slate-900/40   dark:border-slate-500   dark:text-slate-300",
   "visa":               "bg-green-100   border-green-400   text-green-800   dark:bg-green-900/40   dark:border-green-600   dark:text-green-300",
   "manufacturing":      "bg-zinc-100    border-zinc-400    text-zinc-800    dark:bg-zinc-900/40    dark:border-zinc-500    dark:text-zinc-300",
+  "ecommerce":          "bg-emerald-100 border-emerald-400 text-emerald-800 dark:bg-emerald-900/40 dark:border-emerald-600 dark:text-emerald-300",
   "library":            "bg-indigo-100  border-indigo-400  text-indigo-800  dark:bg-indigo-900/40  dark:border-indigo-600  dark:text-indigo-300",
   "trade":              "bg-sky-100     border-sky-400     text-sky-800     dark:bg-sky-900/40     dark:border-sky-600     dark:text-sky-300",
   "seo":                "bg-stone-100   border-stone-400   text-stone-800   dark:bg-stone-900/40   dark:border-stone-500   dark:text-stone-300",

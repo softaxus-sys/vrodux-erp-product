@@ -99,6 +99,12 @@
     <Project Path="src/Services/LeadGen/Softaxis.LeadGen.Domain/Softaxis.LeadGen.Domain.csproj" />
     <Project Path="src/Services/LeadGen/Softaxis.LeadGen.Infrastructure/Softaxis.LeadGen.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/Ecommerce/">
+    <Project Path="src/Services/Ecommerce/Softaxis.Ecommerce.API/Softaxis.Ecommerce.API.csproj" />
+    <Project Path="src/Services/Ecommerce/Softaxis.Ecommerce.Application/Softaxis.Ecommerce.Application.csproj" />
+    <Project Path="src/Services/Ecommerce/Softaxis.Ecommerce.Domain/Softaxis.Ecommerce.Domain.csproj" />
+    <Project Path="src/Services/Ecommerce/Softaxis.Ecommerce.Infrastructure/Softaxis.Ecommerce.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/Trade/">
     <Project Path="src/Services/Trade/Softaxis.Trade.API/Softaxis.Trade.API.csproj" />
     <Project Path="src/Services/Trade/Softaxis.Trade.Application/Softaxis.Trade.Application.csproj" />
@@ -152,5 +158,6 @@
     <Project Path="tests/Softaxis.POS.Tests/Softaxis.POS.Tests.csproj" />
     <Project Path="tests/Softaxis.CRM.Tests/Softaxis.CRM.Tests.csproj" />
     <Project Path="tests/Softaxis.BuildingBlocks.Tests/Softaxis.BuildingBlocks.Tests.csproj" />
+    <Project Path="tests/Softaxis.Ecommerce.Tests/Softaxis.Ecommerce.Tests.csproj" />
   </Folder>
 </Solution>

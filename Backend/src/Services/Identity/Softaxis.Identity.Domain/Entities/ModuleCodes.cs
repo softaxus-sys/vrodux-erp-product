@@ -47,6 +47,9 @@ public static class ModuleCodes
     // ── Import / Export (trade) ──────────────────────────────────────────────
     public const string Trade = "trade";
 
+    // ── E-commerce (online stores: Shopify, later WooCommerce) ───────────────
+    public const string Ecommerce = "ecommerce";
+
     // ── Lead Generation (prospect search, credits, cold outreach) ────────────
     public const string LeadGen = "leadgen";
 

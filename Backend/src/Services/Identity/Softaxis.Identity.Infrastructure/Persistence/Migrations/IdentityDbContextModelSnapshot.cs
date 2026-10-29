@@ -18,7 +18,7 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("identity")
-                .HasAnnotation("ProductVersion", "9.0.21")
+                .HasAnnotation("ProductVersion", "9.0.20")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -2902,6 +2902,132 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "edit",
                             Description = "Edit trade payments",
                             ModuleId = "trade.payments"
+                        },
+                        new
+                        {
+                            Id = new Guid("b366272c-5bb4-19ad-c5cb-3a50284117f0"),
+                            Action = "view",
+                            Description = "View ecommerce channels",
+                            ModuleId = "ecommerce.channels"
+                        },
+                        new
+                        {
+                            Id = new Guid("09ada7ad-1fc4-3722-b5d1-0e87628b8604"),
+                            Action = "create",
+                            Description = "Create ecommerce channels",
+                            ModuleId = "ecommerce.channels"
+                        },
+                        new
+                        {
+                            Id = new Guid("831ddd15-8126-8d75-49e3-3b5ff5d56619"),
+                            Action = "edit",
+                            Description = "Edit ecommerce channels",
+                            ModuleId = "ecommerce.channels"
+                        },
+                        new
+                        {
+                            Id = new Guid("067a383e-25ab-8eed-484f-63ffb53c25b9"),
+                            Action = "delete",
+                            Description = "Delete ecommerce channels",
+                            ModuleId = "ecommerce.channels"
+                        },
+                        new
+                        {
+                            Id = new Guid("93f9e367-0202-104f-6fd1-e97410c89dac"),
+                            Action = "view",
+                            Description = "View ecommerce listings",
+                            ModuleId = "ecommerce.listings"
+                        },
+                        new
+                        {
+                            Id = new Guid("55c33077-d1dd-d6d8-69b7-4ca1715ca4b4"),
+                            Action = "create",
+                            Description = "Create ecommerce listings",
+                            ModuleId = "ecommerce.listings"
+                        },
+                        new
+                        {
+                            Id = new Guid("991aefbe-28a1-5809-aea6-f743436632bd"),
+                            Action = "edit",
+                            Description = "Edit ecommerce listings",
+                            ModuleId = "ecommerce.listings"
+                        },
+                        new
+                        {
+                            Id = new Guid("0fb21706-01a9-7b95-74c4-eb65c2712501"),
+                            Action = "delete",
+                            Description = "Delete ecommerce listings",
+                            ModuleId = "ecommerce.listings"
+                        },
+                        new
+                        {
+                            Id = new Guid("9b0601d7-8537-99a4-4000-b89918b3a156"),
+                            Action = "view",
+                            Description = "View ecommerce orders",
+                            ModuleId = "ecommerce.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("c33b07d4-a2dd-8221-02dc-d482bd73c195"),
+                            Action = "edit",
+                            Description = "Edit ecommerce orders",
+                            ModuleId = "ecommerce.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("c347f5b2-6817-798c-d24a-d234779def4c"),
+                            Action = "refund",
+                            Description = "Refund ecommerce orders",
+                            ModuleId = "ecommerce.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("dd524030-e1de-f782-666c-170b853c4b3f"),
+                            Action = "view",
+                            Description = "View ecommerce store",
+                            ModuleId = "ecommerce.store"
+                        },
+                        new
+                        {
+                            Id = new Guid("c7ab99a7-6291-1cda-e766-bab2aaa0c6f6"),
+                            Action = "edit",
+                            Description = "Edit ecommerce store",
+                            ModuleId = "ecommerce.store"
+                        },
+                        new
+                        {
+                            Id = new Guid("27bd7f51-8dd3-7897-5ec3-0b828b89aa7c"),
+                            Action = "view",
+                            Description = "View ecommerce discounts",
+                            ModuleId = "ecommerce.discounts"
+                        },
+                        new
+                        {
+                            Id = new Guid("b64f0a1e-e831-78e0-b67c-dbe05b55d8c1"),
+                            Action = "create",
+                            Description = "Create ecommerce discounts",
+                            ModuleId = "ecommerce.discounts"
+                        },
+                        new
+                        {
+                            Id = new Guid("7b9d4da8-6f3d-472e-d375-a3b4bc78b87d"),
+                            Action = "edit",
+                            Description = "Edit ecommerce discounts",
+                            ModuleId = "ecommerce.discounts"
+                        },
+                        new
+                        {
+                            Id = new Guid("7b973349-8937-e6b0-5880-5ec57cf010e4"),
+                            Action = "delete",
+                            Description = "Delete ecommerce discounts",
+                            ModuleId = "ecommerce.discounts"
+                        },
+                        new
+                        {
+                            Id = new Guid("eb42d0f3-9e02-93bb-a56b-9ab7eab056b0"),
+                            Action = "view",
+                            Description = "View ecommerce customers",
+                            ModuleId = "ecommerce.customers"
                         },
                         new
                         {

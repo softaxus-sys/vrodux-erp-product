@@ -15,6 +15,8 @@ const ResetPasswordPage  = lazyWithRetry(() => import("@/pages/auth/reset-passwo
 const VerifyEmailPage    = lazyWithRetry(() => import("@/pages/auth/verify-email"));
 const PublicQuotationPage = lazyWithRetry(() => import("@/pages/public/quotation"));
 const LibraryPortalPage   = lazyWithRetry(() => import("@/pages/public/library-portal"));
+// A workspace's own online store served from the ERP address (/shop/:slug/...). Fully public.
+const StorefrontByPathPage = lazyWithRetry(() => import("@/pages/storefront/by-path"));
 
 // ── Core ──────────────────────────────────────────────────────────────────────
 const DashboardPage        = lazyWithRetry(() => import("@/pages/dashboard"));
@@ -143,6 +145,15 @@ const ManufacturingBomsPage   = lazyWithRetry(() => import("@/pages/manufacturin
 const ManufacturingDashboardPage   = lazyWithRetry(() => import("@/pages/manufacturing/dashboard"));
 const ManufacturingWorkCentresPage = lazyWithRetry(() => import("@/pages/manufacturing/work-centres"));
 const ManufacturingPlanningPage    = lazyWithRetry(() => import("@/pages/manufacturing/planning"));
+const EcommerceChannelsPage = lazyWithRetry(() => import("@/pages/ecommerce/channels"));
+const EcommerceListingsPage = lazyWithRetry(() => import("@/pages/ecommerce/listings"));
+const EcommerceOrdersPage   = lazyWithRetry(() => import("@/pages/ecommerce/orders"));
+const EcommerceStorePage        = lazyWithRetry(() => import("@/pages/ecommerce/store"));
+const EcommercePagesPage        = lazyWithRetry(() => import("@/pages/ecommerce/store-pages"));
+const EcommerceCollectionsPage  = lazyWithRetry(() => import("@/pages/ecommerce/store-collections"));
+const EcommerceStoreOrdersPage  = lazyWithRetry(() => import("@/pages/ecommerce/store-orders"));
+const EcommerceDiscountsPage    = lazyWithRetry(() => import("@/pages/ecommerce/store-discounts"));
+const EcommerceCustomersPage    = lazyWithRetry(() => import("@/pages/ecommerce/store-customers"));
 
 // ── Library ──────────────────────────────────────────────────────────────────
 const LibraryDashboardPage   = lazyWithRetry(() => import("@/pages/library/dashboard"));
@@ -365,6 +376,8 @@ export function App() {
         <Route path="/q/:token" element={<PublicQuotationPage />} />
         {/* Library members' own page: card number + PIN, no staff sign-in. */}
         <Route path="/library-portal/:slug" element={<LibraryPortalPage />} />
+        {/* A store's customers: browse, cart, checkout, their account. No staff sign-in. */}
+        <Route path="/shop/:slug/*" element={<StorefrontByPathPage />} />
 
         {/* Careers portal — fully public, no auth */}
         <Route path="/careers/:tenantSlug" element={<CareersJobsPage />} />
@@ -582,6 +595,17 @@ export function App() {
           </Route>
 
           {/* ── Manufacturing ───────────────────────────────────────────────── */}
+          <Route element={<ModuleGuard module="ecommerce" />}>
+            <Route path="/ecommerce/channels" element={<EcommerceChannelsPage />} />
+            <Route path="/ecommerce/listings" element={<EcommerceListingsPage />} />
+            <Route path="/ecommerce/orders"   element={<EcommerceOrdersPage />} />
+            <Route path="/ecommerce/store" element={<EcommerceStorePage />} />
+            <Route path="/ecommerce/store/pages" element={<EcommercePagesPage />} />
+            <Route path="/ecommerce/store/collections" element={<EcommerceCollectionsPage />} />
+            <Route path="/ecommerce/store/orders" element={<EcommerceStoreOrdersPage />} />
+            <Route path="/ecommerce/store/discounts" element={<EcommerceDiscountsPage />} />
+            <Route path="/ecommerce/store/customers" element={<EcommerceCustomersPage />} />
+          </Route>
           <Route element={<ModuleGuard module="manufacturing" />}>
             <Route path="/manufacturing/orders" element={<ManufacturingOrdersPage />} />
             <Route path="/manufacturing/boms"   element={<ManufacturingBomsPage />} />

@@ -55,6 +55,7 @@ export const MODULE_GROUPS: Record<string, string> = {
   "file-manager": "File Manager",
   seo: "SEO AI Agent",
   manufacturing: "Manufacturing",
+  ecommerce: "E-commerce",
   library: "Library",
   hospitality: "Hospitality & Tourism",
   trade: "Import / Export",
@@ -65,7 +66,7 @@ export const MODULE_GROUPS: Record<string, string> = {
 };
 
 export const GROUP_ORDER = [
-  "POS", "Restaurant", "Inventory", "Manufacturing", "Finance", "Sales", "Purchase", "Import / Export", "CRM", "Lead Generation",
+  "POS", "Restaurant", "Inventory", "E-commerce", "Manufacturing", "Finance", "Sales", "Purchase", "Import / Export", "CRM", "Lead Generation",
   "B2B", "Education", "Healthcare", "Insurance", "Visa Services", "Real Estate", "Library", "Hospitality & Tourism", "HR",
   "Project Management", "SEO AI Agent", "Reports", "File Manager", "Support", "Settings",
 ];

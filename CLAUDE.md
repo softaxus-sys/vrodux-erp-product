@@ -8957,3 +8957,82 @@ selected module needs. `ecommerce` is in the rules but in no picker until the mo
   remove `Requires["inventory"] = ["pos"]`, and move POS vendors/purchase orders onto Inventory/Purchase. Also needed first: a
   decision on those POS purchase orders and vendors, which still read POS tables with no Inventory equivalent wired.
 - Verified: builds; the overview SQL runs against the dev schema (returns no rows there). Not run through the API or shown in the UI.
+
+---
+
+## Module 90 — E-commerce: sales-channel framework + Shopify (first channel)
+
+New service `Softaxis.Ecommerce` (schema `ecommerce`, clean CQRS, module code `ecommerce`, needs Inventory). Inventory stays the
+single source of truth: a store is a *channel* that Inventory listings (Module 89 step 1) are pushed to, and its orders come back.
+
+### Model
+`SalesChannel` (kind, shop domain, encrypted token, location, switches for content / stock / order import, status, cursors),
+`ChannelListing` (one Inventory product template published to one store; content / image / failed hashes), `ChannelListingVariant`
+(Inventory product ↔ store variant, `LastPushedQuantity`), `ChannelOrder` + `ChannelOrderLine`. Migration `InitialEcommerce`.
+
+### Shopify (custom-app Admin API token, REST, version `Ecommerce:ShopifyApiVersion`, default `2025-10`)
+- Shop address must match `*.myshopify.com` (SSRF guard); token encrypted with Data Protection, never returned.
+- First stock push = set; later changes = `inventory_levels/adjust` deltas, so a sale in either place is not overwritten.
+- Order import takes the stock from Inventory and shifts `LastPushedQuantity` so it is not echoed back; a cancelled order returns the stock.
+  The order cursor starts at connect time (no history import).
+- Content the store refuses is not retried until it changes (`FailedHash`); manual sync always retries. Failures are classified
+  transient / permanent / item-rejected; transient ones back off 2^n minutes (cap 60).
+- `ChannelSyncWorker`: 5-min startup delay, 2-min cycle, orders before content and stock.
+
+### API (`api/ecommerce`)
+`channels` (providers, list, get, locations, connect, update, replace token, disconnect, sync, orders/import), `listings`
+(list, publish, sync, unpublish, remove ± delete in store), `orders`, `lookups/templates`. Permissions `ecommerce.channels|listings`
+(view/create/edit/delete), `ecommerce.orders` (view/edit); migration `AddEcommercePermissions` (Identity).
+
+### Frontend
+`lib/ecommerce`, `hooks/ecommerce`, `modules/ecommerce/{shared,channels,listings,orders}`, routes `/ecommerce/channels|listings|orders`
+(`ModuleGuard module="ecommerce"`), nav group "E-commerce", module chip in the super-admin selector, `ecommerce` i18n namespace
+(en + ar, every used key present in both).
+
+### Verified
+- Backend gateway build 0 errors; 35 unit tests; 89 + 9 scripted checks against a local gateway + LocalDB with a fake Shopify
+  (token encrypted at rest, isolation, backoff, idempotent order import, delta stock sync, refused products, deleted-in-store recovery).
+- Frontend `tsc -p tsconfig.app.json` 0 errors, `vite build` ✅.
+- **Not verified:** a real Shopify store; the three screens in a browser; Arabic layout.
+
+### Not built
+WooCommerce (shown as coming soon), Shopify webhooks (polling only), public Shopify apps (would need GraphQL), creating Sales
+orders from channel orders, storefront, payments, page builder, customer accounts.
+
+---
+
+## Module 91 — E-commerce: the workspace's own online store (storefront, page builder, payments, accounts)
+
+Runbook: `docs/storefront-go-live.md` (server setup, owner setup, known limits). Builds on Module 90 (channels) and Module 89 (Inventory listings).
+
+- **Model** (`ecommerce` schema): `Store` (one per workspace; slug + custom domain are platform-unique, so the store reads with `IgnoreQueryFilters`
+  and takes its tenant from the row), `StorePage` (page-builder sections as JSON), `StoreAsset`, `StoreCollection`, `ShippingZone`, `DiscountCode`,
+  `StoreCustomer` + addresses (own login, NOT Identity users), `StoreOrder` + lines + events. All ids are `ValueGeneratedNever` — without it a child added to a
+  loaded order is treated as existing and the save throws a concurrency error. Migrations `AddStorefront` (Ecommerce) + `AddStorefrontPermissions` (Identity).
+- **Products are read from Inventory** through `Inventory.Application/Storefront` queries (public-safe shape: no cost price). A listing is on sale only when
+  published + active + it has a variant that is active and `SellOnline`.
+- **Public API** `api/ecommerce/shop/{slug}/*` (anonymous, rate limited: policies `shop_browse|shop_checkout|shop_auth`, tunable via `Ecommerce:RateLimits:*`).
+  `ShopGate.OpenAsync` resolves slug → tenant; **handlers must call `door.Enter()` (a plain method) before touching a store table** — ambient set inside an
+  awaited helper is lost on return. An unpublished store is visible only to staff of that workspace with `ecommerce.store.view` (`IShopPreview`).
+- **Pricing is server-side only** (`StorePricing`): the browser sends product id + quantity; prices, stock, discounts, delivery, tax come from the server.
+  Stock is taken at order creation under `StockGuard` (per-product lock; single gateway process) and released on cancel/expiry (`StoreOrderExpiryWorker`,
+  asks Stripe first). Discount-code use is an atomic `UPDATE … WHERE UsedCount < MaxUses`.
+- **Payments** (`PaymentGateways.cs`, plain HttpClient, the owner's own keys, encrypted via `ISecretProtector`): Stripe hosted Checkout + signed webhook
+  (fails closed without a signing secret) + reconcile-on-view; PayPal Orders v2 + server-side capture; COD; bank transfer. A paid amount/currency that differs
+  from the order is never accepted (flagged). `Ecommerce:StripeApiBase` / `PayPalApiBase` exist only so tests can use stand-ins.
+- **Return URLs** come from `ShopLinks`, which only honours the store's own hosts or the front-end origin — a request `Origin` is never trusted blindly.
+- **Accounts**: PBKDF2 passwords, HMAC session token (key derived from `Jwt:Secret`, own label) tied to the password hash (changing it ends sessions),
+  5 failures → 15-minute lock, reset by emailed single-use token (only its hash stored). Emails are sent in the background (a slow SMTP never slows checkout).
+- **Permissions**: `ecommerce.store` (view/edit), `ecommerce.discounts` (CRUD), `ecommerce.customers` (view), `ecommerce.orders` gained `refund`.
+- **Frontend**: storefront `modules/storefront/*` (en + ar RTL, own theme CSS vars, sanitised HTML, safe links only), mounted at `/shop/:slug/*` and — via
+  `lib/storefront/host.ts` — as the whole site when the browser address is a store's own domain (API calls then go same-origin). Admin screens in
+  `modules/ecommerce/store/*` (settings tabs, page builder with live preview using the same section renderer, collections, discounts, orders, customers) — **English only**.
+- **🔴 nginx**: `/api/ecommerce/shop/` must never be cached (the generic /api rule caches anonymous GETs 5 min and bypasses only on Authorization; shoppers use
+  `X-Shop-Token`). Added to `nginx/conf.d/vrodux.conf` and `nginx/snippets/store-locations.conf`. Also `Gateway__TrustForwardedHeaders=true` in prod compose so
+  per-address rate limits see real client addresses (the gateway had no forwarded-headers handling at all, so existing limits were counting nginx).
+- **Verified**: gateway + solution build 0 errors; 49 unit tests; **235 scripted API checks** (access control, preview rules, settings validation, secrets never
+  returned/encrypted, catalogue, builder validation, quote maths, discounts incl. races, tax, COD/bank/Stripe/PayPal flows against stand-ins, webhook signature/replay/
+  tampering, amount mismatch, expiry worker, refunds, 8-way oversell race, accounts/lockout/reset, cross-workspace isolation, rate limit, no NULL-tenant rows);
+  `tsc` 0 errors; browser: storefront home/list/product/cart/checkout (COD) and admin builder/orders/settings render and work.
+- **Not verified / not built**: real Stripe/PayPal accounts; real SMTP; Arabic storefront in a browser; mobile widths; custom-domain TLS/DNS; SSR (link previews);
+  sales orders / invoices / ledger postings from store orders; reviews, wishlists, abandoned carts, gift cards, courier rates; WooCommerce; Shopify webhooks.

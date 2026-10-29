@@ -192,6 +192,16 @@ public static class PermissionSeedData
         ["trade.costs"]     = ["view","create","edit","delete"],
         ["trade.payments"]  = ["view","create","edit"],
 
+        // E-commerce (connected online stores). Connecting a store hands us its credentials, so channels are their own
+        // key; listings are what is published to a store (edit also re-syncs); orders are what the stores sold.
+        ["ecommerce.channels"] = ["view","create","edit","delete"],
+        ["ecommerce.listings"] = ["view","create","edit","delete"],
+        ["ecommerce.orders"]   = ["view","edit","refund"],
+        // The workspace's own online store: its settings, pages, delivery and look; promo codes; and who has signed up.
+        ["ecommerce.store"]     = ["view","edit"],
+        ["ecommerce.discounts"] = ["view","create","edit","delete"],
+        ["ecommerce.customers"] = ["view"],
+
         // Lead Generation. Every key is a separate decision so an administrator can hand out exactly
         // what a role needs:
         //   searches  — create = run a search (finding businesses is free to the workspace)
