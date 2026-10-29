@@ -76,6 +76,8 @@ public sealed class RegisterTrialCommandHandler(
         if (wantsToBuy) tenant.AwaitPayment();
         else            tenant.StartTrial();
 
+        var phone = cmd.Phone?.Trim();
+        tenant.UpdateProfile(tenant.Name, tenant.ContactEmail, phone, tenant.Country, tenant.PrimaryColor);
         tenant.SetCurrency(cmd.Currency);   // browser-detected 3-letter code (USD default when null)
         tenant.SetSignupAttribution(cmd.Intent, billingPeriod, cmd.UtmSource);
 
@@ -104,6 +106,7 @@ public sealed class RegisterTrialCommandHandler(
             return Result.Failure<TrialRegistrationResultDto>(userResult.Error);
 
         var user = userResult.Value;
+        user.UpdateProfile(user.FirstName, user.LastName, phone, user.AvatarUrl);
         // The owner must confirm the address before they can sign in (the login handler refuses an
         // unverified account). The raw token goes only into the email.
         var verificationToken = jwtService.GenerateRefreshTokenRaw();

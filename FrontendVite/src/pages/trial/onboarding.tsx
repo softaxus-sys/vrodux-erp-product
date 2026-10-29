@@ -71,6 +71,10 @@ const s1Schema = z.object({
   fullName:    z.string().min(2,"validation.min2"),
   companyName: z.string().min(2,"validation.companyRequired"),
   workEmail:   z.string().email("validation.validEmail"),
+  // Phone or WhatsApp — required so we can reach out to a trial that has gone quiet. 7–15 digits, with
+  // the usual separators allowed; the country code is welcome but not forced (people type it every way).
+  phone:       z.string().trim().min(1,"validation.phoneRequired")
+                 .refine(v=>/^[+\d\s().-]+$/.test(v)&&v.replace(/\D/g,"").length>=7&&v.replace(/\D/g,"").length<=15,"validation.phoneInvalid"),
   password:    z.string().min(8,"validation.min8").regex(/[A-Z]/,"validation.needsUpper").regex(/[0-9]/,"validation.needsNumber"),
   confirm:     z.string(),
   agree:       z.literal(true,{ errorMap:()=>({ message:"validation.acceptTerms" }) }),
@@ -484,7 +488,7 @@ export default function OnboardingPage() {
   const allResolved=resolveModules(selectedModules);
 
   // Forms
-  const f1=useForm<S1>({ resolver:zodResolver(s1Schema), defaultValues:{ fullName:"",companyName:"",workEmail:"",password:"",confirm:"",agree:undefined as any } });
+  const f1=useForm<S1>({ resolver:zodResolver(s1Schema), defaultValues:{ fullName:"",companyName:"",workEmail:"",phone:"",password:"",confirm:"",agree:undefined as any } });
   const [showPw,setShowPw]=React.useState(false);
   const [showCf,setShowCf]=React.useState(false);
   const pw=f1.watch("password");
@@ -539,6 +543,7 @@ export default function OnboardingPage() {
         fullName:    s1Data.fullName,
         email:       s1Data.workEmail,
         password:    s1Data.password,
+        phone:       s1Data.phone.trim(),
         orgName:     s2.orgName||s1Data.companyName,
         industry:    s2.industry||undefined,
         country:     s2.country||undefined,
@@ -767,6 +772,12 @@ export default function OnboardingPage() {
                           <div className="space-y-1.5">
                             <Lbl D={D} req err={f1.formState.errors.workEmail?.message}>{t("step1.workEmail")}</Lbl>
                             <input {...f1.register("workEmail")} {...fo("em")} id="field-email" type="email" placeholder="john@acme.com" autoComplete="email" className={INPUT_CLS} style={iStyle(D,foc==="em",!!f1.formState.errors.workEmail)}/>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Lbl D={D} req err={f1.formState.errors.phone?.message}>{t("step1.phone")}</Lbl>
+                            <input {...f1.register("phone")} {...fo("ph")} id="field-phone" type="tel" inputMode="tel" placeholder={t("step1.phonePlaceholder")} autoComplete="tel" className={INPUT_CLS} style={iStyle(D,foc==="ph",!!f1.formState.errors.phone)}/>
+                            <p className="text-[11px]" style={{ color: D.muted }}>{t("step1.phoneHint")}</p>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

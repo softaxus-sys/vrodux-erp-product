@@ -24,6 +24,8 @@ export interface TrialRegistrationRequest {
   fullName:      string;
   email:         string;
   password:      string;
+  /** Phone or WhatsApp number — required, so the team can reach a trial that has gone quiet. */
+  phone:         string;
   orgName:       string;
   industry?:     string;
   country?:      string;

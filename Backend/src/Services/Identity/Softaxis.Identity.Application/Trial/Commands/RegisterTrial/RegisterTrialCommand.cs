@@ -34,7 +34,9 @@ public sealed record RegisterTrialCommand(
     string?       Fbp           = null,
     string?       Fbc           = null,
     string?       UserAgent     = null,
-    string?       SourceUrl     = null) : ICommand<TrialRegistrationResultDto>;
+    string?       SourceUrl     = null,
+    // Phone or WhatsApp — required (see the validator); the sales team calls it when a trial goes quiet.
+    string?       Phone         = null) : ICommand<TrialRegistrationResultDto>;
 
 public sealed class RegisterTrialValidator : AbstractValidator<RegisterTrialCommand>
 {
@@ -49,5 +51,12 @@ public sealed class RegisterTrialValidator : AbstractValidator<RegisterTrialComm
             .Matches("[0-9]").WithMessage("Password must contain at least one digit.");
 
         RuleFor(x => x.OrgName).NotEmpty().WithMessage("Organisation name is required.");
+
+        // Digits only are counted, so "+971 (50) 123-4567" and "00971501234567" both pass; letters do not.
+        RuleFor(x => x.Phone)
+            .NotEmpty().WithMessage("A phone or WhatsApp number is required.")
+            .Must(p => p is null || (p.Trim().Length <= 30 && System.Text.RegularExpressions.Regex.IsMatch(p.Trim(), @"^[+\d\s().-]+$")
+                        && p.Count(char.IsDigit) is >= 7 and <= 15))
+            .WithMessage("Enter a valid phone or WhatsApp number (7 to 15 digits).");
     }
 }

@@ -82,7 +82,10 @@
     "statUptime": "التشغيل",
     "trustedIn": "موثوق به في",
     "signInToAccount": "تسجيل الدخول إلى الحساب",
-    "changeEmail": "تغيير البريد الإلكتروني"
+    "changeEmail": "تغيير البريد الإلكتروني",
+    "phone": "رقم الهاتف أو واتساب",
+    "phonePlaceholder": "+971 50 123 4567",
+    "phoneHint": "أدخل رمز بلدك. سنستخدمه فقط لمساعدتك في البدء."
   },
   "step2": {
     "title": "أعدّ مؤسستك",
@@ -153,7 +156,9 @@
     "needsNumber": "يجب أن تحتوي على رقم",
     "acceptTerms": "يجب أن توافق على الشروط",
     "passwordMismatch": "كلمتا المرور غير متطابقتين",
-    "required": "مطلوب"
+    "required": "مطلوب",
+    "phoneRequired": "رقم الهاتف أو واتساب مطلوب",
+    "phoneInvalid": "أدخل رقم هاتف صحيحًا (من 7 إلى 15 رقمًا)"
   },
   "industry": {
     "All Industries": "جميع القطاعات",

@@ -82,7 +82,10 @@
     "statUptime": "Uptime",
     "trustedIn": "Trusted in",
     "signInToAccount": "Sign in to account",
-    "changeEmail": "Change email"
+    "changeEmail": "Change email",
+    "phone": "Phone or WhatsApp number",
+    "phonePlaceholder": "+971 50 123 4567",
+    "phoneHint": "Include your country code. We will only use it to help you get set up."
   },
   "step2": {
     "title": "Set up your organization",
@@ -153,7 +156,9 @@
     "needsNumber": "Needs a number",
     "acceptTerms": "You must accept the terms",
     "passwordMismatch": "Passwords do not match",
-    "required": "Required"
+    "required": "Required",
+    "phoneRequired": "Phone or WhatsApp number is required",
+    "phoneInvalid": "Enter a valid phone number (7–15 digits)"
   },
   "industry": {
     "All Industries": "All Industries",
