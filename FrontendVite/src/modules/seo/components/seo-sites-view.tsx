@@ -155,6 +155,12 @@ function SiteRow({ site, canDelete, onOpen, onDelete }: { site: SiteDto; canDele
             <AlertCircle className="h-3 w-3" />Not verified
           </span>
         )}
+        {site.lastScore != null && (
+          <span className={`text-xs font-bold tabular-nums ${site.lastScore >= 80 ? "text-success" : site.lastScore >= 55 ? "text-amber-600" : "text-destructive"}`}
+            title="Health score of the latest audit">
+            {site.lastScore}/100
+          </span>
+        )}
         <span className="hidden sm:inline text-xs text-muted-foreground">
           {site.lastScanAt ? `Last scan ${formatDate(site.lastScanAt)}` : "Never scanned"}
         </span>

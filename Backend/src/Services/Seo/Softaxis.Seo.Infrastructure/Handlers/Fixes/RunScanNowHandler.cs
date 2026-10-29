@@ -21,6 +21,9 @@ internal sealed class RunScanNowHandler(
         if (site is null) return Result.Failure<RunScanNowResultDto>(Error.NotFoundById("SeoSite", cmd.SiteId));
 
         var scan = await scanRunner.RunAsync(site, ct);
+        if (scan.NoCredits)
+            return Result.Failure<RunScanNowResultDto>(Error.Custom("Credits.Insufficient",
+                "This workspace has no SEO credits left. One credit checks about 25 pages; ask your administrator to add more."));
 
         if (scan.FixesProposed > 0 && currentUser.TenantId is { } tenantId)
         {
@@ -32,7 +35,7 @@ internal sealed class RunScanNowHandler(
                     Module:          NotificationModules.Seo,
                     Event:           NotificationEvents.SeoFixesReady,
                     Title:           $"{scan.FixesProposed} new SEO fix{(scan.FixesProposed == 1 ? "" : "es")} ready to review — {site.DisplayName}",
-                    Message:         $"The scan found {scan.IssuesFound} issue(s) and the AI proposed {scan.FixesProposed} fix(es).",
+                    Message:         $"The audit found {scan.IssuesFound} open issue(s) and the AI proposed {scan.FixesProposed} fix(es) for the new ones.",
                     Link:            $"/seo/sites/{site.Id}",
                     Type:            "info",
                     RelatedToType:   "seo_site",
@@ -41,6 +44,7 @@ internal sealed class RunScanNowHandler(
             catch { /* best-effort — a failed alert must never fail the scan the user just ran */ }
         }
 
-        return Result.Success(new RunScanNowResultDto(scan.AuditId, scan.IssuesFound, scan.FixesProposed));
+        return Result.Success(new RunScanNowResultDto(scan.AuditId, scan.IssuesFound, scan.FixesProposed, scan.Score, scan.PagesCrawled,
+            scan.NewIssues, scan.ResolvedIssues, scan.CreditsCharged, scan.CreditBalance));
     }
 }

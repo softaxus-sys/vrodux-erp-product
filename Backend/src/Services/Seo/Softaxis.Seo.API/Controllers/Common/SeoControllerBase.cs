@@ -29,6 +29,7 @@ public abstract class SeoControllerBase : ControllerBase
             var c when c.EndsWith(".Duplicate") => Conflict(body),
             var c when c.EndsWith(".Conflict")  => Conflict(body),
             "Validation.Failed"                  => UnprocessableEntity(body),
+            "Credits.Insufficient"               => StatusCode(StatusCodes.Status402PaymentRequired, body),
             _ => StatusCode(StatusCodes.Status500InternalServerError, body),
         };
     }

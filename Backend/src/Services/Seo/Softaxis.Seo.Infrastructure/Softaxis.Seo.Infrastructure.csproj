@@ -24,5 +24,7 @@
     <ProjectReference Include="..\Softaxis.Seo.Application\Softaxis.Seo.Application.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Softaxis.BuildingBlocks.Infrastructure\Softaxis.BuildingBlocks.Infrastructure.csproj" />
     <ProjectReference Include="..\..\AiAssistant\Softaxis.AiAssistant.Application\Softaxis.AiAssistant.Application.csproj" />
+    <!-- Catalogue SEO reads and updates online listings through Inventory's own queries/commands, never its tables. -->
+    <ProjectReference Include="..\..\Inventory\Softaxis.Inventory.Application\Softaxis.Inventory.Application.csproj" />
   </ItemGroup>
 </Project>

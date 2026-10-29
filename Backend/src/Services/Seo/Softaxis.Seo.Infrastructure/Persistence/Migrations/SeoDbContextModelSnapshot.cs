@@ -115,6 +115,15 @@ namespace Softaxis.Seo.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("CreditsCharged")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CriticalCount")
+                        .HasColumnType("int");
+
+                    b.Property<long>("DurationMs")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Error")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
@@ -122,7 +131,28 @@ namespace Softaxis.Seo.Infrastructure.Persistence.Migrations
                     b.Property<int>("FixesProposed")
                         .HasColumnType("int");
 
+                    b.Property<int>("HighCount")
+                        .HasColumnType("int");
+
                     b.Property<int>("IssuesFound")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LowCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MediumCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NewIssues")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PagesCrawled")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResolvedIssues")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Score")
                         .HasColumnType("int");
 
                     b.Property<Guid>("SiteId")
@@ -141,11 +171,16 @@ namespace Softaxis.Seo.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("Truncated")
+                        .HasColumnType("bit");
+
                     b.HasKey("Id");
 
                     b.HasIndex("SiteId");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("SiteId", "StartedAt");
 
                     b.ToTable("seo_audits", "seo");
                 });
@@ -205,6 +240,60 @@ namespace Softaxis.Seo.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId");
 
                     b.ToTable("seo_content_settings", "seo");
+                });
+
+            modelBuilder.Entity("Softaxis.Seo.Domain.Entities.SeoCreditEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ActorName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Amount")
+                        .HasColumnType("int");
+
+                    b.Property<long>("BalanceAfter")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<Guid?>("RefId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RefType")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL");
+
+                    b.ToTable("seo_credit_ledger", "seo");
                 });
 
             modelBuilder.Entity("Softaxis.Seo.Domain.Entities.SeoFix", b =>
@@ -360,6 +449,11 @@ namespace Softaxis.Seo.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int>("AffectedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.Property<Guid>("AuditId")
                         .HasColumnType("uniqueidentifier");
 
@@ -368,12 +462,35 @@ namespace Softaxis.Seo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)")
+                        .HasDefaultValue("");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<string>("DetailsJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("DetectedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasDefaultValue("");
+
+                    b.Property<DateTime>("FirstSeenAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastSeenAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("PageUrl")
@@ -421,7 +538,92 @@ namespace Softaxis.Seo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
+                    b.HasIndex("SiteId", "Fingerprint");
+
                     b.ToTable("seo_issues", "seo");
+                });
+
+            modelBuilder.Entity("Softaxis.Seo.Domain.Entities.SeoPage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AuditId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Depth")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("FinalUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("H1")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("HtmlBytes")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("InSitemap")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Indexable")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("InternalLinksIn")
+                        .HasColumnType("int");
+
+                    b.Property<int>("InternalLinksOut")
+                        .HasColumnType("int");
+
+                    b.Property<int>("IssueCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MetaDescription")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("RedirectHops")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResponseMs")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("SiteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("WordCount")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuditId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("SiteId", "AuditId");
+
+                    b.ToTable("seo_pages", "seo");
                 });
 
             modelBuilder.Entity("Softaxis.Seo.Domain.Entities.SeoSite", b =>
@@ -447,8 +649,14 @@ namespace Softaxis.Seo.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<int>("LastPagesCrawled")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("LastScanAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<int?>("LastScore")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("LastSeenAt")
                         .HasColumnType("datetime2");
@@ -498,6 +706,41 @@ namespace Softaxis.Seo.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId");
 
                     b.ToTable("seo_sites", "seo");
+                });
+
+            modelBuilder.Entity("Softaxis.Seo.Domain.Entities.SeoWallet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("Balance")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("LifetimeAdded")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("LifetimeSpent")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("WelcomeGranted")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL");
+
+                    b.ToTable("seo_wallets", "seo");
                 });
 
             modelBuilder.Entity("Softaxis.Seo.Domain.Entities.SeoWordPressConnection", b =>

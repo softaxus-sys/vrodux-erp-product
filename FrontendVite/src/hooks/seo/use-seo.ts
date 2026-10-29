@@ -82,6 +82,29 @@ export function useSeoIssues(siteId: string | null, status?: string) {
   });
 }
 
+export function useSeoPages(siteId: string | null, enabled = true) {
+  return useQuery({ queryKey: [QK, "pages", siteId], queryFn: () => seoApi.getPages(siteId!), enabled: !!siteId && enabled, staleTime: 30 * 1000 });
+}
+
+export function useSeoCredits() {
+  return useQuery({ queryKey: [QK, "credits"], queryFn: seoApi.getCredits, staleTime: 15 * 1000 });
+}
+
+export function useCatalogueSeo(enabled = true) {
+  return useQuery({ queryKey: [QK, "catalogue"], queryFn: seoApi.getCatalogue, enabled, staleTime: 30 * 1000 });
+}
+
+export function useSuggestCatalogueSeo() {
+  return useMutation({ mutationFn: (id: string) => seoApi.suggestCatalogue(id), onError: (e: Error) => toast.error(e.message) });
+}
+
+export function useApplyCatalogueSeo() {
+  return useSeoMutation(
+    ({ id, body }: { id: string; body: { seoTitle?: string; metaDescription?: string } }) => seoApi.applyCatalogue(id, body),
+    "Saved to the product listing.",
+  );
+}
+
 export function useSeoFixes(siteId: string | null, status?: string) {
   return useQuery({
     queryKey: [QK, "fixes", siteId, status ?? "all"],
@@ -92,7 +115,7 @@ export function useSeoFixes(siteId: string | null, status?: string) {
 }
 
 export function useRunScanNow() {
-  return useSeoMutation((siteId: string) => seoApi.runScanNow(siteId), "Scan started — this can take a minute.");
+  return useSeoMutation((siteId: string) => seoApi.runScanNow(siteId));
 }
 
 export function useApproveFix() {

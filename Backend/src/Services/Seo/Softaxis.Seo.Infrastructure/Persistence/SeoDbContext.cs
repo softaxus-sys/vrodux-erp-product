@@ -13,6 +13,9 @@ public sealed class SeoDbContext(DbContextOptions<SeoDbContext> options)
     public DbSet<SeoAudit>             Audits             => Set<SeoAudit>();
     public DbSet<SeoIssue>             Issues             => Set<SeoIssue>();
     public DbSet<SeoFix>               Fixes              => Set<SeoFix>();
+    public DbSet<SeoPage>                Pages                 => Set<SeoPage>();
+    public DbSet<SeoWallet>              Wallets               => Set<SeoWallet>();
+    public DbSet<SeoCreditEntry>         CreditLedger          => Set<SeoCreditEntry>();
     public DbSet<SeoArticle>             Articles             => Set<SeoArticle>();
     public DbSet<SeoContentSettings>     ContentSettings       => Set<SeoContentSettings>();
     public DbSet<SeoWordPressConnection> WordPressConnections  => Set<SeoWordPressConnection>();
@@ -22,6 +25,9 @@ public sealed class SeoDbContext(DbContextOptions<SeoDbContext> options)
         modelBuilder.HasDefaultSchema("seo");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(SeoDbContext).Assembly);
         TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.Seo.Domain");
+        // One wallet per workspace; one ledger row per idempotency key — a retried charge or grant posts once.
+        TenantIsolation.TenantUniqueIndex<SeoWallet>(modelBuilder, [], excludeSoftDeleted: false);
+        TenantIsolation.TenantUniqueIndex<SeoCreditEntry>(modelBuilder, [nameof(SeoCreditEntry.IdempotencyKey)], excludeSoftDeleted: false);
         base.OnModelCreating(modelBuilder);
     }
 

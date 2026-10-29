@@ -1,13 +1,13 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, Loader2, Check, XCircle, PlayCircle, RefreshCw, ExternalLink,
+  X, Loader2, Check, XCircle, RefreshCw, ExternalLink,
   AlertTriangle, Clock, Globe, Settings2, Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils";
 import {
-  useSeoSite, useSeoAudits, useSeoFixes, useRunScanNow,
+  useSeoSite, useSeoFixes,
   useApproveFix, useRejectFix, useRotateSnippetKey, useVerifySiteNow,
   useStartGoogleOAuth, useGoogleProperties, useSelectGoogleProperties,
 } from "@/hooks/seo/use-seo";
@@ -16,19 +16,26 @@ import {
   type FixDto,
 } from "@/lib/seo/seo.api";
 import { ContentTab } from "./content-tab";
+import { ScanButton, CreditsBadge, HealthPanel, PagesPanel, HistoryPanel, CatalogueSeoPanel } from "./audit-panels";
 import { useAuthStore } from "@/store/auth.store";
 
 import { getApiBaseUrl } from "@/lib/desktop";
-type Tab = "fixes" | "google" | "history" | "content";
+type Tab = "health" | "pages" | "fixes" | "catalogue" | "google" | "history" | "content";
+
+const TAB_LABELS: Record<Tab, string> = {
+  health: "Health", pages: "Pages", fixes: "Fixes to review", catalogue: "Product listings", google: "Google", content: "Content", history: "Audit history",
+};
 
 export function SiteDetailDrawer({ siteId, onClose, initialTab }: { siteId: string | null; onClose: () => void; initialTab?: Tab }) {
-  const [tab, setTab] = React.useState<Tab>(initialTab ?? "fixes");
+  const [tab, setTab] = React.useState<Tab>(initialTab ?? "health");
   const { data: site } = useSeoSite(siteId);
-  const runScan = useRunScanNow();
-  const { hasRawPermission } = useAuthStore();
+  const { hasRawPermission, hasModuleAccess } = useAuthStore();
   const canSeeContent = hasRawPermission("seo.content.view");
+  // Product-listing SEO reads the workspace's online listings from Inventory, so it needs that module.
+  const canSeeCatalogue = hasModuleAccess("inventory") && hasRawPermission("seo.sites.view");
+  const canEditCatalogue = hasRawPermission("seo.fixes.edit");
 
-  React.useEffect(() => { if (siteId) setTab(initialTab ?? "fixes"); }, [siteId, initialTab]);
+  React.useEffect(() => { if (siteId) setTab(initialTab ?? "health"); }, [siteId, initialTab]);
 
   return (
     <AnimatePresence>
@@ -47,32 +54,32 @@ export function SiteDetailDrawer({ siteId, onClose, initialTab }: { siteId: stri
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">{site.domain}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Button size="sm" variant="outline" className="gap-1.5 h-8"
-                  disabled={runScan.isPending} onClick={() => runScan.mutate(site.id)}>
-                  {runScan.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5" />}
-                  Scan now
-                </Button>
+                <CreditsBadge />
+                <ScanButton site={site} />
                 <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground"><X className="w-4 h-4" /></button>
               </div>
             </div>
 
             <StatusStrip site={site} />
 
-            <div className="flex items-center gap-1 px-6 pt-3 border-b border-border shrink-0">
-              {(["fixes", "google", ...(canSeeContent ? ["content"] as Tab[] : []), "history"] as Tab[]).map(tKey => (
+            <div className="flex items-center gap-1 px-6 pt-3 border-b border-border shrink-0 overflow-x-auto">
+              {(["health", "pages", "fixes", ...(canSeeCatalogue ? ["catalogue"] as Tab[] : []), "google", ...(canSeeContent ? ["content"] as Tab[] : []), "history"] as Tab[]).map(tKey => (
                 <button key={tKey} onClick={() => setTab(tKey)}
                   className={cn("px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
                     tab === tKey ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-                  {tKey === "fixes" ? "Fixes to review" : tKey === "google" ? "Google" : tKey === "content" ? "Content" : "Audit history"}
+                  {TAB_LABELS[tKey]}
                 </button>
               ))}
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
+              {tab === "health" && <HealthPanel site={site} />}
+              {tab === "pages" && <PagesPanel siteId={site.id} />}
               {tab === "fixes" && <FixesReviewList siteId={site.id} />}
+              {tab === "catalogue" && <CatalogueSeoPanel canEdit={canEditCatalogue} />}
               {tab === "google" && <GooglePanel site={site} />}
               {tab === "content" && <ContentTab siteId={site.id} domain={site.domain} />}
-              {tab === "history" && <AuditHistoryList siteId={site.id} />}
+              {tab === "history" && <HistoryPanel siteId={site.id} />}
             </div>
           </motion.div>
         </>
@@ -417,41 +424,6 @@ function FixCard({ fix, onApprove, onReject, pending }: { fix: FixDto; onApprove
           {fix.status === "rejected" && fix.reviewedAt && `Rejected ${formatDate(fix.reviewedAt)}${fix.reviewedByName ? ` by ${fix.reviewedByName}` : ""}`}
         </p>
       )}
-    </div>
-  );
-}
-
-function AuditHistoryList({ siteId }: { siteId: string }) {
-  const { data: audits = [], isLoading } = useSeoAudits(siteId);
-
-  if (isLoading) return <div className="flex items-center justify-center py-10 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>;
-  if (audits.length === 0) return <div className="text-center py-10 text-sm text-muted-foreground">No scans have run yet.</div>;
-
-  return (
-    <div className="space-y-2">
-      {audits.map(a => (
-        <div key={a.id} className="flex items-center justify-between rounded-lg border border-border px-3.5 py-2.5 text-sm">
-          <div>
-            <p className="font-medium text-foreground">{formatDate(a.startedAt)}</p>
-            {/* A "completed" audit can still carry a note (e.g. AI not configured, so no fixes were
-                proposed even though issues were found) — that's informational, not a failure, so it
-                gets amber, not the destructive red reserved for a genuinely failed scan. */}
-            {a.error && (
-              <p className={cn("text-xs mt-0.5", a.status === "failed" ? "text-destructive" : "text-amber-600")}>
-                {a.error}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span>{a.issuesFound} issue{a.issuesFound === 1 ? "" : "s"}</span>
-            <span>{a.fixesProposed} fix{a.fixesProposed === 1 ? "" : "es"} proposed</span>
-            <span className={cn("px-1.5 py-0.5 rounded font-semibold uppercase text-[10px]",
-              a.status === "completed" ? "bg-success/10 text-success" : a.status === "failed" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground")}>
-              {a.status}
-            </span>
-          </div>
-        </div>
-      ))}
     </div>
   );
 }

@@ -17,6 +17,11 @@ public sealed class SeoAuditsController(ISender sender) : SeoControllerBase
     public async Task<IActionResult> GetAudits(Guid siteId, CancellationToken ct) =>
         OkOrError(await sender.Send(new GetAuditsQuery(siteId), ct));
 
+    [HttpGet("pages")]
+    [RequirePermission("seo.sites.view")]
+    public async Task<IActionResult> GetPages(Guid siteId, [FromQuery] Guid? auditId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetPagesQuery(siteId, auditId), ct));
+
     [HttpGet("issues")]
     [RequirePermission("seo.sites.view")]
     public async Task<IActionResult> GetIssues(Guid siteId, [FromQuery] string? status, CancellationToken ct) =>

@@ -9036,3 +9036,61 @@ Runbook: `docs/storefront-go-live.md` (server setup, owner setup, known limits).
   `tsc` 0 errors; browser: storefront home/list/product/cart/checkout (COD) and admin builder/orders/settings render and work.
 - **Not verified / not built**: real Stripe/PayPal accounts; real SMTP; Arabic storefront in a browser; mobile widths; custom-domain TLS/DNS; SSR (link previews);
   sales orders / invoices / ledger postings from store orders; reviews, wishlists, abandoned carts, gift cards, courier rates; WooCommerce; Shopify webhooks.
+
+---
+
+## Module 92 — SEO Phase 1: real audits, credits, catalogue SEO (+ mandatory signup phone)
+
+For our own customers first (module `seo` is still manual-grant only). The old audit crawled 20 pages, had 8 rules, created
+duplicate issues every scan and fetched any address a tenant typed. Rebuilt in `Softaxis.Seo.*` (no new service).
+
+### 🔴 SSRF fix (`Net/SsrfGuard.cs`, `Net/SafeFetcher.cs`)
+The server fetches customer-typed domains (their site, competitors, WordPress). Now every fetch goes through `SafeFetcher` on a client whose
+`SocketsHttpHandler.ConnectCallback` resolves the name itself and refuses if **any** answer is loopback / private / link-local (incl. the
+169.254.169.254 cloud-metadata address) / CGNAT / multicast / IPv6 ULA / v4-mapped. Checking the URL text is not enough (a public name can point
+at 127.0.0.1). Also: http/https only, ports 80/443 only, redirects followed by hand (≤6, loops detected), body capped, hard timeouts, no
+cookies. Private addresses are allowed **only** when `ASPNETCORE_ENVIRONMENT=Development` AND `Seo:AllowPrivateAddresses=true` (used by the tests).
+`CreateSiteHandler` rejects IPs / localhost / internal names up front. Clients `seo-crawler` and `wordpress` both use the guarded handler.
+
+### Crawler + rules
+`SiteCrawler.CrawlSiteAsync`: robots.txt (our group, else `*`; longest-match, `$`, wildcards), sitemap + sitemap index, BFS over links (same host or
+www), query-variant cap, 4 at a time with a polite pause, redirect chains, mixed content, external link HEAD checks (social hosts skipped — they
+answer bots with 403). `SeoIssueDetector` has 30+ rule codes (titles, descriptions, canonical, schema, H1, alt, lang, viewport, OG, thin content,
+speed, noindex-in-sitemap, depth, 5xx, redirect chain/loop, broken internal/external links, duplicates, orphans, https, robots, sitemap).
+A URL that redirects is not judged as a second page (it would fake duplicate titles). `SeoScore`: penalty per rule × spread, 0–100.
+
+### Issues persist (`SeoIssue.Fingerprint`)
+Fingerprint = rule + page (or hash of the duplicated text). A scan updates the same row (`Observe`), closes it as `resolved` when it is gone,
+`Reopen`s it if it comes back. Dismissed/applied stay as they are. Pre-existing issues with no fingerprint are superseded (those with a fix awaiting
+review are left alone). **AI fixes are proposed only for NEW issues** (≤40 a scan) — otherwise every weekly scan re-proposed the same fix.
+`SeoPage` rows are kept for the last 5 audits; older audits keep score and counts only. Audits carry score, counts, new/resolved, credits, duration.
+
+### Credits (`Credits/SeoCreditService`, same guarded-spend pattern as Lead Gen)
+`UPDATE … WHERE Balance >= n` + ledger row under an idempotency key. 1 credit = 25 crawled pages (rounded up, minimum 1), max 500 pages per audit,
+20 welcome credits per workspace (`Seo:PagesPerCredit|MaxPagesPerAudit|WelcomeCredits|CrawlConcurrency|ExternalLinkCheckLimit`). The crawl is capped
+at what the balance can pay for; the charge is made **after** the crawl for the pages actually fetched, so a failed audit costs nothing. No credits →
+`Credits.Insufficient` → HTTP 402; the scheduled job skips, notifies (`seo.credits-out`) and retries tomorrow. `GET api/seo/credits`;
+super-admin `POST api/admin/seo/credits/grant {tenantId, amount, reason}`. **No purchase flow yet** — credits come from the welcome grant or a grant.
+
+### Catalogue SEO
+`GET api/seo/catalogue`, `POST …/{id}/suggest` (AI, nothing saved), `POST …/{id}/apply`. Reads/writes the Inventory listing through
+`GetCatalogueSeoQuery` / `SetTemplateSeoCommand` (Inventory.Application) — saved text reaches the storefront, Shopify and Google, unlike a script
+patch. Rules: missing/short/long title and meta, no photo, photos without alt, thin description, duplicate titles. Needs the Inventory module.
+
+### API / UI
+`GET sites/{id}/pages`, issues default to "needs attention" (`?status=all|resolved|…`). Drawer tabs: Health (score, trend, issues grouped by rule with
+affected URLs), Pages, Fixes, Product listings, Google, Content, History. "Run audit" shows the cost and balance before spending. English only.
+Migration `AddSeoAuditV2` (additive; backfills issue first/last seen).
+
+### Verified / not
+- Seo + Inventory + Identity build 0 errors; **57 tests** (`Backend/tests/Softaxis.Seo.Tests`: SSRF classification, robots rules, detector, score,
+  and a **real crawl of a local HTTP server** with known flaws incl. robots-blocked page, sitemap orphan, redirect chain, duplicate titles, broken link,
+  plus proof that private addresses are refused in production mode without the server ever seeing a request).
+- **Not run:** a full gateway audit with credits charged and the database migration applied; the UI in a browser; Arabic (screens are English only).
+- **Known limits:** approved fixes on EXTERNAL sites are still applied by the browser snippet (crawlers and social previews do not see them);
+  WordPress source-level apply is not built; no credit purchase; module not in any plan.
+
+### Signup now requires a phone / WhatsApp number
+`phone` on `POST /api/trial/register` (validator: 7–15 digits, `+ - ( ) .` and spaces allowed), a required field on onboarding step 1 (en + ar),
+saved on `Tenant.ContactPhone` and the owner's `User.PhoneNumber`, so the team can reach trials that go quiet. The only caller is the web onboarding
+page (grepped); any other client posting to that endpoint must now send `phone`. Existing tenants are unchanged (no backfill).

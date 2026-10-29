@@ -159,5 +159,6 @@
     <Project Path="tests/Softaxis.CRM.Tests/Softaxis.CRM.Tests.csproj" />
     <Project Path="tests/Softaxis.BuildingBlocks.Tests/Softaxis.BuildingBlocks.Tests.csproj" />
     <Project Path="tests/Softaxis.Ecommerce.Tests/Softaxis.Ecommerce.Tests.csproj" />
+    <Project Path="tests/Softaxis.Seo.Tests/Softaxis.Seo.Tests.csproj" />
   </Folder>
 </Solution>
