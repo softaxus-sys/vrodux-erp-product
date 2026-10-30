@@ -84,6 +84,13 @@ internal sealed class StartCheckoutHandler(LeadGenDbContext db, ICreditPayments 
 {
     public async Task<Result<CheckoutDto>> Handle(StartCheckoutCommand cmd, CancellationToken ct)
     {
+        // Buying credits moved to the central Billing page (Settings → Billing → Add-ons & credits), where every module's credits
+        // are bought at one price list. This handler stays only so the confirm / webhook path below can still finish a payment that
+        // was started before the move; it never starts a new one.
+        if (cmd is not null)
+            return Result.Failure<CheckoutDto>(Error.Custom("Credits.Conflict",
+                "Credits are now bought in Settings → Billing → Add-ons & credits."));
+
         if (TenantAmbient.TenantId is not { } tenantId)
             return Result.Failure<CheckoutDto>(Error.Custom("Credits.Conflict", "No workspace is resolved."));
 

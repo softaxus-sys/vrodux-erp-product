@@ -9114,7 +9114,8 @@ One place to buy credits for every add-on (SEO audits, Lead Generation, anything
   The rule is written on the swap dialog. Example: 20 SEO @ $0.05 = $1.00 → 10 Lead Gen credits @ $0.10.
 - Migration `AddCreditPurchasesAndSwaps` (Identity). Tests: `Backend/tests/Softaxis.Identity.Tests` (13: min/max/discount/VAT, swap formula, fee, no value created).
 - **Not set up / not verified:** no module has a price until the super admin enters one; the swap fee defaults to 0% (a small fee is recommended because cost-to-serve differs per module). Not run against real Stripe/PayPal or in a browser;
-  the Stripe webhook must be configured for the existing billing webhook URL (credits reuse it). **Not built:** Lead Gen's own pack checkout is still separate; the "API keys and connections" hub for BYO keys.
+  the Stripe webhook must be configured for the existing billing webhook URL (credits reuse it). **Lead Gen moved onto it:** the Lead Gen Credits page no longer sells fixed packs; it links to Billing (`StartCheckoutHandler` now refuses new checkouts; the PayPal confirm + Stripe webhook paths stay so a payment started before the move still completes). The super-admin Lead Gen console points at Credit pricing instead of pack editing (pack endpoints/tables are left in place, unused). A workspace with no subscription (e.g. a trial) cannot buy credits until it subscribes.
+- **Settings → API Keys & Connections** (`/settings/connections`): a directory of connected services with live status (AI key, lead sources, outreach mailboxes, Shopify channels) and links for the rest. Keys are NOT collected there — each stays in its module, encrypted, never shown again. Each row mounts its own query only when the module + permission are present.
 
 ---
 

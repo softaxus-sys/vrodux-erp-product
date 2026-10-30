@@ -831,6 +831,7 @@ export const navigationConfig: NavGroup[] = [
           { id: "restaurant-tax", label: "Restaurant Tax", href: "/settings/integrations?tab=tax", icon: "Percent", module: "restaurant", requiresPermission: "restaurant.tax.view" },
 
           { id: "h-connect", label: "Connections & data", heading: true },
+          { id: "connections", label: "API Keys & Connections", href: "/settings/connections", icon: "KeyRound", requiresPermission: "settings.integrations.view" },
           { id: "integrations", label: "Integrations", href: "/settings/integrations", icon: "Plug", requiresPermission: "settings.integrations.view|restaurant.integrations.view" },
           // on-premises only — the screen itself says so on a cloud deployment
           { id: "cloud-sync", label: "Cloud Sync", href: "/settings/cloud-sync", icon: "CloudUpload", onPremOnly: true, requiresPermission: "settings.integrations.edit" },

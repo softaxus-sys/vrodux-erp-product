@@ -207,6 +207,7 @@ const BillingSettingsPage  = lazyWithRetry(() => import("@/pages/settings/billin
 const CheckoutResultPage   = lazyWithRetry(() => import("@/pages/billing/checkout-result"));
 const UsersPage            = lazyWithRetry(() => import("@/pages/settings/users"));
 const SecurityPage         = lazyWithRetry(() => import("@/pages/settings/security"));
+const ConnectionsPage      = lazyWithRetry(() => import("@/pages/settings/connections"));
 const RolesPage            = lazyWithRetry(() => import("@/pages/settings/roles"));
 const TeamsPage            = lazyWithRetry(() => import("@/pages/settings/teams"));
 const BranchesPage         = lazyWithRetry(() => import("@/pages/settings/branches"));
@@ -684,6 +685,8 @@ export function App() {
           {/* ── Settings — per-page permission, admin tiers always pass ─────── */}
           {/* 2FA is the signed-in user's own account, so it needs no permission at all. */}
           <Route path="/settings/security"              element={<SecurityPage />} />
+          {/* A directory of connected services; every row gates itself on its own module and permission. */}
+          <Route path="/settings/connections"           element={<ConnectionsPage />} />
 
           <Route element={<SettingsGuard permission="settings.general.view" />}>
             <Route path="/settings/general"             element={<GeneralSettingsPage />} />

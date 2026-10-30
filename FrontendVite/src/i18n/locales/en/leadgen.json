@@ -598,7 +598,11 @@
       "failed": "Failed",
       "expired": "Expired"
     },
-    "trialGranted": "Your free starter credits have been added."
+    "trialGranted": "Your free starter credits have been added.",
+    "buyMovedTitle": "Buy credits in Billing",
+    "buyMovedBody": "All add-on credits are now bought in one place, Settings → Billing → Add-ons & credits, with the price per credit shown for each module. Your balance here updates as soon as the payment is confirmed.",
+    "openBilling": "Open Billing",
+    "askBillingAdmin": "Ask a billing administrator to buy credits."
   },
   "settings": {
     "title": "Lead Generation settings",
@@ -739,6 +743,9 @@
       "complaintRatePauseBpHint": "10 = 0.1%.",
       "allowedCountries": "Allowed countries",
       "allowedCountriesHint": "Country codes, comma separated (e.g. AE, SA)."
-    }
+    },
+    "packsMovedTitle": "Credit prices moved",
+    "packsMovedBody": "Credits are now priced per credit, for every module, in Credit pricing. The old fixed packs are no longer sold.",
+    "openCreditPricing": "Open Credit pricing"
   }
 }
