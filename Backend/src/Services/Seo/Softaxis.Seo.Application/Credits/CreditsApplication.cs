@@ -22,3 +22,12 @@ public sealed class AdminGrantSeoCreditsValidator : AbstractValidator<AdminGrant
         RuleFor(x => x.Reason).NotEmpty().WithMessage("A reason is required.").MaximumLength(200);
     }
 }
+
+/// <summary>One workspace's balance, for the platform owner's overview.</summary>
+public sealed record AdminSeoWalletDto(Guid TenantId, long Balance, long LifetimeAdded, long LifetimeSpent, DateTime? UpdatedAt);
+
+/// <summary>Platform administrator only: every workspace that has an SEO wallet.</summary>
+public sealed record AdminSeoCreditsOverviewQuery : IQuery<IReadOnlyList<AdminSeoWalletDto>>;
+
+/// <summary>Platform administrator only: one workspace's balance and recent movements.</summary>
+public sealed record AdminTenantSeoCreditsQuery(Guid TenantId) : IQuery<SeoCreditsDto>;

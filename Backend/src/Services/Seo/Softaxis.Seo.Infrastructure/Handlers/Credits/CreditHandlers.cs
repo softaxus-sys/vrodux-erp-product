@@ -42,7 +42,46 @@ internal sealed class AdminGrantSeoCreditsHandler(SeoDbContext db, ISeoCreditSer
             var type = cmd.Amount > 0 ? SeoCreditTypes.Grant : SeoCreditTypes.Adjustment;
             var res = await credits.AddAsync(cmd.Amount, type, $"{cmd.Reason} (by {user.Username ?? "platform admin"})", "admin", null, $"admin:{Guid.NewGuid()}", ct);
             if (!res.Ok) return Result.Failure<SeoCreditsDto>(Error.Custom("Credits.Conflict", "That would take the balance below zero."));
-            return Result.Success(await CreditView.BuildAsync(db, credits, options, ct));
+            // Read only: looking at a workspace must not create its wallet or hand it the welcome credits.
+            var w = await db.Wallets.AsNoTracking().FirstOrDefaultAsync(ct);
+            var recent = await db.CreditLedger.AsNoTracking().OrderByDescending(l => l.CreatedAt).Take(30)
+                .Select(l => new CreditEntryDto(l.Id, l.Type, l.Amount, l.BalanceAfter, l.Reason, l.ActorName, l.CreatedAt)).ToListAsync(ct);
+            return Result.Success(new SeoCreditsDto(w?.Balance ?? 0, w?.LifetimeAdded ?? 0, w?.LifetimeSpent ?? 0, options.PagesPerCredit, options.MaxPagesPerAudit, recent));
+        }
+        finally
+        {
+            if (previous.IsResolved) TenantAmbient.Set(previous.TenantId, previous.IsSuperAdmin, true);
+            else TenantAmbient.Clear();
+        }
+    }
+}
+
+internal sealed class AdminSeoCreditsOverviewHandler(SeoDbContext db) : IQueryHandler<AdminSeoCreditsOverviewQuery, IReadOnlyList<AdminSeoWalletDto>>
+{
+    public async Task<Result<IReadOnlyList<AdminSeoWalletDto>>> Handle(AdminSeoCreditsOverviewQuery q, CancellationToken ct)
+    {
+        // The platform owner has no workspace context, so the tenant filter is lifted for this one read; the endpoint is SuperAdminOnly.
+        var rows = await db.Wallets.IgnoreQueryFilters().AsNoTracking()
+            .Select(w => new { TenantId = EF.Property<Guid?>(w, "TenantId"), w.Balance, w.LifetimeAdded, w.LifetimeSpent, w.UpdatedAt })
+            .Where(x => x.TenantId != null)
+            .ToListAsync(ct);
+        return Result.Success<IReadOnlyList<AdminSeoWalletDto>>(rows.Select(x => new AdminSeoWalletDto(x.TenantId!.Value, x.Balance, x.LifetimeAdded, x.LifetimeSpent, x.UpdatedAt)).ToList());
+    }
+}
+
+internal sealed class AdminTenantSeoCreditsHandler(SeoDbContext db, SeoOptions options) : IQueryHandler<AdminTenantSeoCreditsQuery, SeoCreditsDto>
+{
+    public async Task<Result<SeoCreditsDto>> Handle(AdminTenantSeoCreditsQuery q, CancellationToken ct)
+    {
+        var previous = (TenantAmbient.IsResolved, TenantAmbient.TenantId, TenantAmbient.IsSuperAdmin);
+        try
+        {
+            TenantAmbient.Set(q.TenantId, isSuperAdmin: false, isResolved: true);
+            // Read only: looking at a workspace must not create its wallet or hand it the welcome credits.
+            var w = await db.Wallets.AsNoTracking().FirstOrDefaultAsync(ct);
+            var recent = await db.CreditLedger.AsNoTracking().OrderByDescending(l => l.CreatedAt).Take(30)
+                .Select(l => new CreditEntryDto(l.Id, l.Type, l.Amount, l.BalanceAfter, l.Reason, l.ActorName, l.CreatedAt)).ToListAsync(ct);
+            return Result.Success(new SeoCreditsDto(w?.Balance ?? 0, w?.LifetimeAdded ?? 0, w?.LifetimeSpent ?? 0, options.PagesPerCredit, options.MaxPagesPerAudit, recent));
         }
         finally
         {

@@ -7,8 +7,12 @@ import {
   ShieldCheck, AlertTriangle, ChevronRight, RefreshCw,
   Loader2, MoreVertical, Key, Link, Trash2, Ban,
   CheckCircle, Clock, X, Edit, Copy, ExternalLink, LogIn, CreditCard, HardDrive, Radar, Mail,
+  Settings2, ChevronDown, Coins,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { cn, parseApiDate } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
@@ -339,36 +343,49 @@ export function SuperAdminView() {
               Super-admin · Manage all client tenants, plans, and licenses
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate("/super-admin/billing")}>
-              <CreditCard className="h-3.5 w-3.5 mr-1.5" />
-              Billing Setup
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={load} disabled={loading} aria-label="Refresh">
+              <RefreshCw className={cn("h-3.5 w-3.5 sm:mr-1.5", loading && "animate-spin")} />
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/super-admin/lead-generation")}>
-              <Radar className="h-3.5 w-3.5 mr-1.5" />
-              Lead Generation
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/super-admin/storage")}>
-              <HardDrive className="h-3.5 w-3.5 mr-1.5" />
-              Storage Usage
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/settings/security")}>
-              <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
-              Security (2FA)
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setBinOpen(true)}>
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Recycle bin
-              {deletedCount > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-muted text-[10px] font-semibold">
-                  {deletedCount}
-                </span>
-              )}
-            </Button>
-            <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-              <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", loading && "animate-spin")} />
-              Refresh
-            </Button>
+
+            {/* Everything that is about the platform, not one tenant, lives in one menu. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Settings2 className="h-3.5 w-3.5 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Platform</span>
+                  {deletedCount > 0 && <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-muted text-[10px] font-semibold">{deletedCount}</span>}
+                  <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">Platform settings</DropdownMenuLabel>
+                <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => navigate("/super-admin/billing")}>
+                  <CreditCard className="h-4 w-4" />Billing setup
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => navigate("/super-admin/storage")}>
+                  <HardDrive className="h-4 w-4" />Storage usage
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => navigate("/settings/security")}>
+                  <ShieldCheck className="h-4 w-4" />My security (2FA)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">Credits</DropdownMenuLabel>
+                <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => navigate("/super-admin/lead-generation")}>
+                  <Radar className="h-4 w-4" />Lead generation
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => navigate("/super-admin/seo-credits")}>
+                  <Coins className="h-4 w-4" />SEO audit credits
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => setBinOpen(true)}>
+                  <Trash2 className="h-4 w-4" />Recycle bin
+                  {deletedCount > 0 && <span className="ml-auto px-1.5 py-0.5 rounded-full bg-muted text-[10px] font-semibold">{deletedCount}</span>}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button size="sm" onClick={() => navigate("/super-admin/tenants/new")}>
               <Plus className="h-3.5 w-3.5 mr-1.5" />
               New Tenant

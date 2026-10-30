@@ -244,6 +244,7 @@ const NewTenantPage             = lazyWithRetry(() => import("@/pages/super-admi
 const TenantDetailPage          = lazyWithRetry(() => import("@/pages/super-admin/tenant-detail"));
 const PlatformBillingPage       = lazyWithRetry(() => import("@/pages/super-admin/billing"));
 const StorageUsagePage          = lazyWithRetry(() => import("@/pages/super-admin/storage"));
+const SeoCreditsAdminPage       = lazyWithRetry(() => import("@/pages/super-admin/seo-credits"));
 const SubscriptionExpiredPage   = lazyWithRetry(() => import("@/pages/subscription-expired"));
 
 // ── Guards ───────────────────────────────────────────────────────────────────
@@ -675,6 +676,7 @@ export function App() {
             {/* Shared object-storage bucket usage, per tenant — not a tenant setting either. */}
             <Route path="/super-admin/storage"     element={<StorageUsagePage />} />
             <Route path="/super-admin/lead-generation" element={<LeadGenAdminPage />} />
+            <Route path="/super-admin/seo-credits" element={<SeoCreditsAdminPage />} />
           </Route>
 
           {/* ── Settings — per-page permission, admin tiers always pass ─────── */}

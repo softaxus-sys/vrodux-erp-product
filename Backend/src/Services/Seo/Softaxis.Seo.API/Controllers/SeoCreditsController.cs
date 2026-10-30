@@ -18,6 +18,16 @@ public sealed class SeoCreditsController(ISender sender) : SeoControllerBase
 
     public sealed record GrantRequest(Guid TenantId, int Amount, string Reason);
 
+    /// <summary>Platform administrators only: every workspace's balance.</summary>
+    [HttpGet("api/admin/seo/credits")]
+    [Authorize(Policy = "SuperAdminOnly")]
+    public async Task<IActionResult> Overview(CancellationToken ct) => OkOrError(await sender.Send(new AdminSeoCreditsOverviewQuery(), ct));
+
+    /// <summary>Platform administrators only: one workspace's balance and recent movements.</summary>
+    [HttpGet("api/admin/seo/credits/{tenantId:guid}")]
+    [Authorize(Policy = "SuperAdminOnly")]
+    public async Task<IActionResult> ForTenant(Guid tenantId, CancellationToken ct) => OkOrError(await sender.Send(new AdminTenantSeoCreditsQuery(tenantId), ct));
+
     /// <summary>Platform administrators only: add or remove credits for a workspace.</summary>
     [HttpPost("api/admin/seo/credits/grant")]
     [Authorize(Policy = "SuperAdminOnly")]

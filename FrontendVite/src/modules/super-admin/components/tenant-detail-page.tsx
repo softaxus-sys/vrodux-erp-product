@@ -184,10 +184,10 @@ function CloudSubscriptionPanel({ tenant, onUpdated }: { tenant: TenantDto; onUp
   return (
     <div className="space-y-4">
       <div className={cn("rounded-xl border p-4 flex items-start gap-3",
-        tenant.status === "Active" && !isExpired ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200")}>
+        tenant.status === "Active" && !isExpired ? "bg-emerald-500/10 border-emerald-500/30" : "bg-amber-500/10 border-amber-500/30")}>
         {tenant.status === "Active" && !isExpired
-          ? <ShieldCheck className="h-5 w-5 text-emerald-500 mt-0.5 shrink-0" />
-          : <ShieldOff className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />}
+          ? <ShieldCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+          : <ShieldOff className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />}
         <div>
           <p className="text-sm font-semibold text-foreground">
             {tenant.status === "Active" && !isExpired ? "Subscription Active" : "Subscription Inactive"}
@@ -340,8 +340,8 @@ function ModulesPanel({ tenant, onUpdated }: { tenant: TenantDto; onUpdated: (t:
             <Layers className="h-4 w-4 text-primary" />
             <span className="text-sm font-semibold text-foreground">Module Access</span>
             {tenant.modulesManuallyGranted
-              ? <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">Manually granted</span>
-              : <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">Plan default</span>}
+              ? <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded-full">Manually granted</span>
+              : <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">Plan default</span>}
           </div>
           <p className="text-[11px] text-muted-foreground pl-6">
             {currentModules.length} module{currentModules.length !== 1 ? "s" : ""} enabled
