@@ -211,6 +211,9 @@ services:
       Google__ClientId: "${GOOGLE_CLIENT_ID:-}"
       Google__ClientSecret: "${GOOGLE_CLIENT_SECRET:-}"
 
+      # ── DataForSEO (competitor analysis; platform-paid, never per-tenant) ─
+      DataForSeo__Login: "${DATAFORSEO_LOGIN:-}"
+      DataForSeo__Password: "${DATAFORSEO_PASSWORD:-}"
       # ── Lead Generation ──────────────────────────────────────────────────
       # Every value is optional: a feature whose key is missing reports itself as "not set up" on
       # screen instead of failing. See .env.example for what each one is and where to get it.

@@ -8,6 +8,7 @@ using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using Softaxis.Seo.Application;
 using Softaxis.Seo.Application.Abstractions;
 using Softaxis.Seo.Infrastructure.Ai;
+using Softaxis.Seo.Infrastructure.Competitors;
 using Softaxis.Seo.Infrastructure.Content;
 using Softaxis.Seo.Infrastructure.Credits;
 using Softaxis.Seo.Infrastructure.Crawl;
@@ -53,6 +54,7 @@ public static class InfrastructureExtensions
         services.AddScoped<SafeFetcher>();
         services.AddSingleton(SeoOptions.From(configuration));
         services.AddScoped<ISeoCreditService, SeoCreditService>();
+        services.AddScoped<Softaxis.BuildingBlocks.Application.Credits.ICreditWallet, SeoCreditWallet>();
         services.AddScoped<GoogleOAuthClient>();
 
         services.AddScoped<SiteCrawler>();
@@ -68,6 +70,15 @@ public static class InfrastructureExtensions
         services.AddScoped<IArticleWriter, ArticleWriter>();
         services.AddScoped<IArticleGenerationRunner, ArticleGenerationRunner>();
         services.AddHostedService<SeoContentBackgroundService>();
+
+        // Competitor comparison: the platform's own keyword-data account (never a tenant's), a queue, and a background worker.
+        services.AddSingleton(DataForSeoOptions.From(configuration));
+        services.AddHttpClient(DataForSeoClient.ClientName);
+        services.AddScoped<IKeywordDataProvider, DataForSeoClient>();
+        services.AddScoped<ICompetitorScanRunner, CompetitorScanRunner>();
+        services.AddSingleton<CompetitorScanQueue>();
+        services.AddSingleton<ICompetitorScanQueue>(sp => sp.GetRequiredService<CompetitorScanQueue>());
+        services.AddHostedService<CompetitorScanBackgroundService>();
 
         services.AddHttpClient("wordpress").ConfigurePrimaryHttpMessageHandler(() => SsrfGuard.CreateHandler(allowPrivate));
         services.AddScoped<WordPressClient>();

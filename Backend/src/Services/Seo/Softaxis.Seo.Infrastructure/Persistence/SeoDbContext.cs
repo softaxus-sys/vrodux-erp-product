@@ -19,6 +19,10 @@ public sealed class SeoDbContext(DbContextOptions<SeoDbContext> options)
     public DbSet<SeoArticle>             Articles             => Set<SeoArticle>();
     public DbSet<SeoContentSettings>     ContentSettings       => Set<SeoContentSettings>();
     public DbSet<SeoWordPressConnection> WordPressConnections  => Set<SeoWordPressConnection>();
+    public DbSet<SeoCompetitor>          Competitors           => Set<SeoCompetitor>();
+    public DbSet<SeoKeywordSnapshot>     KeywordSnapshots      => Set<SeoKeywordSnapshot>();
+    public DbSet<SeoCompetitorScan>      CompetitorScans       => Set<SeoCompetitorScan>();
+    public DbSet<SeoPlanItem>            PlanItems             => Set<SeoPlanItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

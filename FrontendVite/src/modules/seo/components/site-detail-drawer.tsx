@@ -16,14 +16,15 @@ import {
   type FixDto,
 } from "@/lib/seo/seo.api";
 import { ContentTab } from "./content-tab";
+import { CompetitorsTab } from "./competitors-tab";
 import { ScanButton, CreditsBadge, HealthPanel, PagesPanel, HistoryPanel, CatalogueSeoPanel } from "./audit-panels";
 import { useAuthStore } from "@/store/auth.store";
 
 import { getApiBaseUrl } from "@/lib/desktop";
-type Tab = "health" | "pages" | "fixes" | "catalogue" | "google" | "history" | "content";
+type Tab = "health" | "pages" | "fixes" | "catalogue" | "competitors" | "google" | "history" | "content";
 
 const TAB_LABELS: Record<Tab, string> = {
-  health: "Health", pages: "Pages", fixes: "Fixes to review", catalogue: "Product listings", google: "Google", content: "Content", history: "Audit history",
+  health: "Health", pages: "Pages", fixes: "Fixes to review", catalogue: "Product listings", competitors: "Competitors", google: "Google", content: "Content", history: "Audit history",
 };
 
 export function SiteDetailDrawer({ siteId, onClose, initialTab }: { siteId: string | null; onClose: () => void; initialTab?: Tab }) {
@@ -63,7 +64,7 @@ export function SiteDetailDrawer({ siteId, onClose, initialTab }: { siteId: stri
             <StatusStrip site={site} />
 
             <div className="flex items-center gap-1 px-6 pt-3 border-b border-border shrink-0 overflow-x-auto">
-              {(["health", "pages", "fixes", ...(canSeeCatalogue ? ["catalogue"] as Tab[] : []), "google", ...(canSeeContent ? ["content"] as Tab[] : []), "history"] as Tab[]).map(tKey => (
+              {(["health", "pages", "fixes", ...(canSeeCatalogue ? ["catalogue"] as Tab[] : []), "competitors", "google", ...(canSeeContent ? ["content"] as Tab[] : []), "history"] as Tab[]).map(tKey => (
                 <button key={tKey} onClick={() => setTab(tKey)}
                   className={cn("px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
                     tab === tKey ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
@@ -77,6 +78,7 @@ export function SiteDetailDrawer({ siteId, onClose, initialTab }: { siteId: stri
               {tab === "pages" && <PagesPanel siteId={site.id} />}
               {tab === "fixes" && <FixesReviewList siteId={site.id} />}
               {tab === "catalogue" && <CatalogueSeoPanel canEdit={canEditCatalogue} />}
+              {tab === "competitors" && <CompetitorsTab siteId={site.id} />}
               {tab === "google" && <GooglePanel site={site} />}
               {tab === "content" && <ContentTab siteId={site.id} domain={site.domain} />}
               {tab === "history" && <HistoryPanel siteId={site.id} />}

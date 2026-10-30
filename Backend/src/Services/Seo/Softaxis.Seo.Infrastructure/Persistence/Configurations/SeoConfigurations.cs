@@ -198,3 +198,58 @@ internal sealed class SeoWordPressConnectionConfiguration : IEntityTypeConfigura
         builder.HasQueryFilter(x => !x.IsDeleted);
     }
 }
+
+internal sealed class SeoCompetitorConfiguration : IEntityTypeConfiguration<SeoCompetitor>
+{
+    public void Configure(EntityTypeBuilder<SeoCompetitor> builder)
+    {
+        builder.ToTable("seo_competitors");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.Domain).IsRequired().HasMaxLength(255);
+        builder.HasIndex(x => new { x.SiteId, x.Domain });
+    }
+}
+
+internal sealed class SeoKeywordSnapshotConfiguration : IEntityTypeConfiguration<SeoKeywordSnapshot>
+{
+    public void Configure(EntityTypeBuilder<SeoKeywordSnapshot> builder)
+    {
+        builder.ToTable("seo_keyword_snapshots");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.Domain).IsRequired().HasMaxLength(255);
+        builder.Property(x => x.ItemsJson).IsRequired().HasColumnType("nvarchar(max)");
+        builder.HasIndex(x => new { x.SiteId, x.Domain, x.LocationCode, x.FetchedAt });
+    }
+}
+
+internal sealed class SeoCompetitorScanConfiguration : IEntityTypeConfiguration<SeoCompetitorScan>
+{
+    public void Configure(EntityTypeBuilder<SeoCompetitorScan> builder)
+    {
+        builder.ToTable("seo_competitor_scans");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.Status).IsRequired().HasMaxLength(20);
+        builder.Property(x => x.CompetitorsJson).IsRequired().HasColumnType("nvarchar(max)");
+        builder.Property(x => x.TopicGapsJson).IsRequired().HasColumnType("nvarchar(max)");
+        builder.Property(x => x.KeywordGapsJson).IsRequired().HasColumnType("nvarchar(max)");
+        builder.Property(x => x.KeywordDataNote).HasMaxLength(500);
+        builder.Property(x => x.Error).HasMaxLength(500);
+        builder.HasIndex(x => new { x.SiteId, x.CreatedAt });
+    }
+}
+
+internal sealed class SeoPlanItemConfiguration : IEntityTypeConfiguration<SeoPlanItem>
+{
+    public void Configure(EntityTypeBuilder<SeoPlanItem> builder)
+    {
+        builder.ToTable("seo_plan_items");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.PlannedDate).IsRequired().HasMaxLength(10);
+        builder.Property(x => x.Title).IsRequired().HasMaxLength(300);
+        builder.Property(x => x.TargetKeyword).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.Reason).IsRequired().HasMaxLength(600);
+        builder.Property(x => x.Source).IsRequired().HasMaxLength(20);
+        builder.Property(x => x.Status).IsRequired().HasMaxLength(20);
+        builder.HasIndex(x => new { x.SiteId, x.ScanId });
+    }
+}

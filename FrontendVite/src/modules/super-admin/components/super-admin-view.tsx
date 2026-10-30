@@ -378,6 +378,9 @@ export function SuperAdminView() {
                 <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => navigate("/super-admin/seo-credits")}>
                   <Coins className="h-4 w-4" />SEO audit credits
                 </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => navigate("/super-admin/credit-pricing")}>
+                  <Coins className="h-4 w-4" />Credit pricing
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => setBinOpen(true)}>
                   <Trash2 className="h-4 w-4" />Recycle bin

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.Identity.API.Authorization;
 using Softaxis.Identity.Application.Billing.Commands;
+using Softaxis.Identity.Application.Billing.Credits;
 using Softaxis.Identity.Application.Billing.Queries;
 
 namespace Softaxis.Identity.API.Controllers;
@@ -41,6 +42,43 @@ public sealed class BillingController(ISender sender) : BaseApiController(sender
     public async Task<IActionResult> Checkout([FromBody] CheckoutRequest req, CancellationToken ct) =>
         HandleResult(await Sender.Send(
             new CreateCheckoutSessionCommand(req.Plan, req.BillingPeriod, req.Provider), ct));
+
+    // ── Credits for add-on modules (SEO, Lead Generation, …) ───────────────────
+
+    /// <summary>Every add-on that sells credits: price, balance, how it works.</summary>
+    [HttpGet("credits")]
+    public async Task<IActionResult> CreditCatalog(CancellationToken ct) => HandleResult(await Sender.Send(new GetCreditCatalogQuery(), ct));
+
+    /// <summary>What an order would cost — priced on the server, so the screen never calculates money itself.</summary>
+    [HttpGet("credits/quote")]
+    public async Task<IActionResult> CreditQuote([FromQuery] string module, [FromQuery] int credits, CancellationToken ct) =>
+        HandleResult(await Sender.Send(new GetCreditQuoteQuery(module, credits), ct));
+
+    [HttpPost("credits/checkout")]
+    [RequirePermission("settings.billing.edit")]
+    public async Task<IActionResult> CreditCheckout([FromBody] CreditCheckoutRequest req, CancellationToken ct) =>
+        HandleResult(await Sender.Send(new CreateCreditCheckoutCommand(req.Module, req.Credits, req.Provider), ct));
+
+    /// <summary>The buyer is back from PayPal: capture the order and add the credits.</summary>
+    [HttpPost("credits/paypal/capture")]
+    [RequirePermission("settings.billing.edit")]
+    public async Task<IActionResult> CreditPayPalCapture([FromBody] CreditCaptureRequest req, CancellationToken ct) =>
+        HandleResult(await Sender.Send(new CapturePayPalCreditOrderCommand(req.OrderId), ct));
+
+    [HttpGet("credits/purchases")]
+    public async Task<IActionResult> CreditPurchases(CancellationToken ct) => HandleResult(await Sender.Send(new GetCreditPurchasesQuery(), ct));
+
+    [HttpGet("credits/swap/quote")]
+    public async Task<IActionResult> CreditSwapQuote([FromQuery] string from, [FromQuery] string to, [FromQuery] int credits, CancellationToken ct) =>
+        HandleResult(await Sender.Send(new GetCreditSwapQuoteQuery(from, to, credits), ct));
+
+    [HttpPost("credits/swap")]
+    [RequirePermission("settings.billing.edit")]
+    public async Task<IActionResult> CreditSwap([FromBody] CreditSwapRequest req, CancellationToken ct) =>
+        HandleResult(await Sender.Send(new SwapCreditsCommand(req.From, req.To, req.Credits), ct));
+
+    [HttpGet("credits/swaps")]
+    public async Task<IActionResult> CreditSwaps(CancellationToken ct) => HandleResult(await Sender.Send(new GetCreditSwapsQuery(), ct));
 
     /// <summary>Open the provider's hosted management page (Stripe only today).</summary>
     [HttpPost("portal")]
@@ -129,3 +167,6 @@ public sealed class BillingWebhooksController(ISender sender) : ControllerBase
 
 public sealed record CheckoutRequest(string Plan, string BillingPeriod, string Provider);
 public sealed record CancelRequest(bool Immediate = false);
+public sealed record CreditCheckoutRequest(string Module, int Credits, string Provider);
+public sealed record CreditCaptureRequest(string OrderId);
+public sealed record CreditSwapRequest(string From, string To, int Credits);

@@ -55,6 +55,7 @@ public static class InfrastructureExtensions
         services.AddScoped<IPlatformSettings, PlatformSettingsService>();
         services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
         services.AddScoped<ICreditService, CreditService>();
+        services.AddScoped<Softaxis.BuildingBlocks.Application.Credits.ICreditWallet, LeadGenCreditWallet>();
         services.AddScoped<ITenantInfoReader, TenantInfoReader>();
         services.AddScoped<ICompanyDefaultsReader, CompanyDefaultsReader>();
         services.AddScoped<IProfileDefaults, ProfileDefaults>();

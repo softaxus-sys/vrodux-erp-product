@@ -9094,3 +9094,45 @@ Migration `AddSeoAuditV2` (additive; backfills issue first/last seen).
 `phone` on `POST /api/trial/register` (validator: 7–15 digits, `+ - ( ) .` and spaces allowed), a required field on onboarding step 1 (en + ar),
 saved on `Tenant.ContactPhone` and the owner's `User.PhoneNumber`, so the team can reach trials that go quiet. The only caller is the web onboarding
 page (grepped); any other client posting to that endpoint must now send `phone`. Existing tenants are unchanged (no backfill).
+
+---
+
+## Module 93 — Billing: add-on credits bought centrally, swappable between modules
+
+One place to buy credits for every add-on (SEO audits, Lead Generation, anything added later): **Settings → Billing → "Add-ons & credits"**
+(shown only to a workspace with a subscription). Balances stay separate per module and are shown as credits only, with "1 credit = $x".
+
+- **Wallet abstraction:** `ICreditWallet` (BuildingBlocks.Application/Credits). A module implements it (`SeoCreditWallet`, `LeadGenCreditWallet`) and registers one DI line;
+  Identity discovers every wallet through `IEnumerable<ICreditWallet>`. Members: balance, `AddPurchasedAsync`, `SwappableAsync`, `RemoveForSwapAsync`, `AddFromSwapAsync`, plus name/description/"how it works" text for the card.
+- **Pricing is server-side only** (`CreditPricing.Quote`, unit-tested): the browser sends module + credits, never an amount. Settings row `credit_pricing_settings` (super-admin → Platform → **Credit pricing**):
+  price per credit per module (no price = not for sale), bulk-discount tiers (default 0/100→5%/500→10%/2000→15%/10000→20%), min 20 credits, min order $5, max order $1000 (above = "contact us"), VAT % (0 now), swap on/off, swap fee %, min swap credits.
+- **Purchase flow:** `credit_purchases` row written BEFORE the redirect (pending) → Stripe Checkout (inline `price_data`, `mode=payment`, metadata `type=credits`) or PayPal Orders v2 (exact amount; we capture on return) → single `CreditFulfiller`
+  (amount + currency check, atomic `pending→paid` claim, wallet add idempotent on the purchase id, then `credited`). No Stripe product / PayPal plan is needed. The Stripe webhook branches on `type=credits` BEFORE the subscription logic
+  (otherwise a credit payment would activate a plan). A paid-but-not-credited purchase self-heals when the purchases list is read. **No refunds, no expiry, no auto top-up** (decided with the owner).
+- **Swapping** (`credit_swaps`, `CreditSwapPricing.Quote`): value moved = credits × price of the credit given (list price, before bulk discount); minus swap fee %; received = floor(value ÷ price of the credit received);
+  only as many credits as needed are taken. Only bought or swapped-in credits move: `Swappable = max(0, balance − max(0, free granted − used))`. Steps (pending → removed → done) are idempotent on the swap id; a failed add puts the credits back.
+  The rule is written on the swap dialog. Example: 20 SEO @ $0.05 = $1.00 → 10 Lead Gen credits @ $0.10.
+- Migration `AddCreditPurchasesAndSwaps` (Identity). Tests: `Backend/tests/Softaxis.Identity.Tests` (13: min/max/discount/VAT, swap formula, fee, no value created).
+- **Not set up / not verified:** no module has a price until the super admin enters one; the swap fee defaults to 0% (a small fee is recommended because cost-to-serve differs per module). Not run against real Stripe/PayPal or in a browser;
+  the Stripe webhook must be configured for the existing billing webhook URL (credits reuse it). **Not built:** Lead Gen's own pack checkout is still separate; the "API keys and connections" hub for BYO keys.
+
+---
+
+## Module 94 — SEO: competitor analysis + 30-day content plan
+
+SEO drawer → **Competitors** tab. Add up to 5 competitor websites per site, pick a search market, run a comparison.
+
+- **Two views of the same question** ("what do they cover that we don't?"): *topic gaps* (from the pages competitors publish; needs no paid data) and *keyword gaps* (from search volumes; needs the keyword provider).
+  Pure code in `Competitors/CompetitorAnalysis` (unit-tested): bigram topics from titles/H1s with filler and the competitor's brand removed, ≥2 pages; keyword gaps = competitor top-20 terms with ≥20 searches/month that the site does not rank for at all,
+  scored by volume × agreeing competitors × ease. **30-day plan:** 15 slots, one every two days, search terms first then topics, no two slots on the same ground.
+- **Keyword data = DataForSEO, the platform's own account** (never a tenant's key): server env `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` → `DataForSeo__Login/Password` (mapped in `docker-compose.prod.yml`, documented in `.env.example`).
+  Uses Labs `ranked_keywords/live` (own site + each competitor, ≤300 items). Unset → the topic comparison and plan still run and the screen says so. Provider errors become safe messages (no credentials/internal text).
+  A bought list is **reused for 30 days** (`seo_keyword_snapshots`), so repeating a comparison soon costs less.
+- **Credits (same wallet as audits):** pages read (1 credit per 25, ≤50 pages per website) + 12 credits per competitor whose keyword list was freshly bought. The balance must cover the maximum up front (402 otherwise); the charge is the actual use,
+  taken after the work — a failed comparison costs nothing. Knobs: `Seo:CreditsPerCompetitorKeywords|CompetitorPagesPerDomain|KeywordCacheDays`.
+- **Runs in the background** (`CompetitorScanQueue` + `CompetitorScanBackgroundService`; queued/running scans are re-queued after a restart; one comparison per site at a time). All fetches use the SSRF-guarded fetcher; competitor addresses are validated like a site's.
+- **Drafts:** "Write draft" on a plan slot writes one article through the existing `IArticleWriter` (the tenant's own AI key) into the normal Content review queue (`pending_review`); nothing is published, and WordPress push stays a separate step.
+- API `api/seo/sites/{id}/competitors`, `…/competitor-scans`, `api/seo/competitor-scans/{id}`, `api/seo/plan-items/{id}/draft|skip`; permissions reuse `seo.sites.view|edit` and `seo.content.edit` (no migration in Identity).
+- Migration `AddCompetitorAnalysis` (Seo, 4 tables). Tests: 14 added to `Softaxis.Seo.Tests` (71 total, all pass), including parsing of the provider response and error mapping.
+- **Not verified:** a real DataForSEO call (credentials exist only on the server — check the first run there and watch the account balance), the screen in a browser, Arabic (English only by decision).
+- **Limits:** the DataForSEO location codes in `CompetitorLocations` are from its published list but unconfirmed against a live account; no scheduled/recurring comparison; the plan is not auto-regenerated.

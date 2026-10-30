@@ -13,6 +13,12 @@ public sealed class SeoOptions
     public int CrawlConcurrency { get; init; } = 4;
     /// <summary>Different external addresses checked for broken links per audit.</summary>
     public int ExternalLinkCheckLimit { get; init; } = 60;
+    /// <summary>Credits for one competitor whose keywords had to be bought from the keyword provider (crawl pages are charged separately).</summary>
+    public int CreditsPerCompetitorKeywords { get; init; } = 12;
+    /// <summary>Pages read per website in a competitor comparison.</summary>
+    public int CompetitorPagesPerDomain { get; init; } = 50;
+    /// <summary>How long a bought keyword list is reused before it is bought again.</summary>
+    public int KeywordCacheDays { get; init; } = 30;
 
     public static SeoOptions From(IConfiguration c)
     {
@@ -25,6 +31,9 @@ public sealed class SeoOptions
             WelcomeCredits = Pick("WelcomeCredits", 20, 0, 100000),
             CrawlConcurrency = Pick("CrawlConcurrency", 4, 1, 8),
             ExternalLinkCheckLimit = Pick("ExternalLinkCheckLimit", 60, 0, 300),
+            CreditsPerCompetitorKeywords = Pick("CreditsPerCompetitorKeywords", 12, 0, 1000),
+            CompetitorPagesPerDomain = Pick("CompetitorPagesPerDomain", 50, 10, 200),
+            KeywordCacheDays = Pick("KeywordCacheDays", 30, 1, 365),
         };
     }
 

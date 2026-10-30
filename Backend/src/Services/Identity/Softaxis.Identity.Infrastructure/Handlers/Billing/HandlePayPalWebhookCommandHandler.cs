@@ -24,6 +24,7 @@ internal sealed class HandlePayPalWebhookCommandHandler(
     ISubscriptionAccessCache      accessCache,
     IEnumerable<IBillingProvider> providers,
     IUnitOfWork                   uow,
+    Softaxis.Identity.Infrastructure.Billing.CreditFulfiller creditFulfiller,
     IOptionsSnapshot<BillingOptions>      options,
     ILogger<HandlePayPalWebhookCommandHandler> logger)
     : ICommandHandler<HandlePayPalWebhookCommand>
@@ -104,6 +105,10 @@ internal sealed class HandlePayPalWebhookCommandHandler(
                 await OnSaleCompleted(resource, ct);
                 break;
 
+            case "PAYMENT.CAPTURE.COMPLETED":
+                await OnCaptureCompletedAsync(resource, ct);
+                break;
+
             default:
                 logger.LogDebug("Ignoring unhandled PayPal event type {Type}.", eventType);
                 break;
@@ -111,6 +116,23 @@ internal sealed class HandlePayPalWebhookCommandHandler(
     }
 
     // ── Handlers ─────────────────────────────────────────────────────────────
+
+    /// <summary>A one-off order was captured. Only ones we made for credits ("credits:{purchaseId}") are ours to act on.</summary>
+    private async Task OnCaptureCompletedAsync(JsonElement resource, CancellationToken ct)
+    {
+        var customId = Str(resource, "custom_id");
+        if (customId is null || !customId.StartsWith("credits:", StringComparison.Ordinal) || !Guid.TryParse(customId["credits:".Length..], out var purchaseId))
+            return;
+        var value = Str(resource, "amount", "value");
+        var currency = Str(resource, "amount", "currency_code");
+        if (!decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var paid) || currency is null)
+        {
+            logger.LogWarning("PayPal capture for credit purchase {Purchase} had no readable amount.", purchaseId);
+            return;
+        }
+        var done = await creditFulfiller.FulfilAsync(purchaseId, paid, currency, Str(resource, "id"), ct);
+        if (done.IsFailure) throw new InvalidOperationException($"Credits not applied for purchase {purchaseId}: {done.Error.Description}");
+    }
 
     private async Task OnActivated(JsonElement resource, CancellationToken ct)
     {

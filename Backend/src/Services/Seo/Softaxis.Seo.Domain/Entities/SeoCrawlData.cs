@@ -80,5 +80,6 @@ public sealed class SeoCreditEntry
 
 public static class SeoCreditTypes
 {
-    public const string Grant = "grant", Spend = "spend", Refund = "refund", Adjustment = "adjustment";
+    public const string Grant = "grant", Spend = "spend", Refund = "refund", Adjustment = "adjustment",
+        Purchase = "purchase", SwapIn = "swap_in", SwapOut = "swap_out";
 }

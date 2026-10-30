@@ -34,6 +34,7 @@ internal sealed class HandleStripeWebhookCommandHandler(
     ISubscriptionRepository  subRepo,
     ISubscriptionAccessCache accessCache,
     IUnitOfWork              uow,
+    Softaxis.Identity.Infrastructure.Billing.CreditFulfiller creditFulfiller,
     IOptionsSnapshot<BillingOptions> options,
     ILogger<HandleStripeWebhookCommandHandler> logger)
     : ICommandHandler<HandleStripeWebhookCommand>
@@ -129,6 +130,14 @@ internal sealed class HandleStripeWebhookCommandHandler(
     {
         if (session is null) return;
 
+        // A credit purchase is a one-off payment, NOT a subscription. It must never reach the code below, which
+        // activates the tenant's paid plan — so it is recognised first, by metadata WE set when creating the session.
+        if (session.Metadata is { } m && m.TryGetValue("type", out var kind) && kind == "credits")
+        {
+            await OnCreditsPaidAsync(session, ct);
+            return;
+        }
+
         var tenantId = ResolveTenantId(session.ClientReferenceId, session.Metadata);
         if (tenantId is null)
         {
@@ -163,6 +172,25 @@ internal sealed class HandleStripeWebhookCommandHandler(
         accessCache.Invalidate(tenant.Id);
 
         logger.LogInformation("Stripe checkout completed for tenant {TenantId} on {Plan}/{Period}.", tenant.Id, plan, period);
+    }
+
+    private async Task OnCreditsPaidAsync(Session session, CancellationToken ct)
+    {
+        if (!string.Equals(session.PaymentStatus, "paid", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation("Stripe credit session {Session} completed but is not paid yet ({Status}); waiting.", session.Id, session.PaymentStatus);
+            return;
+        }
+        if (!session.Metadata.TryGetValue("purchase_id", out var raw) || !Guid.TryParse(raw, out var purchaseId))
+        {
+            logger.LogWarning("Stripe credit session {Session} carried no purchase id.", session.Id);
+            return;
+        }
+        var paid = (session.AmountTotal ?? 0) / 100m;
+        var done = await creditFulfiller.FulfilAsync(purchaseId, paid, session.Currency ?? "", session.PaymentIntentId, ct);
+        // A failure throws so the event is recorded as failed and shows up for an operator; the buyer's next visit
+        // to the Billing page also retries any paid-but-not-credited purchase.
+        if (done.IsFailure) throw new InvalidOperationException($"Credits not applied for purchase {purchaseId}: {done.Error.Description}");
     }
 
     private async Task OnSubscriptionChanged(Stripe.Subscription? stripeSub, CancellationToken ct)

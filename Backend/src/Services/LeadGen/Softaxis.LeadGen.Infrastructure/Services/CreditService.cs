@@ -25,6 +25,8 @@ public interface ICreditService
     Task<long> BalanceAsync(CancellationToken ct);
     Task<SpendResult> TrySpendAsync(int amount, string reason, string? refType, Guid? refId, string key, CancellationToken ct);
     Task<SpendResult> AddAsync(int amount, string type, string reason, string? refType, Guid? refId, string key, CancellationToken ct);
+    /// <summary>Guarded removal that is not usage (a swap to another module): never below zero, not counted as spent.</summary>
+    Task<SpendResult> RemoveAsync(int amount, string type, string reason, string? refType, Guid? refId, string key, CancellationToken ct);
 }
 
 internal sealed class CreditService(
@@ -103,6 +105,35 @@ internal sealed class CreditService(
         }
 
         _ = NotifyIfLowAsync(balance, ct);
+        return new SpendResult(true, balance);
+    }
+
+    public async Task<SpendResult> RemoveAsync(int amount, string type, string reason, string? refType, Guid? refId, string key, CancellationToken ct)
+    {
+        if (amount <= 0) return new SpendResult(true, await BalanceAsync(ct), AlreadyDone: true);
+        await EnsureWalletAsync(ct);
+        var existing = await db.Ledger.AsNoTracking().FirstOrDefaultAsync(l => l.IdempotencyKey == key, ct);
+        if (existing is not null) return new SpendResult(true, existing.BalanceAfter, AlreadyDone: true);
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var rows = await db.Wallets.Where(w => w.Balance >= amount).ExecuteUpdateAsync(s => s
+            .SetProperty(w => w.Balance, w => w.Balance - amount)
+            .SetProperty(w => w.UpdatedAt, DateTime.UtcNow), ct);
+        if (rows == 0)
+        {
+            await tx.RollbackAsync(ct);
+            return new SpendResult(false, await db.Wallets.AsNoTracking().Select(w => w.Balance).FirstAsync(ct));
+        }
+        var balance = await db.Wallets.AsNoTracking().Select(w => w.Balance).FirstAsync(ct);
+        db.Ledger.Add(new CreditLedgerEntry(type, -amount, balance, reason, refType, refId, key, accessor.UserId, accessor.UserName));
+        try { await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); }
+        catch (DbUpdateException)
+        {
+            await tx.RollbackAsync(ct);
+            db.ChangeTracker.Clear();
+            var prior = await db.Ledger.AsNoTracking().FirstOrDefaultAsync(l => l.IdempotencyKey == key, ct);
+            return new SpendResult(prior is not null, prior?.BalanceAfter ?? balance, AlreadyDone: true);
+        }
         return new SpendResult(true, balance);
     }
 
