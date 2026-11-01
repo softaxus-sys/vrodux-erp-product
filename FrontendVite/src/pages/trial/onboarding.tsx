@@ -43,6 +43,9 @@ function getInitialMode(): "light" | "dark" {
 
 // ── Industry → modules ────────────────────────────────────────────────────────
 
+/** How many business categories a signup may pick. */
+const MAX_BUSINESS_TYPES = 3;
+
 const INDUSTRY_MODULES: Record<string, ModuleId[]> = {
   "All Industries":           ["pos","inventory","sales","purchase","finance","hr","crm","restaurant","hospitality","real-estate","construction","healthcare","education","visa","library","manufacturing","trade"],
   "Retail & E-Commerce":      ["pos","inventory","sales","crm","finance"],
@@ -352,6 +355,23 @@ function ModCard({ D,mod,selected,auto,recommended,onToggle }: { D:P;mod:ModuleD
   );
 }
 
+/** The add-ons every workspace gets whatever modules it picks: no checkbox, nothing to buy. */
+function IncludedNote({ D,className }: { D:P;className?:string }) {
+  const { t }=useTranslation("onboarding");
+  const items=[t("included.ai"),t("included.seo"),t("included.leadgen")];
+  return(
+    <div className={cn("flex flex-wrap items-center gap-1.5",className)}>
+      <span className="text-[11px] font-medium" style={{ color:D.muted }}>{t("included.title")}:</span>
+      {items.map(x=>(
+        <span key={x} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border"
+          style={{ color:D.accent,borderColor:D.accent+"40",background:D.accentDim }}>
+          <Check className="h-3 w-3" strokeWidth={3}/>{x}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function BizCard({ D,bt,selected,onToggle }: { D:P;bt:typeof BUSINESS_TYPES[number];selected:boolean;onToggle:()=>void }) {
   return(
     <button type="button" onClick={onToggle}
@@ -467,7 +487,7 @@ export default function OnboardingPage() {
   const [autoModules,setAutoModules]=React.useState<Set<ModuleId>>(new Set());
   const [recommendedMods,setRecommendedMods]=React.useState<Set<ModuleId>>(new Set());
   const [moduleError,setModuleError]=React.useState("");
-  const [businessType,setBusinessType]=React.useState<string|null>(null);
+  const [businessTypes,setBusinessTypes]=React.useState<string[]>([]);
   const [bizError,setBizError]=React.useState("");
   const [submitting,setSubmitting]=React.useState(false);
 
@@ -512,7 +532,7 @@ export default function OnboardingPage() {
     const ex=new Set<ModuleId>(ids); const res=resolveModules(ex);
     const au=new Set<ModuleId>(); for(const r of res)if(!ex.has(r))au.add(r);
     const rc=new Set<ModuleId>(); for(const s of res){ const d=MODULES.find(m=>m.id===s); if(d)for(const r of d.recommends)if(!res.has(r))rc.add(r); }
-    setSelectedModules(ex);setAutoModules(au);setRecommendedMods(rc);setBusinessType(null);
+    setSelectedModules(ex);setAutoModules(au);setRecommendedMods(rc);setBusinessTypes([]);
   },[]);
 
   const onS2=f2.handleSubmit(d=>{ applyIndustry(d.industry); setStep(2); });
@@ -525,14 +545,14 @@ export default function OnboardingPage() {
       const rc=new Set<ModuleId>(); for(const s of res){ const d=MODULES.find(m=>m.id===s); if(d)for(const r of d.recommends)if(!res.has(r))rc.add(r); }
       setAutoModules(au); setRecommendedMods(rc);
       // Clear business type if the new selection no longer requires it
-      if(!needsBusinessType(n)) setBusinessType(null);
+      if(!needsBusinessType(n)) setBusinessTypes([]);
       return n;
     });
   },[]);
 
   const [apiError,setApiError]=React.useState<{ code:string|null; message:string }|null>(null);
   const onS3=()=>{ if(selectedModules.size===0){setModuleError(t("step3.selectOne"));return;} setModuleError(""); showBT?setStep(3):submitAll(); };
-  const onS4=()=>{ if(!businessType){setBizError(t("step4.selectType"));return;} setBizError(""); submitAll(); };
+  const onS4=()=>{ if(businessTypes.length===0){setBizError(t("step4.selectType"));return;} setBizError(""); submitAll(); };
   const submitAll=async()=>{
     if(!s1Data)return;
     setSubmitting(true); setApiError(null);
@@ -547,7 +567,7 @@ export default function OnboardingPage() {
         orgName:     s2.orgName||s1Data.companyName,
         industry:    s2.industry||undefined,
         country:     s2.country||undefined,
-        businessType:businessType||undefined,
+        businessType:businessTypes.length?businessTypes.join(","):undefined,
         fiscalYear:  s2.fiscalYear||undefined,
         language:    s2.language||undefined,
         // Submit the 3-letter ISO code (picker shows "PKR - Pakistani Rupee"); backend also normalises.
@@ -629,6 +649,7 @@ export default function OnboardingPage() {
           {[...allResolved].map(id=>{ const m=MODULES.find(x=>x.id===id)!; const Icon=m.icon;
             return<span key={id} className={cn("inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border",m.color,m.iconColor)}><Icon className="h-3 w-3"/>{moduleLabel(m)}</span>; })}
         </div>
+        <IncludedNote D={D} className="justify-center mb-7 -mt-4"/>
         {/* "Buy Now" signups: say plainly that checkout comes after sign-in, so the jump to a
             payment page isn't a surprise. Your free trial runs either way. */}
         {checkoutPending && selectedPlan && (
@@ -1030,6 +1051,8 @@ export default function OnboardingPage() {
                         :t("step3.subtitle")}
                     </p>
 
+                    <IncludedNote D={D} className="mb-4"/>
+
                     <AnimatePresence>
                       {autoModules.size>0&&(
                         <motion.div initial={{ opacity:0,height:0 }} animate={{ opacity:1,height:"auto" }} exit={{ opacity:0,height:0 }}
@@ -1101,7 +1124,11 @@ export default function OnboardingPage() {
                     <div className="rounded-xl border p-5" style={{ background:D.card,borderColor:D.border }}>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                         {BUSINESS_TYPES.map(bt=>(
-                          <BizCard key={bt.id} D={D} bt={bt} selected={businessType===bt.id} onToggle={()=>{ setBusinessType(bt.id); setBizError(""); }}/>
+                          <BizCard key={bt.id} D={D} bt={bt} selected={businessTypes.includes(bt.id)} onToggle={()=>{
+                            if(businessTypes.includes(bt.id)){ setBusinessTypes(businessTypes.filter(x=>x!==bt.id)); setBizError(""); return; }
+                            if(businessTypes.length>=MAX_BUSINESS_TYPES){ setBizError(t("step4.maxTypes",{count:MAX_BUSINESS_TYPES})); return; }
+                            setBusinessTypes([...businessTypes,bt.id]); setBizError("");
+                          }}/>
                         ))}
                       </div>
                     </div>
@@ -1109,14 +1136,14 @@ export default function OnboardingPage() {
                     {bizError&&<p className="mt-3 text-xs text-red-400 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5"/>{bizError}</p>}
 
                     <AnimatePresence>
-                      {businessType&&(()=>{ const bt=BUSINESS_TYPES.find(b=>b.id===businessType)!; const missing=bt.suggests.filter(id=>!allResolved.has(id)); if(!missing.length)return null;
+                      {businessTypes.length>0&&(()=>{ const picked=BUSINESS_TYPES.filter(b=>businessTypes.includes(b.id)); const missing=[...new Set(picked.flatMap(b=>b.suggests))].filter(id=>!allResolved.has(id)); if(!missing.length)return null;
                         return(
                           <motion.div initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }}
                             className="mt-4 flex items-start gap-2.5 rounded-xl border p-4"
                             style={{ background:D.accentDim,borderColor:D.accent+"40" }}>
                             <Sparkles className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color:D.accent }}/>
                             <div>
-                              <p className="text-[11px] font-semibold mb-2" style={{ color:D.white }}>{t("step4.alsoRecommended",{label:businessTypeLabel(bt)})}</p>
+                              <p className="text-[11px] font-semibold mb-2" style={{ color:D.white }}>{t("step4.alsoRecommended",{label:picked.map(businessTypeLabel).join(" + ")})}</p>
                               <div className="flex flex-wrap gap-1.5">
                                 {missing.map(id=>{ const m=MODULES.find(x=>x.id===id)!; const Icon=m.icon;
                                   return<button key={id} type="button" onClick={()=>{ toggleModule(id); setStep(2); }}

@@ -206,11 +206,12 @@ public sealed class Tenant : AuditableEntity<Guid>
     /// </summary>
     /// <summary>Modules every tenant always has, regardless of plan or onboarding choices.</summary>
     /// <summary>
-    /// <c>leadgen</c> is on for every workspace: it is available to all customers, and who may actually use it is
-    /// decided entirely by the <c>leadgen.*</c> permissions an administrator grants to roles. Nothing is exposed
+    /// <c>leadgen</c> and <c>seo</c> are on for every workspace, whatever industry or modules were picked at signup:
+    /// they are included with the product, and who may actually use them is
+    /// decided entirely by the <c>leadgen.*</c> / <c>seo.*</c> permissions an administrator grants to roles. Nothing is exposed
     /// to a user who holds none of them.
     /// </summary>
-    public static readonly IReadOnlyList<string> AlwaysOnModules = ["settings", "users", "leadgen"];
+    public static readonly IReadOnlyList<string> AlwaysOnModules = ["settings", "users", "leadgen", "seo"];
 
     public IReadOnlyList<string> ResolvedModules
     {
