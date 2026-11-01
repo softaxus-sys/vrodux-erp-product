@@ -23,6 +23,26 @@ public sealed class ProductTemplatesController(ISender sender) : BaseApiControll
         [FromQuery] Guid? categoryId = null, [FromQuery] bool? published = null, CancellationToken ct = default)
         => HandleResult(await Sender.Send(new GetProductTemplatesQuery(page, pageSize, search, categoryId, published), ct));
 
+    /// <summary>Stock items that are not in any online listing yet — the worklist for "List online".</summary>
+    [HttpGet("unlisted")]
+    [RequirePermission("inventory.stock.view")]
+    public async Task<IActionResult> GetUnlisted(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? search = null,
+        [FromQuery] Guid? categoryId = null, CancellationToken ct = default)
+        => HandleResult(await Sender.Send(new GetUnlistedProductsQuery(page, pageSize, search, categoryId), ct));
+
+    /// <summary>Whether given stock items are online (used to badge the stock list).</summary>
+    [HttpPost("listing-status")]
+    [RequirePermission("inventory.stock.view")]
+    public async Task<IActionResult> ListingStatus([FromBody] ListingStatusRequest req, CancellationToken ct)
+        => HandleResult(await Sender.Send(new GetProductListingStatusQuery(req.ProductIds), ct));
+
+    /// <summary>Lists existing stock items online: one draft listing per item, filled from the product.</summary>
+    [HttpPost("list-products")]
+    [RequirePermission("inventory.stock.edit")]
+    public async Task<IActionResult> ListProducts([FromBody] ListProductsOnlineCommand cmd, CancellationToken ct)
+        => HandleResult(await Sender.Send(cmd, ct));
+
     [HttpGet("{id:guid}")]
     [RequirePermission("inventory.stock.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
@@ -113,6 +133,7 @@ public sealed record UpdateTemplateRequest(
     ProductTemplateContent Content, IReadOnlyList<ProductOptionInput> Options,
     IReadOnlyList<VariantChoiceInput>? VariantChoices = null);
 public sealed record PublishRequest(bool Published);
+public sealed record ListingStatusRequest(IReadOnlyList<Guid> ProductIds);
 public sealed record AddVariantsRequest(IReadOnlyList<VariantInput> Variants);
 public sealed record UpdateVariantRequest(
     IReadOnlyDictionary<string, string> Options, bool SellOnline,

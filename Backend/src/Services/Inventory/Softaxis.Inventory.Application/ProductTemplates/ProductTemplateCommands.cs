@@ -82,6 +82,14 @@ public sealed record SetTemplatePublishedCommand(Guid Id, bool Published) : ICom
 /// <summary>Deletes the listing and its photos. The products in it are kept.</summary>
 public sealed record DeleteProductTemplateCommand(Guid Id) : ICommand;
 
+/// <summary>
+/// Lists existing stock items online: each one becomes its own draft listing (one variant, no options)
+/// filled from the product. Nothing about the product changes — price, SKU and stock stay where they are.
+/// Items already in a listing, inactive or deleted are skipped and reported.
+/// </summary>
+public sealed record ListProductsOnlineCommand(IReadOnlyList<Guid> ProductIds, bool Publish = false)
+    : ICommand<ListProductsOnlineResult>;
+
 // ── Photos ────────────────────────────────────────────────────────────────────
 
 /// <param name="Data">A data URI: <c>data:image/jpeg;base64,...</c></param>
@@ -168,6 +176,18 @@ public sealed class AddTemplateVariantsCommandValidator : AbstractValidator<AddT
         RuleFor(x => x.TemplateId).NotEmpty();
         RuleFor(x => x.Variants).NotNull().Must(v => v is { Count: > 0 }).WithMessage("No variants to add.");
         RuleForEach(x => x.Variants).SetValidator(new VariantInputValidator());
+    }
+}
+
+public sealed class ListProductsOnlineCommandValidator : AbstractValidator<ListProductsOnlineCommand>
+{
+    public const int MaxPerRequest = 200;
+
+    public ListProductsOnlineCommandValidator()
+    {
+        RuleFor(x => x.ProductIds).NotNull()
+            .Must(i => i is { Count: > 0 }).WithMessage("Choose at least one stock item.")
+            .Must(i => i is null || i.Count <= MaxPerRequest).WithMessage($"List at most {MaxPerRequest} items at a time.");
     }
 }
 

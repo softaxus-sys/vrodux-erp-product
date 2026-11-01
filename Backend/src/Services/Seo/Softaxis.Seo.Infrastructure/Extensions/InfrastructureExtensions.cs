@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Net;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;

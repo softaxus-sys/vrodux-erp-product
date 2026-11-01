@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Net;
 using Microsoft.Extensions.Configuration;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;

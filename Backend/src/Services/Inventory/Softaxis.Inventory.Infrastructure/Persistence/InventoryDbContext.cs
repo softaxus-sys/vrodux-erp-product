@@ -20,6 +20,7 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     public DbSet<ProductTemplate> ProductTemplates => Set<ProductTemplate>();
     public DbSet<ProductImage>    ProductImages    => Set<ProductImage>();
     public DbSet<CatalogueMove>   CatalogueMoves   => Set<CatalogueMove>();
+    public DbSet<PendingProductPhoto> PendingProductPhotos => Set<PendingProductPhoto>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

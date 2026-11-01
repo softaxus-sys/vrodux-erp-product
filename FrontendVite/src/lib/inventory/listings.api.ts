@@ -134,7 +134,30 @@ async function fetchBlobUrl(url: string): Promise<string> {
   return URL.createObjectURL(await res.blob());
 }
 
+export interface UnlistedProduct {
+  id: string; name: string; sku: string | null; categoryName: string;
+  salePrice: number; stockQuantity: number; isActive: boolean;
+}
+export interface ProductListingStatus { productId: string; templateId: string; published: boolean }
+export interface ListOnlineResult {
+  created: number; published: number;
+  listed: { productId: string; templateId: string; published: boolean }[];
+  skipped: { productId: string; name: string; reason: string }[];
+}
+
 export const listingsApi = {
+  unlisted: (p: { page?: number; pageSize?: number; search?: string; categoryId?: string } = {}): Promise<PagedResult<UnlistedProduct>> => {
+    const qs = new URLSearchParams();
+    if (p.page) qs.set("page", String(p.page));
+    if (p.pageSize) qs.set("pageSize", String(p.pageSize));
+    if (p.search) qs.set("search", p.search);
+    if (p.categoryId) qs.set("categoryId", p.categoryId);
+    return apiClient.get<PagedResult<UnlistedProduct>>(`${BASE}/unlisted?${qs}`);
+  },
+  statusFor: (productIds: string[]): Promise<ProductListingStatus[]> =>
+    apiClient.post<ProductListingStatus[]>(`${BASE}/listing-status`, { productIds }),
+  listProducts: (productIds: string[], publish = false): Promise<ListOnlineResult> =>
+    apiClient.post<ListOnlineResult>(`${BASE}/list-products`, { productIds, publish }),
   getAll: (p: ListingParams = {}): Promise<PagedResult<ListingSummary>> => {
     const qs = new URLSearchParams();
     if (p.page)        qs.set("page", String(p.page));

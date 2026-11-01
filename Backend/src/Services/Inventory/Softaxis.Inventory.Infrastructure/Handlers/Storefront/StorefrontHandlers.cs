@@ -77,8 +77,8 @@ internal sealed class GetStorefrontProductsHandler(InventoryDbContext db)
             .GroupBy(v => v.TemplateId).ToDictionary(g => g.Key, g => g.ToList());
 
         var covers = (await db.ProductImages.AsNoTracking()
-                .Where(i => ids.Contains(i.TemplateId))
-                .Select(i => new { i.TemplateId, i.Id, i.IsPrimary, i.SortOrder })
+                .Where(i => i.TemplateId != null && ids.Contains(i.TemplateId.Value))
+                .Select(i => new { TemplateId = i.TemplateId!.Value, i.Id, i.IsPrimary, i.SortOrder })
                 .ToListAsync(ct))
             .GroupBy(i => i.TemplateId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(i => i.IsPrimary).ThenBy(i => i.SortOrder).First().Id);
@@ -150,8 +150,8 @@ internal sealed class GetStorefrontCheckoutVariantsHandler(InventoryDbContext db
         var templates = await db.ProductTemplates.AsNoTracking()
             .Where(t => templateIds.Contains(t.Id) && !t.IsDeleted).ToDictionaryAsync(t => t.Id, ct);
         var covers = (await db.ProductImages.AsNoTracking()
-                .Where(i => templateIds.Contains(i.TemplateId))
-                .Select(i => new { i.TemplateId, i.Id, i.IsPrimary, i.SortOrder }).ToListAsync(ct))
+                .Where(i => i.TemplateId != null && templateIds.Contains(i.TemplateId.Value))
+                .Select(i => new { TemplateId = i.TemplateId!.Value, i.Id, i.IsPrimary, i.SortOrder }).ToListAsync(ct))
             .GroupBy(i => i.TemplateId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(i => i.IsPrimary).ThenBy(i => i.SortOrder).First().Id);
 

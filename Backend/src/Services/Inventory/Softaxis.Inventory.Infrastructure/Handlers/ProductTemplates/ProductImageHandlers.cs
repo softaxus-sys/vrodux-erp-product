@@ -39,58 +39,11 @@ internal sealed class AddTemplateImagesHandler(
                 return Fail("ProductTemplate.Invalid", "A photo was tied to a variant that is not part of this listing.");
         }
 
-        // Falls back to the Data column when object storage is not configured — never blocks an upload.
-        var tenantId = TenantAmbient.TenantId;
-        var useStorage = storage.IsConfigured && tenantId is not null;
-
         var nextOrder = existing.Count == 0 ? 0 : existing.Max() + 1;
-        var added = new List<ProductImage>();
-        long committedInBatch = 0;
-
-        foreach (var input in cmd.Images)
-        {
-            var label = input.FileName ?? "A photo";
-            if (!TryParseDataUri(input.Data, out var bytes, out var contentType))
-                return Fail("ProductTemplate.Invalid", $"'{label}' could not be read. Please choose the file again.");
-            if (bytes.Length > AddTemplateImagesValidator.MaxBytesPerImage)
-                return Fail("ProductTemplate.Invalid",
-                    $"'{label}' is {bytes.Length / 1024 / 1024}MB. The limit is {AddTemplateImagesValidator.MaxBytesPerImage / 1024 / 1024}MB per photo.");
-
-            var (storedBytes, storedContentType) = imageProcessor.IsCompressibleImage(contentType)
-                ? imageProcessor.Compress(bytes, contentType)
-                : (bytes, contentType);
-
-            var image = new ProductImage(cmd.TemplateId, storedBytes, storedContentType, input.FileName, nextOrder++, input.ProductId);
-            image.Describe(input.AltText, input.ProductId);
-            // The first photo becomes the cover, so a listing with photos always has one to show.
-            if (existing.Count == 0 && added.Count == 0) image.SetPrimary(true);
-
-            if (useStorage)
-            {
-                var quota = await TenantStorageQuota.CheckAsync(
-                    db.Database, tenantId!.Value, committedInBatch + storedBytes.LongLength, ct);
-                if (!quota.Allowed)
-                    return Fail("ProductTemplate.Conflict", TenantStorageQuota.QuotaErrorMessage(quota, input.FileName));
-
-                var key = ImageKey(tenantId!.Value, cmd.TemplateId, image.Id);
-                try
-                {
-                    await storage.PutAsync(key, storedBytes, storedContentType, ct);
-                    image.SetObjectKey(key, storedContentType, storedBytes.LongLength);
-                    committedInBatch += storedBytes.LongLength;
-                }
-                catch (Exception ex)
-                {
-                    // PutAsync throws by contract — the photo did not land anywhere, so say so rather
-                    // than quietly storing it in the database instead.
-                    logger.LogError(ex, "Product photo upload failed (key {Key}, listing {TemplateId})", key, cmd.TemplateId);
-                    return Fail("ProductTemplate.ImageUploadFailed", $"'{label}' could not be uploaded. Please try again.");
-                }
-            }
-
-            added.Add(image);
-            db.ProductImages.Add(image);
-        }
+        var stored = await ImageStore.StoreAsync(db, storage, imageProcessor, logger, cmd.Images, cmd.TemplateId,
+            i => i.ProductId, nextOrder, existing.Count == 0, cmd.TemplateId, "ProductTemplate", ct);
+        if (stored.IsFailure) return Result.Failure<IReadOnlyList<ProductImageDto>>(stored.Error);
+        var added = stored.Value;
 
         await db.SaveChangesAsync(ct);
         return Result.Success<IReadOnlyList<ProductImageDto>>(added.Select(ToDto).ToList());

@@ -26,8 +26,8 @@ internal static partial class CatalogueSeoRows
             }).ToListAsync(ct);
 
         var ids = rows.Select(r => r.Id).ToList();
-        var images = await db.ProductImages.AsNoTracking().Where(i => ids.Contains(i.TemplateId))
-            .GroupBy(i => i.TemplateId).Select(g => new { Id = g.Key, Count = g.Count(), NoAlt = g.Count(i => i.AltText == null || i.AltText == "") })
+        var images = await db.ProductImages.AsNoTracking().Where(i => i.TemplateId != null && ids.Contains(i.TemplateId.Value))
+            .GroupBy(i => i.TemplateId!.Value).Select(g => new { Id = g.Key, Count = g.Count(), NoAlt = g.Count(i => i.AltText == null || i.AltText == "") })
             .ToDictionaryAsync(x => x.Id, ct);
 
         return rows.Select(r =>

@@ -11,6 +11,7 @@ import { useListings } from "@/hooks/inventory/use-listings";
 import { useInventoryCategories } from "@/hooks/inventory/use-inventory-categories";
 import { ListingEditor } from "./listing-editor";
 import { ListingPhoto } from "./listing-photos";
+import { UnlistedPanel } from "./unlisted-panel";
 
 const PAGE_SIZE = 20;
 type Filter = "all" | "published" | "draft";
@@ -23,6 +24,7 @@ export function ListingsView() {
   const [filter, setFilter] = React.useState<Filter>("all");
   const [categoryId, setCategoryId] = React.useState("");
   const [page, setPage] = React.useState(1);
+  const [tab, setTab] = React.useState<"listings" | "unlisted">("listings");
   const [editor, setEditor] = React.useState<{ open: boolean; id: string | null }>({ open: false, id: null });
 
   React.useEffect(() => { const h = setTimeout(() => { setQ(search.trim()); setPage(1); }, 300); return () => clearTimeout(h); }, [search]);
@@ -57,6 +59,17 @@ export function ListingsView() {
         </Can>
       </div>
 
+      <div className="inline-flex rounded-lg border border-border p-0.5 bg-card">
+        {(["listings", "unlisted"] as const).map(k => (
+          <button key={k} type="button" onClick={() => setTab(k)}
+            className={cn("px-3 h-8 rounded-md text-xs font-semibold transition-colors",
+              tab === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
+            {t(`listings.listOnline.tab.${k}`)}
+          </button>
+        ))}
+      </div>
+
+      {tab === "unlisted" ? <UnlistedPanel /> : (<>
       <div className="grid grid-cols-3 gap-3">
         {([
           [t("listings.page.total"), total, "text-foreground"],
@@ -159,6 +172,8 @@ export function ListingsView() {
           </div>
         )}
       </div>
+
+      </>)}
 
       <ListingEditor open={editor.open} listingId={editor.id} onClose={() => setEditor({ open: false, id: null })} />
     </div>

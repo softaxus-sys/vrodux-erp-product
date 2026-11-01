@@ -1,9 +1,10 @@
 namespace Softaxis.Inventory.Domain.Entities;
 
 /// <summary>
-/// One photo in a product's online gallery. Belongs to the <see cref="ProductTemplate"/>; when
-/// <see cref="ProductId"/> is set it is the photo of that one variant (the red shirt), otherwise it
-/// is shared by all of them.
+/// One photo. A photo with <see cref="ProductId"/> belongs to that stock item and stays with it for
+/// life; while the item is part of an online listing, <see cref="TemplateId"/> also points at the
+/// listing so the listing shows it, and it goes back to the stock item alone when the item leaves the
+/// listing. A photo with no <see cref="ProductId"/> belongs to the listing and is shared by all variants.
 ///
 /// <para>Bytes live in object storage when it is configured (<see cref="ObjectKey"/>) and in
 /// <see cref="Data"/> otherwise — never both, so a photo is not paid for twice. This is the same
@@ -13,7 +14,7 @@ public sealed class ProductImage
 {
     private ProductImage() { }
 
-    public ProductImage(Guid templateId, byte[] data, string contentType, string? fileName, int sortOrder, Guid? productId = null)
+    public ProductImage(Guid? templateId, byte[] data, string contentType, string? fileName, int sortOrder, Guid? productId = null)
     {
         Id          = Guid.NewGuid();
         TemplateId  = templateId;
@@ -27,7 +28,8 @@ public sealed class ProductImage
     }
 
     public Guid      Id          { get; private set; }
-    public Guid      TemplateId  { get; private set; }
+    /// <summary>The listing showing this photo. Null = a stock-item photo not in any listing.</summary>
+    public Guid?     TemplateId  { get; private set; }
     /// <summary>Null = shown for every variant.</summary>
     public Guid?     ProductId   { get; private set; }
     public byte[]    Data        { get; private set; } = [];
@@ -42,6 +44,12 @@ public sealed class ProductImage
     public bool      IsPrimary   { get; private set; }
     public bool      IsDeleted   { get; private set; }
     public DateTime  CreatedAt   { get; private set; }
+
+    /// <summary>A stock item joined a listing: the listing now shows this photo too.</summary>
+    public void AdoptInto(Guid templateId, int sortOrder) { TemplateId = templateId; SortOrder = sortOrder; IsPrimary = false; }
+
+    /// <summary>The stock item left its listing: the photo stays with the item.</summary>
+    public void Release() { TemplateId = null; IsPrimary = false; }
 
     public void SetPrimary(bool primary) => IsPrimary = primary;
     public void SetSortOrder(int order)  => SortOrder = order;

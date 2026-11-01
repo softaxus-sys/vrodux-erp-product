@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Softaxis.BuildingBlocks.Infrastructure.Seeding;
 using Microsoft.Extensions.DependencyInjection;
+using Softaxis.BuildingBlocks.Infrastructure.Net;
 using Softaxis.Inventory.Application.Abstractions;
 using Softaxis.Inventory.Domain.Repositories;
 using Softaxis.Inventory.Infrastructure.Persistence;
@@ -35,6 +36,14 @@ public static class InfrastructureExtensions
         services.AddScoped<IInventoryUnitOfWork,      InventoryUnitOfWork>();
         services.AddScoped<IInventoryReportService,  InventoryReportService>();
         services.AddScoped<IProductReadService,      ProductReadService>();
+
+        // Picture links in an import file are customer-supplied addresses: every connection goes through the guard that
+        // refuses private and internal networks (see SsrfGuard). Only a Development machine can relax it.
+        var allowPrivate = string.Equals(configuration["ASPNETCORE_ENVIRONMENT"], "Development", StringComparison.OrdinalIgnoreCase)
+                           && configuration.GetValue<bool>("Inventory:AllowPrivateImageUrls");
+        services.AddHttpClient(SafeImageDownloader.ClientName).ConfigurePrimaryHttpMessageHandler(() => SsrfGuard.CreateHandler(allowPrivate));
+        services.AddScoped<SafeImageDownloader>();
+        services.AddHostedService<ProductPhotoDownloadWorker>();
 
         return services;
     }

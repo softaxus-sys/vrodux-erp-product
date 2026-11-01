@@ -149,9 +149,11 @@ internal sealed class RemoveTemplateVariantHandler(InventoryDbContext db)
 
         product.LeaveTemplate();
 
-        // Photos assigned to that variant fall back to the whole listing, never into a dangling reference.
-        var photos = await db.ProductImages.Where(i => i.ProductId == product.Id).ToListAsync(ct);
-        foreach (var p in photos) p.Describe(p.AltText, null);
+        // The item's own photos go back to the item; they were never the listing's to keep.
+        var photos = await db.ProductImages.Where(i => i.ProductId == product.Id && i.TemplateId == t.Id).ToListAsync(ct);
+        foreach (var p in photos) p.Release();
+        await db.SaveChangesAsync(ct);
+        await ImageStore.EnsureCoverAsync(db, t.Id, ct);
 
         // A live listing cannot be left with nothing to sell.
         if (t.PublishedOnline)
@@ -199,7 +201,10 @@ internal sealed class DeleteProductTemplateHandler(InventoryDbContext db, IObjec
         // The products stay: they carry SKUs, stock and sales history that deleting a web page must not touch.
         foreach (var p in await db.Products.Where(p => p.TemplateId == t.Id).ToListAsync(ct)) p.LeaveTemplate();
 
+        // Photos that belong to a stock item stay with it; only the listing's own shared photos go.
         var images = await db.ProductImages.Where(i => i.TemplateId == t.Id).ToListAsync(ct);
+        foreach (var i in images.Where(i => i.ProductId != null)) i.Release();
+        images = images.Where(i => i.ProductId == null).ToList();
         var keys = images.Where(i => i.ObjectKey != null).Select(i => i.ObjectKey!).ToList();
         foreach (var i in images) i.Delete();
 
@@ -249,8 +254,8 @@ internal sealed class GetProductTemplatesHandler(InventoryDbContext db)
             .ToDictionary(g => g.Key, g => g.ToList());
 
         var covers = (await db.ProductImages.AsNoTracking()
-                .Where(i => ids.Contains(i.TemplateId))
-                .Select(i => new { i.TemplateId, i.Id, i.IsPrimary, i.SortOrder })
+                .Where(i => i.TemplateId != null && ids.Contains(i.TemplateId.Value))
+                .Select(i => new { TemplateId = i.TemplateId!.Value, i.Id, i.IsPrimary, i.SortOrder })
                 .ToListAsync(ct))
             .GroupBy(i => i.TemplateId)
             .ToDictionary(g => g.Key, g => (Count: g.Count(), Cover: g.OrderByDescending(i => i.IsPrimary).ThenBy(i => i.SortOrder).First().Id));

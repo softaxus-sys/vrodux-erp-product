@@ -128,6 +128,7 @@ internal static class ProductTemplateSupport
         }
 
         var made = new List<Product>();
+        var broughtIn = new List<Guid>();
         var seen = new HashSet<string>(takenCombinations);
         var pendingIds = new HashSet<Guid>();
 
@@ -156,6 +157,7 @@ internal static class ProductTemplateSupport
                     return Result.Failure<List<Product>>(Conflict($"{label}: '{existing.Name}' already belongs to another listing."));
 
                 product = existing;
+                broughtIn.Add(existing.Id);
                 product.SetOnlineDetails(input.SellOnline, input.WeightGrams, input.LengthCm, input.WidthCm, input.HeightCm);
             }
             else
@@ -183,6 +185,8 @@ internal static class ProductTemplateSupport
             product.JoinTemplate(template.Id, choices.Value);
             made.Add(product);
         }
+        // Photos the stock items already have appear in the listing as well.
+        await ImageStore.AdoptProductPhotosAsync(db, template.Id, broughtIn, ct);
         return Result.Success(made);
     }
 

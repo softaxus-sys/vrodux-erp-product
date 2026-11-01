@@ -66,5 +66,20 @@ public sealed record ProductTemplateDto(
 
 public sealed record ProductImageFileDto(byte[] Data, string ContentType);
 
+/// <summary>One stock item that could not be listed, and why.</summary>
+public sealed record ListOnlineSkipDto(Guid ProductId, string Name, string Reason);
+
+public sealed record ListedProductDto(Guid ProductId, Guid TemplateId, bool Published);
+
+public sealed record ListProductsOnlineResult(
+    int Created, int Published, IReadOnlyList<ListedProductDto> Listed, IReadOnlyList<ListOnlineSkipDto> Skipped);
+
+/// <summary>A stock item that is not part of any online listing yet.</summary>
+public sealed record UnlistedProductDto(
+    Guid Id, string Name, string? SKU, string CategoryName, decimal SalePrice, decimal StockQuantity, bool IsActive);
+
+/// <summary>Where a stock item stands online. Items with no listing are simply absent from the answer.</summary>
+public sealed record ProductListingStatusDto(Guid ProductId, Guid TemplateId, bool Published);
+
 /// <summary>Why a listing cannot go live yet. Empty = ready.</summary>
 public sealed record PublishCheckDto(bool Ready, IReadOnlyList<string> Problems);

@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 
-namespace Softaxis.Seo.Infrastructure.Net;
+namespace Softaxis.BuildingBlocks.Infrastructure.Net;
 
 /// <summary>
 /// The server fetches addresses a customer typed (their own site, competitors, a WordPress URL). Without a guard, that is a

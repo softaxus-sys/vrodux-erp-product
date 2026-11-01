@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Net;
 using System.Net;
 using System.Text;
 using Microsoft.Extensions.Configuration;

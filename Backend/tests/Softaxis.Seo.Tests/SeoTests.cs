@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Net;
 using System.Net;
 using Softaxis.Seo.Infrastructure.Crawl;
 using Softaxis.Seo.Infrastructure.Net;

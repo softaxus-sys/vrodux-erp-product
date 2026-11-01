@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import {
   PackageSearch, Package, AlertTriangle, XCircle, DollarSign, Search, Plus,
-  RefreshCw, ShoppingCart, Loader2, Upload, Download, Printer,
+  RefreshCw, ShoppingCart, Loader2, Upload, Download, Printer, Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,8 +15,11 @@ import type { ProductSummaryDto } from "@/lib/inventory/types";
 import { StockDrawer } from "./stock-drawer";
 import { AddStockItemForm } from "./add-stock-item-form";
 import { CatalogueImportDialog } from "@/modules/pos/retail/components/catalogue-import-dialog";
-import { Can } from "@/components/auth/can";
+import { Can, useCan } from "@/components/auth/can";
 import { AddAdjustmentForm } from "../../movements/components/add-adjustment-form";
+import { useProductListingStatus } from "@/hooks/inventory/use-listings";
+import { useImportPhotoStatus, useRetryFailedImportPhotos } from "@/hooks/inventory/use-product-import";
+import { ListOnlineButton } from "@/modules/inventory/listings/components/list-online-button";
 import { ProductImportDialog, downloadProductsCsv, printProductLabels } from "./bulk-tools";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -55,6 +58,9 @@ export function StockView() {
   const [adjustItemId, setAdjustItemId] = React.useState<string | null>(null);
   const [showImport, setShowImport]   = React.useState(false);
   const [exporting, setExporting]     = React.useState(false);
+  const [picked, setPicked]           = React.useState<Set<string>>(new Set());
+  const importPhotos = useImportPhotoStatus();
+  const retryPhotos  = useRetryFailedImportPhotos();
 
   const handleExport = async () => {
     setExporting(true);
@@ -91,6 +97,18 @@ export function StockView() {
     outOfStock: (data?.items ?? []).filter(p => p.stockQuantity <= 0 && p.isActive).length,
     totalValue: (data?.items ?? []).reduce((sum, p) => sum + p.stockQuantity * p.salePrice, 0),
   }), [data]);
+
+  // Online status of what is on screen, and which of the visible rows can still be listed.
+  const { data: online } = useProductListingStatus(items.map(p => p.id));
+  const canList = useCan("inventory.stock.edit");
+  const listable = items.filter(p => p.isActive && !online?.[p.id]);
+  const allListablePicked = listable.length > 0 && listable.every(p => picked.has(p.id));
+  const togglePick = (id: string) => setPicked(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const togglePage = () => setPicked(prev => {
+    const n = new Set(prev);
+    if (allListablePicked) listable.forEach(p => n.delete(p.id)); else listable.forEach(p => n.add(p.id));
+    return n;
+  });
 
   const STATS = [
     { label: t("stock.stats.totalSkus"),   value: stats.total,                                     icon: Package,       color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
@@ -129,6 +147,20 @@ export function StockView() {
           </Can>
         </div>
       </div>
+
+      {((importPhotos.data?.pending ?? 0) > 0 || (importPhotos.data?.failedCount ?? 0) > 0) && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-2 text-sm">
+          {(importPhotos.data?.pending ?? 0) > 0 && (
+            <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{t("productImport.banner.pending", { count: importPhotos.data!.pending })}</span>
+          )}
+          {(importPhotos.data?.failedCount ?? 0) > 0 && (
+            <span className="flex items-center gap-2 text-warning">
+              {t("productImport.banner.failed", { count: importPhotos.data!.failedCount })}
+              <Button size="sm" variant="outline" className="h-7" onClick={() => retryPhotos.mutate()} disabled={retryPhotos.isPending}>{t("productImport.banner.retry")}</Button>
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -177,6 +209,14 @@ export function StockView() {
         </div>
       </div>
 
+      {picked.size > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2">
+          <span className="text-sm font-medium">{t("listings.listOnline.selected", { count: picked.size })}</span>
+          <ListOnlineButton productIds={[...picked]} onDone={() => setPicked(new Set())} />
+          <Button variant="ghost" size="sm" onClick={() => setPicked(new Set())}>{t("listings.listOnline.clear")}</Button>
+        </div>
+      )}
+
       {/* Table */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
         className="bg-card border border-border rounded-xl overflow-hidden">
@@ -188,6 +228,12 @@ export function StockView() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/30">
+                {canList && (
+                  <th className="px-4 py-3 w-10">
+                    <input type="checkbox" checked={allListablePicked} onChange={togglePage} disabled={listable.length === 0}
+                      aria-label={t("listings.listOnline.unlisted.selectAll")} className="h-4 w-4 rounded border-border" />
+                  </th>
+                )}
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("stock.table.product")}</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("stock.table.category")}</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("stock.table.onHand")}</th>
@@ -198,7 +244,7 @@ export function StockView() {
             </thead>
             <tbody>
               {items.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12 text-sm text-muted-foreground">{t("stock.empty")}</td></tr>
+                <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">{t("stock.empty")}</td></tr>
               ) : items.map((p, i) => {
                 const status = getStockStatus(p);
                 const sc = STATUS_CONFIG[status];
@@ -208,6 +254,14 @@ export function StockView() {
                     className={cn("border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors cursor-pointer",
                       status === "out_of_stock" ? "border-l-2 border-l-destructive" :
                       status === "low_stock"    ? "border-l-2 border-l-warning"     : "")}>
+                    {canList && (
+                      <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
+                        {p.isActive && !online?.[p.id] && (
+                          <input type="checkbox" checked={picked.has(p.id)} onChange={() => togglePick(p.id)}
+                            aria-label={t("listings.listOnline.unlisted.selectRow", { name: p.name })} className="h-4 w-4 rounded border-border" />
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2 mb-0.5">
                         {p.sku && <p className="font-mono text-xs text-muted-foreground">{p.sku}</p>}
@@ -218,6 +272,13 @@ export function StockView() {
                         )}
                       </div>
                       <p className="text-sm font-semibold">{p.name}</p>
+                      {online?.[p.id] && (
+                        <span className={cn("mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold",
+                          online[p.id].published ? "bg-success/10 text-success" : "bg-muted text-muted-foreground")}>
+                          <Globe className="h-2.5 w-2.5" />
+                          {online[p.id].published ? t("listings.listOnline.badge.live") : t("listings.listOnline.badge.draft")}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 hidden md:table-cell">
                       <span className="text-xs bg-muted px-2 py-0.5 rounded font-medium">{p.categoryName}</span>

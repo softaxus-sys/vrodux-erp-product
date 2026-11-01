@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { PagedResult } from "@/lib/api-client";
 import {
-  listingsApi, type Listing, type ListingContent, type ListingParams, type ListingSummary,
+  listingsApi, type ListOnlineResult, type ProductListingStatus, type UnlistedProduct, type Listing, type ListingContent, type ListingParams, type ListingSummary,
   type NewListingPhoto, type ProductOption, type PublishCheck, type VariantInput,
 } from "@/lib/inventory/listings.api";
 import { inventoryProductKeys } from "./use-inventory-products";
@@ -104,3 +104,25 @@ export const useUpdateListingPhoto = () =>
 
 export const useReorderListingPhotos = () =>
   useListingMutation((a: { id: string; orderedIds: string[] }) => listingsApi.reorderImages(a.id, a.orderedIds));
+
+export function useUnlistedProducts(params: { page?: number; pageSize?: number; search?: string; categoryId?: string } = {}) {
+  return useQuery<PagedResult<UnlistedProduct>>({
+    queryKey: [...listingKeys.all, "unlisted", params],
+    queryFn: () => listingsApi.unlisted(params),
+    placeholderData: prev => prev,
+  });
+}
+
+/** Online status of the stock items on screen. Items with no listing are absent from the map. */
+export function useProductListingStatus(productIds: string[]) {
+  const key = [...productIds].sort().join(",");
+  return useQuery<Record<string, ProductListingStatus>>({
+    queryKey: [...listingKeys.all, "status", key],
+    queryFn: async () => Object.fromEntries((await listingsApi.statusFor(productIds)).map(s => [s.productId, s])),
+    enabled: productIds.length > 0,
+  });
+}
+
+export const useListProductsOnline = () =>
+  useListingMutation<{ productIds: string[]; publish?: boolean }, ListOnlineResult>(
+    a => listingsApi.listProducts(a.productIds, a.publish ?? false), { touchesProducts: true });

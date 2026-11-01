@@ -594,6 +594,74 @@
         "stock": "Stock",
         "status": "Status"
       }
+    },
+    "listOnline": {
+      "action": "List online",
+      "actionN": "List online ({{count}})",
+      "selected": "{{count}} selected",
+      "clear": "Clear",
+      "done": "{{count}} listed as drafts. Add photos and publish them from Online Listings.",
+      "doneNone": "Nothing was listed.",
+      "skipped": "{{count}} skipped: {{reason}}",
+      "alsoPublish": "Publish straight away (items with a price)",
+      "publishedN": "{{count}} published.",
+      "confirmTitle": "List {{count}} stock items online?",
+      "confirmBody": "Each item becomes its own listing, filled from the stock item. Price and stock always come from the stock item. Listings start as drafts unless you choose to publish.",
+      "confirm": "List online",
+      "cancel": "Cancel",
+      "view": "View listings",
+      "badge": {
+        "live": "Online",
+        "draft": "Draft listing"
+      },
+      "tab": {
+        "listings": "Listings",
+        "unlisted": "Not yet listed"
+      },
+      "unlisted": {
+        "empty": "Every active stock item is already in a listing.",
+        "hint": "Tick the stock items you want to sell online and press List online.",
+        "sku": "SKU",
+        "name": "Item",
+        "category": "Category",
+        "price": "Price",
+        "stock": "On hand",
+        "selectAll": "Select all on this page",
+        "selectRow": "Select {{name}}"
+      }
+    },
+    "productPhotos": {
+      "title": "Photos",
+      "hint": "These photos belong to this stock item. If it is sold online, its listing shows them too.",
+      "add": "Add photos"
+    }
+  },
+  "productImport": {
+    "title": "Import stock items",
+    "hint": "Upload a CSV or Excel file. Match its columns, and add picture links (Image1, Image2…) to have the photos downloaded and attached to each item. Running the same file again is safe: items already in stock are left as they are.",
+    "choose": "Choose a CSV or Excel file",
+    "formats": "CSV, XLSX or XLS",
+    "matchColumns": "Match your columns to stock fields",
+    "noHeading": "Column {{n}}",
+    "ignore": "Ignore this column",
+    "needName": "Choose which column holds the item name.",
+    "listOnline": "Also list these items online as drafts",
+    "listOnlineHint": "Each item becomes its own listing. Rows sharing a Group value become the variants of one listing; give each its choices in Options, like Size=M; Colour=Blue.",
+    "photoNote": "{{count}} picture links found. They download in the background after the import, so you can keep working.",
+    "empty": "The file has no data rows.",
+    "readFailed": "That file could not be read.",
+    "done": "{{created}} items created.",
+    "existing": "{{count}} already in stock were left as they are.",
+    "listed": "{{count}} online listings created as drafts.",
+    "photosQueued": "{{count}} pictures queued for download.",
+    "photosPending": "Downloading pictures… {{count}} to go.",
+    "photosFinished": "All pictures have been processed.",
+    "photosFailed": "{{count}} pictures could not be downloaded.",
+    "retry": "Try again",
+    "banner": {
+      "pending": "{{count}} pictures are downloading in the background.",
+      "failed": "{{count}} imported pictures could not be downloaded.",
+      "retry": "Try again"
     }
   }
 }
