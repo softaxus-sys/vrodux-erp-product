@@ -47,12 +47,20 @@ export interface UpdatePlatformAiPayload {
 
 export interface PlatformAiTestResult { ok: boolean; message: string; latencyMs: number; sample: string | null }
 
+export interface PlatformVoiceTestResult {
+  ok: boolean;
+  speechOk: boolean; speechMessage: string;
+  transcriptionOk: boolean; transcriptionMessage: string;
+  heard: string | null;
+}
+
 export interface PlatformAiUsageRow { tenantId: string; tenantName: string; month: string; messages: number; voiceTurns: number }
 
 export const aiPlatformApi = {
   get: (): Promise<PlatformAiDto> => rawApiClient.get(BASE),
   update: (p: UpdatePlatformAiPayload): Promise<PlatformAiDto> => rawApiClient.put(BASE, p),
   test: (): Promise<PlatformAiTestResult> => rawApiClient.post(`${BASE}/test`, {}),
+  testVoice: (): Promise<PlatformVoiceTestResult> => rawApiClient.post(`${BASE}/test-voice`, {}),
   usage: (month?: string): Promise<PlatformAiUsageRow[]> =>
     rawApiClient.get(`${BASE}/usage${month ? `?month=${encodeURIComponent(month)}` : ""}`),
 };

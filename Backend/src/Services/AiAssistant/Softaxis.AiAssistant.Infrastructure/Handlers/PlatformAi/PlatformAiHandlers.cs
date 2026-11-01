@@ -8,6 +8,8 @@ using Softaxis.AiAssistant.Domain.Entities;
 using Softaxis.AiAssistant.Domain.Enums;
 using Softaxis.AiAssistant.Infrastructure.Orchestration;
 using Softaxis.AiAssistant.Infrastructure.Persistence;
+using Softaxis.AiAssistant.Infrastructure.Providers;
+using Softaxis.AiAssistant.Infrastructure.VoiceChat;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 
@@ -134,5 +136,47 @@ internal sealed class GetPlatformAiUsageHandler(AiAssistantDbContext db)
             .OrderByDescending(r => r.Messages + r.VoiceTurns)
             .ToList();
         return Result.Success(result);
+    }
+}
+
+internal sealed class TestPlatformVoiceHandler(AiAssistantDbContext db, ISecretProtector protector, OpenRouterSpeechClient speech)
+    : ICommandHandler<TestPlatformVoiceCommand, PlatformVoiceTestResultDto>
+{
+    private const string Sentence = "Hello, this is a voice test.";
+
+    public async Task<Result<PlatformVoiceTestResultDto>> Handle(TestPlatformVoiceCommand cmd, CancellationToken ct)
+    {
+        var p = await db.PlatformAi.AsNoTracking().FirstOrDefaultAsync(ct);
+        if (p is null) return new PlatformVoiceTestResultDto(false, false, "Save the platform settings first.", false, "Not run.", null);
+
+        var key = protector.Unprotect(p.ProtectedVoiceApiKey);
+        if (string.IsNullOrEmpty(key) && p.Provider == AiProvider.OpenRouter) key = protector.Unprotect(p.ProtectedApiKey);
+        if (string.IsNullOrEmpty(key))
+            return new PlatformVoiceTestResultDto(false, false, "No API key for voice. Save a voice key, or an OpenRouter text key.", false, "Not run.", null);
+        if (string.IsNullOrWhiteSpace(p.TtsModel))
+            return new PlatformVoiceTestResultDto(false, false, "No text-to-speech model is saved.", false, "Not run.", null);
+
+        byte[] audio;
+        try
+        {
+            (audio, _) = await speech.SynthesizeAsync(key, p.TtsModel, Sentence, p.TtsVoice, ct);
+        }
+        catch (AiProviderException ex)
+        {
+            return new PlatformVoiceTestResultDto(false, false, ex.Message, false, "Not run (speech failed first).", null);
+        }
+
+        if (string.IsNullOrWhiteSpace(p.SttModel))
+            return new PlatformVoiceTestResultDto(false, true, $"Spoke {audio.Length / 1024} KB of audio.", false, "No speech-to-text model is saved.", null);
+
+        try
+        {
+            var heard = await speech.TranscribeAsync(key, p.SttModel, Convert.ToBase64String(audio), "mp3", null, ct);
+            return new PlatformVoiceTestResultDto(true, true, $"Spoke {audio.Length / 1024} KB of audio.", true, "Understood the audio.", heard);
+        }
+        catch (AiProviderException ex)
+        {
+            return new PlatformVoiceTestResultDto(false, true, $"Spoke {audio.Length / 1024} KB of audio.", false, ex.Message, null);
+        }
     }
 }

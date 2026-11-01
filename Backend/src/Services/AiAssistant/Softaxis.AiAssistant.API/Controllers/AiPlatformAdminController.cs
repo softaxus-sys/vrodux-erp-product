@@ -28,6 +28,10 @@ public sealed class AiPlatformAdminController(ISender sender) : AiAssistantContr
     public async Task<IActionResult> Test(CancellationToken ct) =>
         OkOrError(await sender.Send(new TestPlatformAiCommand(), ct));
 
+    [HttpPost("test-voice")]
+    public async Task<IActionResult> TestVoice(CancellationToken ct) =>
+        OkOrError(await sender.Send(new TestPlatformVoiceCommand(), ct));
+
     [HttpGet("usage")]
     public async Task<IActionResult> Usage([FromQuery] string? month, CancellationToken ct) =>
         OkOrError(await sender.Send(new GetPlatformAiUsageQuery(month), ct));

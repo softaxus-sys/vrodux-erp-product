@@ -27,7 +27,7 @@ internal sealed class GetVoiceChatStatusHandler(AiAssistantDbContext db, VoiceAc
     }
 }
 
-internal sealed class TranscribeSpeechHandler(VoiceAccessResolver access, OpenRouterSpeechClient speech)
+internal sealed class TranscribeSpeechHandler(VoiceAccessResolver access, OpenRouterSpeechClient speech, Microsoft.Extensions.Logging.ILogger<TranscribeSpeechHandler> log)
     : ICommandHandler<TranscribeSpeechCommand, TranscriptDto>
 {
     public async Task<Result<TranscriptDto>> Handle(TranscribeSpeechCommand cmd, CancellationToken ct)
@@ -54,7 +54,7 @@ internal sealed class TranscribeSpeechHandler(VoiceAccessResolver access, OpenRo
                : $"Your voice provider refused the request. {ex.Message}";
 }
 
-internal sealed class SynthesizeSpeechHandler(VoiceAccessResolver access, OpenRouterSpeechClient speech)
+internal sealed class SynthesizeSpeechHandler(VoiceAccessResolver access, OpenRouterSpeechClient speech, Microsoft.Extensions.Logging.ILogger<SynthesizeSpeechHandler> log)
     : ICommandHandler<SynthesizeSpeechCommand, SpeechDto>
 {
     public async Task<Result<SpeechDto>> Handle(SynthesizeSpeechCommand cmd, CancellationToken ct)

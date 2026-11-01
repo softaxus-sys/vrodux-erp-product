@@ -39,3 +39,6 @@ public sealed class UpdatePlatformAiCommandValidator : AbstractValidator<UpdateP
 
 /// <summary>Sends one tiny message through the saved platform text model to prove the key and model work.</summary>
 public sealed record TestPlatformAiCommand : ICommand<PlatformAiTestResultDto>;
+
+/// <summary>Reads a sentence aloud with the saved speech model, then feeds that audio to the saved transcription model.</summary>
+public sealed record TestPlatformVoiceCommand : ICommand<PlatformVoiceTestResultDto>;

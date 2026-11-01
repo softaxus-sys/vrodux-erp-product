@@ -25,3 +25,6 @@ public sealed record PlatformAiTestResultDto(bool Ok, string Message, int Latenc
 
 /// <summary>One workspace's use of the platform AI in one month.</summary>
 public sealed record PlatformAiUsageRowDto(Guid TenantId, string TenantName, string Month, int Messages, int VoiceTurns);
+
+/// <summary>Result of the speak-then-transcribe round trip: each step reports its own outcome and the provider's reason on failure.</summary>
+public sealed record PlatformVoiceTestResultDto(bool Ok, bool SpeechOk, string SpeechMessage, bool TranscriptionOk, string TranscriptionMessage, string? Heard);

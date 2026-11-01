@@ -4,7 +4,7 @@ import { ArrowLeft, CheckCircle2, Loader2, Mic, Sparkles, XCircle } from "lucide
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { usePlatformAi, usePlatformAiUsage, useTestPlatformAi, useUpdatePlatformAi } from "@/hooks/ai/use-ai-platform";
+import { usePlatformAi, usePlatformAiUsage, useTestPlatformAi, useTestPlatformVoice, useUpdatePlatformAi } from "@/hooks/ai/use-ai-platform";
 import type { AiProvider } from "@/lib/ai/ai.api";
 
 const PROVIDERS: { value: AiProvider; label: string }[] = [
@@ -49,6 +49,7 @@ export function AiPlatformView() {
   const { data: usage } = usePlatformAiUsage();
   const save = useUpdatePlatformAi();
   const test = useTestPlatformAi();
+  const testVoice = useTestPlatformVoice();
 
   const [f, setF] = React.useState({
     enabled: false, provider: "OpenRouter" as AiProvider, model: "", apiKey: "", clearKey: false,

@@ -32,3 +32,10 @@ export function useTestPlatformAi() {
 export function usePlatformAiUsage(month?: string) {
   return useQuery({ queryKey: [QK, "usage", month ?? "current"], queryFn: () => aiPlatformApi.usage(month) });
 }
+
+export function useTestPlatformVoice() {
+  return useMutation({
+    mutationFn: () => aiPlatformApi.testVoice(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
