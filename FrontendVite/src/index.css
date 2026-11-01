@@ -245,11 +245,3 @@
     overscroll-behavior: contain;
   }
 }
-
-/* Full-screen modal overlays: a live blur of the whole page behind them is re-rendered every frame
-   while the overlay fades in and out, which shows up as a screen-wide flash on open and on close.
-   The dimmed background is enough; skip the blur there (small blurred elements elsewhere are unaffected). */
-.fixed.inset-0[class*="backdrop-blur"] {
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-}
