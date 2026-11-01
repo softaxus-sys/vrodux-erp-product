@@ -9137,3 +9137,72 @@ SEO drawer → **Competitors** tab. Add up to 5 competitor websites per site, pi
 - Migration `AddCompetitorAnalysis` (Seo, 4 tables). Tests: 14 added to `Softaxis.Seo.Tests` (71 total, all pass), including parsing of the provider response and error mapping.
 - **Not verified:** a real DataForSEO call (credentials exist only on the server — check the first run there and watch the account balance), the screen in a browser, Arabic (English only by decision).
 - **Limits:** the DataForSEO location codes in `CompetitorLocations` are from its published list but unconfirmed against a live account; no scheduled/recurring comparison; the plan is not auto-regenerated.
+
+---
+
+## Module 95 — Mail (tenant business email) — DECISION + RESEARCH ONLY, NOTHING BUILT YET
+
+**Goal (owner's words):** tenants add their own domain (info@theirdomain.com) and use a Vrodux-branded mail service from inside Vrodux; they subscribe to a package of mailboxes and **we earn on top** (our retail price − wholesale). No code exists for this. This section records what was researched on 2026-10-30 so the work can resume without redoing it.
+
+### Where things stand (resume here)
+- **Chosen provider: Titan Email**, via Titan's own partner program. The owner **submitted Titan's "Partner With Us" form; no reply yet.**
+- **Fallback / parallel route: ResellerClub** (resells Titan). The owner **has signed up as a ResellerClub reseller.** ResellerClub's site and KB return HTTP 403 to our fetch tool, so its API pages have NOT been read in full — read them while logged in / with the owner's help before designing (KB nodes 3483 = Titan API, 3467 = getting started, 3469 = add/remove accounts).
+- **Do not start building until at least one route confirms the answers below.** Then build the Mail module around a **provider interface** (Titan-direct, ResellerClub-Titan, later Open-Xchange/Zoho as adapters) so the provider is swappable.
+
+### Why Titan (and what was rejected)
+- **Titan** is sold only through partners that resell it under their own brand (GoDaddy, Hostinger, Name.com). Partner API (https://apidocs.titan.email/, 48 endpoints, JSON over HTTPS, US `https://bll.titan.email` / EU `https://api-euc1.titan.email/bll`; no UAE/Saudi region): mail order create/modify/suspend/unsuspend/delete/transfer/reactivate, fetch/list orders, DNS verification, DKIM key generation, catch-all, **email account** create/modify/suspend/delete/password/aliases/storage/legal export, internal forwarding groups, **autologin to webmail and to the admin control panel, an embeddable iframe control panel, event notifications.** Partners "set their own pricing". NOT stated on the pages read: wholesale price, minimums, billing terms, data-centre choice, how much webmail/control-panel branding, the authentication scheme (separate Authentication page), rate limits.
+- **ResellerClub + Titan:** wholesale + "white-label platform", you set retail. Per search summaries (unverified, pages blocked): its Titan API works at **order / seat level** — add/renew/modify/suspend/unsuspend/delete orders, **add or remove seats (pro-rata)**, order details, **autologin URLs**; test/demo endpoint exists; auth = reseller id + API key. **It does not appear to create individual mailboxes** — mailboxes are created by the customer/reseller in Titan's admin panel ("Go to Admin Panel"). At least one seat must remain; deleting all seats deletes the order. Free Titan add-on only with a domain order under the same customer. Plans are regional (India Business 10 GB / Enterprise 50 GB; Global Business with a 90-day trial on new domains). **If we go via ResellerClub, the Vrodux flow is: order + seats by API → show DNS records → tenant admin creates mailboxes inside Titan's panel via autologin/iframe (less integrated than Titan-direct).** Confirm all of this.
+- **Zoho Mail partner program** (researched in depth): Partner Admin API creates child orgs (`POST /api/organization`, scope `ZohoMail.partner.organization.*`, plans only trial/free in the call), domains API (add, verify by TXT/CNAME/HTML, enable hosting, MX/SPF/DKIM), users API (create/disable/delete/reset password/aliases), messages/folders/threads APIs (an own-webmail is possible), logs, anti-spam. Subscription API is **read-only** — no API found to buy/change licences or plans (portal/store, manual). Custom login URL `mail.theirdomain.com` via CNAME + certificate generated in the admin console (paid orgs only, per domain, no API found; post-login pages still redirect to Zoho). Data centres incl. UAE (`mail.zoho.ae`) and Saudi (`mail.zoho.sa`). Rate limits unpublished (one third-party file says 30/min, unverified); no webhooks seen. Partner page states commissions but no rates, no white-label, no API mention. Unanswered: does a Partner Admin token act on child orgs, how licences are purchased, wholesale vs commission. (`dev-api.html` is the in-app widget SDK, not the server API.)
+- **Open-Xchange OX App Suite:** explicitly white-label for hosting providers, provisioning/theming/migration APIs, managed OX Cloud or self-hosted; sales-led pricing, heavier — the scale-up path (hundreds of mailboxes).
+- **Self-hosting on Contabo:** Contabo sells no webmail/email product — only VPS to install your own mail server; it allows resale of its servers with no reseller programme/discounts. Port 25 reports conflict (some say open, some blocked) and there is no official policy. Self-hosting means owning deliverability/IP reputation, spam, backups, patching, abuse. **Never put mail on the app server** (shared IP reputation with invoices/password resets, resource contention, blast radius). A pilot on a SEPARATE small VPS (Mailcow, branded SnappyMail/Roundcube, outbound relay via SES/Postmark) is a possible later experiment, not the launch path. Stalwart's multi-tenancy + branding are Enterprise-licence features.
+- **Rejected:** ShipMail (per-plan hosted mailboxes for end users; no white-label/reseller/provisioning API found), Migadu (flat per-account limits shared by all tenants, no reseller/white-label found), Google Workspace / Microsoft 365 (not white-label, thin margin — maybe later as "connect your existing mailbox").
+
+### Planned design (once a route is confirmed)
+- New **Mail** module (own service or inside an existing one — decide): domain add → DNS records shown with a live checker (verify, MX, SPF, DKIM, DMARC) → package (e.g. 5/10/25 mailboxes) → mailboxes/aliases/forwards (Titan-direct) or seats + admin-panel link (ResellerClub) → SSO "Open mailbox" (Titan autologin).
+- **Billing:** mail packages are **recurring seat subscriptions**, not credits — the Billing page needs a new recurring add-on type (the credits flow in Module 93 does not cover this). On non-payment: **suspend, never delete**, with a grace period and an export path.
+- Provider credentials live only in server env vars (like `DATAFORSEO_*`); never per tenant, never in the repo. Remember: compose maps env vars by hand (`docker-compose.prod.yml`) and `/opt/vrodux/shared/.env` is the only canonical env file (Module 60).
+- Safety: prove domain ownership (DNS verification) before attaching a domain; per-tenant sending limits and monitoring (one tenant's spam hurts the shared reputation); nightly reconciliation of Vrodux vs provider mailbox counts vs billing; tell customers which region (US/EU) their mail is stored in.
+- Optional later: own inbox over IMAP/JMAP; mailbox links into CRM/Lead Gen (Lead Gen already connects SMTP/IMAP mailboxes — never advertise cold outreach from reseller mailboxes without checking the provider's sending policy).
+
+### Questions still to put to Titan / ResellerClub (answers decide the design)
+1. Wholesale price per mailbox (monthly and annual), minimums, invoicing/currency, who sets retail.
+2. **Titan-direct:** will they accept a SaaS platform as a partner; authentication scheme; rate limits; regions; can the partner control panel and webmail carry our branding/domain; event notifications content.
+3. **ResellerClub:** can mailboxes be created by API or only in the admin panel; how autologin URLs are generated; webmail/control-panel branding; plan ids and regions; sandbox access.
+4. What happens to mailboxes on non-payment / order deletion; export path; sending limits and the outreach/cold-email policy; support responsibilities for end users.
+
+---
+
+## Module 96 — AI Assistant: coverage of 8 more modules, platform-wide AI fallback, platform voice
+
+### 1. Tool coverage
+`Tools/Generic/ModuleToolCatalogMore.cs` (same shape and rules as `ModuleToolCatalog`, registered by concatenating both in `InfrastructureExtensions`). 87 new tools for **Real Estate, Hospitality (hotel + tours), Library, Lead Generation, SEO, E-commerce, Construction, Recipe**: lists, get-by-id, and a small set of confirm-gated writes (create tenant/listing/booking/member/title/project/site, issue/return/renew loans, rent payment + reminder, check-in/out/cancel, approve/reject SEO fix, activate/archive recipe). `AiAgents.Labels` gained the 8 keys so they appear in the picker and in "Vrodux <module>" call-by-name.
+- **Deliberately not exposed:** anything that spends credits or money (Lead Gen reveal, starting a campaign, buying credits, posting to Finance, taking card payments). Construction and Recipe have no permission keys, so their tools need only the module.
+- All 87 paths were checked against the real controller routes by a script (0 mismatches); tool names are unique.
+- **Still no tools** for the later features of covered modules (CRM quotations/reports, Finance integration center/VAT/recurring, HR WPS/schedules, POS credit, restaurant delivery/loyalty, Inventory online listings).
+
+### 2. Platform-wide AI fallback (super admin: `/super-admin/ai-platform`, menu "Platform AI")
+- `PlatformAiSettings` (one global row, excluded from tenant isolation) + `PlatformAiUsage` (per tenant per month, tenant-isolated). Migration `AddPlatformAi`.
+- `IAiKeyResolver` / `AiKeyResolver` is the single decision point, used by the orchestrator and `AiCompletionService` (SEO/CRM batch work):
+  1. the workspace's own enabled key, always first (its own second provider backs it up);
+  2. else the platform key, within the monthly cap;
+  3. the platform key also backs up a workspace's own key when its provider is rate limited/down (unless it set its own second provider);
+  4. a workspace that switched the assistant off while holding a key stays off.
+- **A message is counted only after the model answered** (`RecordMessageAsync`), so a broken platform key or outage never uses up allowances. Background batch work and confirm steps are not counted but the cap is still enforced.
+- Settings: enable, provider, model (OpenRouter has no default — free models change), key (encrypted, write-only), test button, monthly message cap per workspace (default 100, 0 = unlimited), "suggest own key every N messages" (default 10), permanent banner on/off, usage table per workspace.
+- Tenant side: `PlatformAiNoticeDto` rides on chat replies and on `/api/ai/capabilities` (so every user sees it, not only admins). Chat shows a permanent amber note (messages left + "Add my key", or "ask an administrator" for users without `settings.ai.edit`), a toast on every Nth message, and a clear message when the cap is hit. The side panel links to `/ai-assistant?settings=1`, which opens the settings modal.
+- A workspace served by the platform has `aiEnabled = true` even though it never switched anything on.
+- **Softaxis tenant:** its existing per-tenant OpenRouter fallback keeps working untouched. Paste the same key into Platform AI to make it the default for everyone; the old per-tenant fallback can then be cleared.
+- Known: when a workspace's own key fails and the platform key answers as backup, that message is not counted.
+
+### 3. Platform voice
+- Super-admin voice settings live on the same page: enable, speech-to-text model, text-to-speech model, voice name, monthly requests per workspace (default 50), optional separate key.
+- Uses OpenRouter's dedicated endpoints `POST /api/v1/audio/transcriptions` (JSON `{model, input_audio:{data,format}, language}`) and `/audio/speech` (`{model, input, voice, response_format:"mp3"}`), announced 2026-05. Example models from OpenRouter's announcement: `openai/whisper-large-v3`, `openai/gpt-4o-mini-transcribe`, `openai/gpt-4o-mini-tts-2025-12-15`. **The announcement lists no free speech models** — check pricing before choosing.
+- API `api/ai/voice-chat`: `GET status`, `POST transcribe`, `POST speak` (returns mp3). Key order: a workspace on OpenRouter with its own key uses it (no allowance), otherwise the platform voice within its cap. Each recording or spoken reply is one request; failures are not counted.
+- Frontend `hooks/ai/use-server-voice.ts`: MediaRecorder push-to-talk (works in Firefox/Safari, unlike the browser's built-in recognition), server speech with automatic fallback to the browser voice. Works on every plan (no tier gate). The Vapi outbound phone-call feature is separate and unchanged.
+- Not built: spoken confirmation of write actions (confirmations still need a click), Arabic/Urdu accuracy testing, streaming playback.
+
+### Verification
+- Backend builds (0 errors). Frontend `tsc` clean in every touched file.
+- Run on a local gateway (:5199) against the dev DB with test JWTs: migration applied; super-admin read/write; key stored encrypted and never returned; platform off → "not set up"; cap enforced; failed provider calls not counted and shown as "shared AI not answering"; voice off → 409, enabled → available, provider failure → 503, bad input → 422; the 8 new agents listed. Test rows were removed afterwards.
+- **Not verified:** a real model answering through the platform key, a real OpenRouter speech call, the new screens in a browser, Arabic. The nudge toast math (`count % N == 0`) was reasoned, not run, because no successful model call was possible without a real key.
+- **Pending (republish + restart):** migration `AddPlatformAi` auto-applies. Then enter the OpenRouter key and a model in Platform AI and press Test.

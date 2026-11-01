@@ -1,3 +1,5 @@
+import { useAuthStore } from "@/store/auth.store";
+import { PlatformAiBanner, usePlatformAiNotice } from "@/components/ai/platform-ai-banner";
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Sparkles, X, Send, RotateCcw, Check, Ban, ExternalLink, Zap, Loader2 } from "lucide-react";
@@ -69,6 +71,9 @@ function pendingFields(argumentsJson: string): { label: string; value: string }[
 export function AiAssistantPanel() {
   const { aiAssistantOpen, setAiAssistantOpen } = useUiStore();
   const navigate = useNavigate();
+  const canManageAi = useAuthStore((s) => s.hasRawPermission("settings.ai.edit"));
+  const { notice: platformNotice, onReply: onPlatformReply } = usePlatformAiNotice(
+    canManageAi ? () => { setAiAssistantOpen(false); navigate("/ai-assistant?settings=1"); } : undefined);
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [input, setInput] = React.useState("");
   const [showClearConfirm, setShowClearConfirm] = React.useState(false);
@@ -122,6 +127,7 @@ export function AiAssistantPanel() {
 
     try {
       const res = await sendChat.mutateAsync({ message: trimmed, history, agent: null });
+      onPlatformReply(res.platformAi);
       setMessages((prev) => [...prev, {
         id: `a-${Date.now()}`,
         role: "assistant",
@@ -139,7 +145,7 @@ export function AiAssistantPanel() {
         timestamp: new Date().toISOString(),
       }]);
     }
-  }, [messages, sendChat]);
+  }, [messages, sendChat, onPlatformReply]);
 
   const handleConfirm = React.useCallback(async (msgId: string, pending: PendingAction) => {
     // Clear the pending prompt so the buttons disappear immediately.
@@ -226,6 +232,8 @@ export function AiAssistantPanel() {
               </Button>
             </div>
           </div>
+
+          <PlatformAiBanner notice={platformNotice} compact onAddKey={canManageAi ? () => { setAiAssistantOpen(false); navigate("/ai-assistant?settings=1"); } : undefined} />
 
           {/* Messages */}
           <ScrollArea className="flex-1 p-4" ref={scrollRef}>

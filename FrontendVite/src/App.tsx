@@ -247,6 +247,7 @@ const PlatformBillingPage       = lazyWithRetry(() => import("@/pages/super-admi
 const StorageUsagePage          = lazyWithRetry(() => import("@/pages/super-admin/storage"));
 const SeoCreditsAdminPage       = lazyWithRetry(() => import("@/pages/super-admin/seo-credits"));
 const CreditPricingAdminPage    = lazyWithRetry(() => import("@/pages/super-admin/credit-pricing"));
+const AiPlatformAdminPage       = lazyWithRetry(() => import("@/pages/super-admin/ai-platform"));
 const SubscriptionExpiredPage   = lazyWithRetry(() => import("@/pages/subscription-expired"));
 
 // ── Guards ───────────────────────────────────────────────────────────────────
@@ -680,6 +681,7 @@ export function App() {
             <Route path="/super-admin/lead-generation" element={<LeadGenAdminPage />} />
             <Route path="/super-admin/seo-credits" element={<SeoCreditsAdminPage />} />
             <Route path="/super-admin/credit-pricing" element={<CreditPricingAdminPage />} />
+            <Route path="/super-admin/ai-platform" element={<AiPlatformAdminPage />} />
           </Route>
 
           {/* ── Settings — per-page permission, admin tiers always pass ─────── */}

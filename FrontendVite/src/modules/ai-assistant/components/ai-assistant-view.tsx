@@ -1,3 +1,5 @@
+import { useSearchParams } from "react-router-dom";
+import { PlatformAiBanner, usePlatformAiNotice } from "@/components/ai/platform-ai-banner";
 import * as React from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,7 +18,8 @@ import {
   useTelegramStatus, useGenerateTelegramLink, useUnlinkTelegram, useRegisterTelegramWebhook,
   useAiConversation, useClearConversation,
 } from "@/hooks/ai/use-ai";
-import { useSpeechToText, speak, cancelSpeech, speechSynthesisSupported } from "@/hooks/ai/use-voice";
+import { useSpeechToText, speak as speakBrowser, cancelSpeech as cancelBrowserSpeech, speechSynthesisSupported } from "@/hooks/ai/use-voice";
+import { useServerVoiceStatus, useServerRecorder, speakServer, stopServerSpeech } from "@/hooks/ai/use-server-voice";
 import type { AiProvider, AiTier, ChatHistoryItem, PendingAction } from "@/lib/ai/ai.api";
 import { ApiError } from "@/lib/api-client";
 import { AutomationsModal } from "./automations-modal";
@@ -123,6 +126,15 @@ export function AIAssistantView() {
   }, [conversation, historyLoading]);
 
   const canManageAi = useAuthStore((s) => s.hasRawPermission("settings.ai.edit"));
+  // "?settings=1" (from the side panel) opens the settings straight away, then drops the param.
+  const [searchParams, setSearchParams] = useSearchParams();
+  React.useEffect(() => {
+    if (searchParams.get("settings") === "1" && canManageAi) {
+      setShowSettings(true);
+      setSearchParams((p) => { p.delete("settings"); return p; }, { replace: true });
+    }
+  }, [searchParams, setSearchParams, canManageAi]);
+  const { notice: platformNotice, onReply: onPlatformReply } = usePlatformAiNotice(canManageAi ? () => setShowSettings(true) : undefined);
 
   // Voice (M5) — gated by the tenant's voice capability + browser support.
   const [speakReplies, setSpeakReplies] = React.useState(false);
@@ -132,9 +144,22 @@ export function AIAssistantView() {
     (text) => { setInput(text); void sendMessage(text); },
     (msg) => toast.error(msg),
   );
+  // Server voice (platform or the workspace's own OpenRouter key) works for any plan and browser;
+  // the browser's built-in voice remains the free fallback for workspaces that switched it on.
+  const { data: serverVoice } = useServerVoiceStatus();
+  const useServer = !!serverVoice?.available;
+  const rec = useServerRecorder(
+    (text) => { setInput(text); void sendMessage(text); },
+    (msg) => toast.error(msg),
+  );
   const voiceEnabled = !!caps?.voiceEnabled;
-  const canSpeak = voiceEnabled && speechSynthesisSupported();
-  const canListen = voiceEnabled && stt.supported;
+  const canSpeak = useServer || (voiceEnabled && speechSynthesisSupported());
+  const canListen = (useServer && rec.supported) || (voiceEnabled && stt.supported);
+  const listening = useServer ? rec.recording : stt.listening;
+  const speak = React.useCallback((text: string) => {
+    if (useServer) { speakServer(text).catch(() => speakBrowser(text)); } else { speakBrowser(text); }
+  }, [useServer]);
+  const cancelSpeech = React.useCallback(() => { stopServerSpeech(); cancelBrowserSpeech(); }, []);
 
   React.useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -156,6 +181,7 @@ export function AIAssistantView() {
 
     try {
       const res = await sendChat.mutateAsync({ message: trimmed, history, agent });
+      onPlatformReply(res.platformAi);
       setMessages(prev => [...prev, {
         id: `a-${Date.now()}`, role: "assistant", content: res.reply, timestamp: now(),
         pending: res.pendingAction ?? null, usedFallback: res.usedFallback,
@@ -168,7 +194,7 @@ export function AIAssistantView() {
         content: `⚠️ ${msg}`, timestamp: now(),
       }]);
     }
-  }, [messages, sendChat, agent]);
+  }, [messages, sendChat, agent, onPlatformReply]);
 
   const handleConfirm = React.useCallback(async (msgId: string, pending: PendingAction) => {
     // Clear the pending prompt so the buttons disappear immediately.
@@ -258,6 +284,8 @@ export function AIAssistantView() {
           </Button>
         </div>
       </div>
+
+      <PlatformAiBanner notice={platformNotice} onAddKey={canManageAi ? () => setShowSettings(true) : undefined} />
 
       {/* Agent selector (call-by-name targets) */}
       {agents && agents.length > 0 && (
@@ -402,17 +430,18 @@ export function AIAssistantView() {
               el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
             });
           }}
-          placeholder={stt.listening ? "Listening…" : "Ask anything about your business data…"}
+          placeholder={listening ? "Listening…" : rec.working ? "Understanding…" : "Ask anything about your business data…"}
           rows={1}
           className="flex-1 resize-none bg-transparent text-sm outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground py-1"
           style={{ lineHeight: "1.5" }}
         />
         {canListen && (
-          <Button onClick={() => stt.listening ? stt.stop() : stt.start()} disabled={isTyping}
-            size="sm" variant={stt.listening ? "default" : "ghost"}
-            className={cn("h-8 w-8 p-0 rounded-full shrink-0", stt.listening && "animate-pulse")}
-            title={stt.listening ? "Stop listening" : "Speak your question"}>
-            <Mic className="h-3.5 w-3.5" />
+          <Button onClick={() => { if (useServer) { rec.recording ? rec.stop() : rec.start(); } else { stt.listening ? stt.stop() : stt.start(); } }}
+            disabled={isTyping || rec.working}
+            size="sm" variant={listening ? "default" : "ghost"}
+            className={cn("h-8 w-8 p-0 rounded-full shrink-0", listening && "animate-pulse")}
+            title={rec.working ? "Understanding…" : listening ? "Stop listening" : "Speak your question"}>
+            {rec.working ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mic className="h-3.5 w-3.5" />}
           </Button>
         )}
         <Button onClick={() => sendMessage(input)} disabled={!input.trim() || isTyping}

@@ -14,6 +14,10 @@ public abstract class AiAssistantControllerBase : ControllerBase
     protected IActionResult NoContentOrError(Result result) =>
         result.IsSuccess ? NoContent() : ErrorResponse(result.Error);
 
+    /// <summary>Returns binary content (e.g. spoken audio) on success.</summary>
+    protected IActionResult FileOrError(Result<(byte[] Bytes, string ContentType)> result) =>
+        result.IsSuccess ? File(result.Value.Bytes, result.Value.ContentType) : ErrorResponse(result.Error);
+
     private ObjectResult ErrorResponse(Error error)
     {
         var body = new { error.Code, error.Description };
@@ -22,6 +26,7 @@ public abstract class AiAssistantControllerBase : ControllerBase
             var c when c.EndsWith(".NotFound")     => NotFound(body),
             var c when c.EndsWith(".Duplicate")    => Conflict(body),
             var c when c.EndsWith(".Conflict")     => Conflict(body),
+            var c when c.EndsWith(".Unavailable")  => StatusCode(StatusCodes.Status503ServiceUnavailable, body),
             var c when c.EndsWith(".Forbidden")    => StatusCode(StatusCodes.Status403Forbidden, body),
             var c when c.EndsWith(".Invalid")      => BadRequest(body),
             var c when c.EndsWith(".InvalidProvider") => BadRequest(body),

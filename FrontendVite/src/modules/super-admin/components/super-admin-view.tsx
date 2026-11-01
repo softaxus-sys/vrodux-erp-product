@@ -7,7 +7,7 @@ import {
   ShieldCheck, AlertTriangle, ChevronRight, RefreshCw,
   Loader2, MoreVertical, Key, Link, Trash2, Ban,
   CheckCircle, Clock, X, Edit, Copy, ExternalLink, LogIn, CreditCard, HardDrive, Radar, Mail,
-  Settings2, ChevronDown, Coins,
+  Settings2, ChevronDown, Coins, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -377,6 +377,9 @@ export function SuperAdminView() {
                 </DropdownMenuItem>
                 <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => navigate("/super-admin/seo-credits")}>
                   <Coins className="h-4 w-4" />SEO audit credits
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => navigate("/super-admin/ai-platform")}>
+                  <Sparkles className="h-4 w-4" />Platform AI
                 </DropdownMenuItem>
                 <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => navigate("/super-admin/credit-pricing")}>
                   <Coins className="h-4 w-4" />Credit pricing

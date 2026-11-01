@@ -35,4 +35,17 @@ public sealed record AiChatResponseDto(
     string Model,
     PendingActionDto? PendingAction = null,
     string? Agent = null,
-    bool UsedFallback = false);
+    bool UsedFallback = false,
+    PlatformAiNoticeDto? PlatformAi = null);
+
+/// <summary>
+/// Present on a reply when it was served by the shared platform AI rather than the workspace's own
+/// key. Drives the "add your own key" banner and the periodic suggestion in the chat.
+/// </summary>
+public sealed record PlatformAiNoticeDto(
+    bool UsingPlatform,
+    int MessagesUsed,
+    int MessageCap,
+    bool SuggestOwnKey,
+    bool LimitReached,
+    bool ShowBanner);

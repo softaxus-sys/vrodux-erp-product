@@ -15,4 +15,5 @@ public sealed record AiCapabilitiesDto(
     // Feature toggles the admin has enabled (still bounded by the tier flags above).
     bool VoiceEnabled,
     bool TelegramEnabled,
-    bool AiEnabled);
+    bool AiEnabled,
+    Chat.Dtos.PlatformAiNoticeDto? PlatformAi = null);

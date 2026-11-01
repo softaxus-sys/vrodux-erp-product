@@ -8,6 +8,18 @@ const BASE = `${getApiBaseUrl()}/api/ai`;
 export type AiProvider = "Claude" | "GroqFree" | "GroqPaid" | "OpenRouter";
 export type AiTier = "starter" | "growth" | "enterprise";
 
+/** Present when the shared platform AI (not the workspace's own key) is answering. */
+export interface PlatformAiNotice {
+  usingPlatform: boolean;
+  messagesUsed: number;
+  /** 0 = unlimited. */
+  messageCap: number;
+  /** True on every Nth shared message — time to suggest adding their own key. */
+  suggestOwnKey: boolean;
+  limitReached: boolean;
+  showBanner: boolean;
+}
+
 /** What the tenant's plan tier unlocks + which optional features the admin turned on. No secrets. */
 export interface AiCapabilitiesDto {
   tier: AiTier;
@@ -20,6 +32,7 @@ export interface AiCapabilitiesDto {
   voiceEnabled: boolean;
   telegramEnabled: boolean;
   aiEnabled: boolean;
+  platformAi?: PlatformAiNotice | null;
 }
 
 export interface AiSettingsDto {
@@ -45,6 +58,7 @@ export interface AiSettingsDto {
   fallbackModel: string | null;
   /** True when a fallback key is stored. The key itself is never returned. */
   hasFallbackApiKey: boolean;
+  platformAi?: PlatformAiNotice | null;
 }
 
 export interface UpdateAiSettingsPayload {
@@ -124,6 +138,7 @@ export interface AiChatResponse {
   agent: string | null;
   /** True when this reply came from the fallback provider (primary was rate-limited/unavailable). */
   usedFallback: boolean;
+  platformAi?: PlatformAiNotice | null;
 }
 
 export interface ConfirmActionPayload {
