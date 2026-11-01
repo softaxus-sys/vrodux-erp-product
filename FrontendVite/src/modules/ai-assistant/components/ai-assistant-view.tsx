@@ -44,7 +44,7 @@ const SUGGESTED_PROMPTS = [
 ];
 
 const WELCOME =
-  "Hi! I'm your Vrodux assistant. I can answer questions about your company's data using live records — for example your CRM leads and pipeline. What would you like to know?";
+  "Hi! I'm Vrodux AI. I can answer questions about your company's data using live records, and make changes when you ask. Start with a question, or call a specialist by name — for example \"Vrodux CRM, show my hottest leads\" or \"Vrodux Finance, what's overdue?\". What would you like to know?";
 
 /** "crm_create_lead" → "create lead"; "firstName" → "First name". */
 function prettify(raw: string): string {
@@ -247,7 +247,7 @@ export function AIAssistantView() {
             <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-success border-2 border-card" title="Online" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight">AI Assistant</h1>
+            <h1 className="text-xl font-bold tracking-tight">Vrodux AI</h1>
             <p className="text-xs text-muted-foreground">Powered by your ERP data</p>
           </div>
         </div>
@@ -300,7 +300,7 @@ export function AIAssistantView() {
             <button key={a.key} onClick={() => setAgent(a.key)}
               className={cn("px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors",
                 agent === a.key ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-card border-border text-muted-foreground hover:border-primary/40 hover:text-foreground")}>
-              {a.label}
+              {`Vrodux ${a.label}`}
             </button>
           ))}
         </div>
@@ -652,7 +652,7 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-base font-semibold flex items-center gap-2">
-            <Settings2 className="h-4 w-4 text-primary" /> AI Assistant Settings
+            <Settings2 className="h-4 w-4 text-primary" /> Vrodux AI Settings
           </h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>

@@ -199,7 +199,7 @@ export function AiAssistantPanel() {
                 <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-success border-2 border-card" />
               </div>
               <div>
-                <p className="font-semibold text-sm">AI Assistant</p>
+                <p className="font-semibold text-sm">Vrodux AI</p>
                 <p className="text-[10px] text-muted-foreground">Powered by your ERP data</p>
               </div>
             </div>

@@ -51,7 +51,7 @@ function plural(n: number, one: string, many = `${one}s`) { return `${n} ${n ===
 function AiRow() {
   const q = useAiSettings(true);
   const d = q.data;
-  return <Row icon={Bot} title="AI Assistant" href="/ai-assistant" loading={q.isLoading}
+  return <Row icon={Bot} title="Vrodux AI" href="/ai-assistant" loading={q.isLoading}
     description="The AI model the assistant, SEO fixes and article drafts run on. You bring your own key; it is stored encrypted and never shown again."
     tone={q.isError ? "off" : d?.hasApiKey ? "ok" : "warn"}
     status={q.isLoading ? "Checking" : q.isError ? "Open to check" : d?.hasApiKey ? `Your ${d.provider} key is connected` : "No key set up yet"} />;

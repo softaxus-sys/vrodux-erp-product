@@ -24,8 +24,8 @@ export const navigationConfig: NavGroup[] = [
       },
       {
         id: "ai-assistant",
-        label: "AI Assistant",
-        labelAr: "المساعد الذكي",
+        label: "Ask Vrodux",
+        labelAr: "اسأل Vrodux",
         href: "/ai-assistant",
         icon: "Sparkles",
         module: "ai-assistant",
