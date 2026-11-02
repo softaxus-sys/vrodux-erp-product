@@ -1,0 +1,47 @@
+# ============================================================================
+# Online stores on their own addresses (custom domains and {store}.<store domain>)
+#
+# NOT active as shipped: it needs certificates that exist only on your server. Copy to stores.conf, replace the
+# placeholders, and run `nginx -t && nginx -s reload`. See docs/storefront-go-live.md.
+#
+# A store reached this way is the WHOLE site on that address: the SPA loads, asks /api/ecommerce/shop-host which
+# store the address belongs to, and renders it. /api is forwarded to the gateway on the same address, so the browser
+# never makes a cross-origin call.
+# ============================================================================
+
+# ── Sub-domain stores: *.shops.example.com (one wildcard certificate) ───────
+# The certificate must be a WILDCARD (Let's Encrypt DNS-01), issued for *.shops.example.com.
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name *.shops.example.com;     # <- your STORE_BASE_DOMAIN
+
+    ssl_certificate     /etc/letsencrypt/live/shops.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/shops.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    include /etc/nginx/snippets/store-locations.conf;
+}
+
+# ── One custom domain per block (certificate per domain, e.g. certbot --nginx -d shop.brand.com) ─────────────
+# server {
+#     listen 443 ssl;
+#     listen [::]:443 ssl;
+#     http2 on;
+#     server_name shop.brand.com;
+#
+#     ssl_certificate     /etc/letsencrypt/live/shop.brand.com/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/shop.brand.com/privkey.pem;
+#     ssl_protocols TLSv1.2 TLSv1.3;
+#
+#     include /etc/nginx/snippets/store-locations.conf;
+# }
+
+# ── Plain-HTTP -> HTTPS for the store addresses (ACME challenges still answered) ─────────────────────────
+server {
+    listen 80;
+    server_name *.shops.example.com shop.brand.com;
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://$host$request_uri; }
+}

@@ -76,8 +76,26 @@ internal sealed class SeoScanBackgroundService(IServiceScopeFactory scopeFactory
                 if (site is null) continue;
 
                 var scan = await runner.RunAsync(site, ct);
-                logger.LogInformation("SEO scan completed for site {Site}: {Issues} issue(s), {Fixes} fix(es) proposed.",
-                    site.Id, scan.IssuesFound, scan.FixesProposed);
+                if (scan.NoCredits)
+                {
+                    // Nothing was crawled or charged. Try again tomorrow rather than every hour, and tell the people who can top up.
+                    site.ScheduleNextScan(DateTime.UtcNow.AddDays(1));
+                    await db.SaveChangesAsync(ct);
+                    logger.LogInformation("SEO scan skipped for site {Site}: no credits.", site.Id);
+                    try
+                    {
+                        var recipients = await SeoNotificationRecipients.GetAsync(db, tenantId, ct);
+                        await notify.PublishManyAsync(recipients.Select(userId => new NotificationRequest(
+                            RecipientUserId: userId, Module: NotificationModules.Seo, Event: NotificationEvents.SeoCreditsOut,
+                            Title: $"SEO audit skipped — no credits — {site.DisplayName}",
+                            Message: "The scheduled audit did not run because this workspace has no SEO credits left.",
+                            Link: $"/seo/sites/{site.Id}", Type: "warning", RelatedToType: "seo_site", RelatedToId: site.Id, TenantId: tenantId)), ct);
+                    }
+                    catch (Exception ex) { logger.LogWarning(ex, "SEO credits-out alert failed for site {Site}.", site.Id); }
+                    continue;
+                }
+                logger.LogInformation("SEO scan completed for site {Site}: score {Score}, {Pages} page(s), {Issues} open issue(s), {Fixes} fix(es) proposed, {Credits} credit(s).",
+                    site.Id, scan.Score, scan.PagesCrawled, scan.IssuesFound, scan.FixesProposed, scan.CreditsCharged);
 
                 if (scan.FixesProposed > 0)
                 {
@@ -89,7 +107,7 @@ internal sealed class SeoScanBackgroundService(IServiceScopeFactory scopeFactory
                             Module:          NotificationModules.Seo,
                             Event:           NotificationEvents.SeoFixesReady,
                             Title:           $"{scan.FixesProposed} new SEO fix{(scan.FixesProposed == 1 ? "" : "es")} ready to review — {site.DisplayName}",
-                            Message:         $"The scheduled scan found {scan.IssuesFound} issue(s) and the AI proposed {scan.FixesProposed} fix(es).",
+                            Message:         $"The scheduled audit scored {scan.Score}/100 with {scan.IssuesFound} open issue(s); the AI proposed {scan.FixesProposed} fix(es) for the new ones.",
                             Link:            $"/seo/sites/{site.Id}",
                             Type:            "info",
                             RelatedToType:   "seo_site",

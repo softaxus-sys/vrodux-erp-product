@@ -82,7 +82,10 @@
     "statUptime": "Uptime",
     "trustedIn": "Trusted in",
     "signInToAccount": "Sign in to account",
-    "changeEmail": "Change email"
+    "changeEmail": "Change email",
+    "phone": "Phone or WhatsApp number",
+    "phonePlaceholder": "+971 50 123 4567",
+    "phoneHint": "Include your country code. We will only use it to help you get set up."
   },
   "step2": {
     "title": "Set up your organization",
@@ -130,11 +133,12 @@
   },
   "step4": {
     "title": "What type of business are you?",
-    "subtitle": "We'll pre-configure your workspace to match your business category.",
+    "subtitle": "Pick up to 3 that fit best. We'll pre-configure your workspace to match.",
     "alsoRecommended": "Also recommended for {{label}}:",
-    "selectType": "Select your business type.",
+    "selectType": "Select at least one business type.",
     "agree": "By continuing you agree to our <a>Privacy Policy</a>",
-    "getStarted": "Get Started"
+    "getStarted": "Get Started",
+    "maxTypes": "You can pick up to {{count}} types. Remove one to choose another."
   },
   "done": {
     "title": "You're all set! 🎉",
@@ -153,7 +157,9 @@
     "needsNumber": "Needs a number",
     "acceptTerms": "You must accept the terms",
     "passwordMismatch": "Passwords do not match",
-    "required": "Required"
+    "required": "Required",
+    "phoneRequired": "Phone or WhatsApp number is required",
+    "phoneInvalid": "Enter a valid phone number (7–15 digits)"
   },
   "industry": {
     "All Industries": "All Industries",
@@ -267,6 +273,22 @@
     "trade": {
       "label": "Import / Export",
       "desc": "Shipments, trade documents, landed cost & payments"
+    },
+    "ecommerce": {
+      "label": "Online Store",
+      "desc": "Your own web store, Shopify sync, orders & payments"
+    },
+    "project-management": {
+      "label": "Projects & Tasks",
+      "desc": "Boards, sprints, issues and team workload"
+    },
+    "insurance": {
+      "label": "Insurance",
+      "desc": "Policies, renewals and claims on top of your CRM"
+    },
+    "b2b": {
+      "label": "B2B Sales",
+      "desc": "Proposals, contracts and support tickets for business clients"
     }
   },
   "businessType": {
@@ -300,5 +322,11 @@
     "operations": "HR & Operations",
     "industry": "Industry Packs"
   },
-  "trialBadge": "{{days}}-day free trial · No credit card"
+  "trialBadge": "{{days}}-day free trial · No credit card",
+  "included": {
+    "title": "Included with every workspace",
+    "ai": "Vrodux AI",
+    "seo": "SEO",
+    "leadgen": "Lead Generation"
+  }
 }

@@ -206,11 +206,12 @@ public sealed class Tenant : AuditableEntity<Guid>
     /// </summary>
     /// <summary>Modules every tenant always has, regardless of plan or onboarding choices.</summary>
     /// <summary>
-    /// <c>leadgen</c> is on for every workspace: it is available to all customers, and who may actually use it is
-    /// decided entirely by the <c>leadgen.*</c> permissions an administrator grants to roles. Nothing is exposed
+    /// <c>leadgen</c> and <c>seo</c> are on for every workspace, whatever industry or modules were picked at signup:
+    /// they are included with the product, and who may actually use them is
+    /// decided entirely by the <c>leadgen.*</c> / <c>seo.*</c> permissions an administrator grants to roles. Nothing is exposed
     /// to a user who holds none of them.
     /// </summary>
-    public static readonly IReadOnlyList<string> AlwaysOnModules = ["settings", "users", "leadgen"];
+    public static readonly IReadOnlyList<string> AlwaysOnModules = ["settings", "users", "leadgen", "seo"];
 
     public IReadOnlyList<string> ResolvedModules
     {
@@ -240,18 +241,11 @@ public sealed class Tenant : AuditableEntity<Guid>
                 }
             }
 
-            // Manufacturing keeps no stock of its own — components and finished goods are
-            // Inventory products. A tenant sold Manufacturing alone would have nowhere to create
-            // them, so Inventory comes with it, manual grant included.
-            if (list.Contains("manufacturing", StringComparer.OrdinalIgnoreCase)
-                && !list.Contains("inventory", StringComparer.OrdinalIgnoreCase))
-                list.Add("inventory");
-
-            // Restaurant sells through the POS (its API is licensed as POS and orders post to the open
-            // shift) and keeps stock in Inventory, so both come with it - manual grant included.
-            if (list.Contains("restaurant", StringComparer.OrdinalIgnoreCase))
-                foreach (var dep in new[] { "pos", "inventory" })
-                    if (!list.Contains(dep, StringComparer.OrdinalIgnoreCase)) list.Add(dep);
+            // Inventory is the single source of truth for products and stock. POS, Restaurant POS
+            // (which sells through the POS), Manufacturing and E-commerce all work on what Inventory
+            // holds, so each brings it - and whatever it sits on - along, manual grant included. See
+            // ModuleDependencies for the rules and the frontend copies that must match.
+            ModuleDependencies.Close(list);
 
             // Settings and Users are how a tenant administers itself — invite colleagues, set roles,
             // manage billing. Locking them behind a plan, an onboarding checkbox, or even a manual

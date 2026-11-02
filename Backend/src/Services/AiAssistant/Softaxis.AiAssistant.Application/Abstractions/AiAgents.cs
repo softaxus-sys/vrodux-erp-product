@@ -27,6 +27,14 @@ public static class AiAgents
         ["healthcare"]        = "Healthcare",
         ["insurance"]          = "Insurance",
         ["operations"]         = "Operations",
+        ["real-estate"]        = "Real Estate",
+        ["hospitality"]        = "Hospitality",
+        ["library"]            = "Library",
+        ["leadgen"]            = "Lead Generation",
+        ["seo"]                = "SEO",
+        ["ecommerce"]          = "E-commerce",
+        ["construction"]       = "Construction",
+        ["recipe"]             = "Recipes",
         ["support"]            = "Support",
     };
 

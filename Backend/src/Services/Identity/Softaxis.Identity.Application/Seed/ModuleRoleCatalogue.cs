@@ -52,6 +52,7 @@ public static class ModuleRoleCatalogue
             ["manufacturing"]      = "Manufacturing",
             ["library"]            = "Library",
             ["trade"]              = "Trade",
+            ["ecommerce"]          = "E-commerce",
             ["leadgen"]            = "Lead Generation",
             ["seo"]                = "SEO",
             ["restaurant"]         = "Restaurant",

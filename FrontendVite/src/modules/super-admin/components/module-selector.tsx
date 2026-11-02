@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Check, RotateCcw } from "lucide-react";
+import { Check, Lock, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { PlanType } from "@/lib/admin/tenants.api";
@@ -39,6 +39,7 @@ export const ALL_MODULES: ModuleInfo[] = [
   { code: "b2b",                 label: "B2B",                   desc: "Proposals, contracts, support tickets"                  },
   { code: "visa",                label: "Visa Services",         desc: "Visa case management, document checklists"              },
   { code: "manufacturing",       label: "Manufacturing",        desc: "Bills of materials, production orders (adds Inventory)" },
+  { code: "ecommerce",           label: "E-commerce",            desc: "Sell Inventory products on Shopify and other stores (adds Inventory)" },
   { code: "library",             label: "Library",               desc: "Catalogue, members, lending and fines across branches"  },
   { code: "trade",               label: "Import / Export",       desc: "Shipments, trade documents, landed cost, LC and payments" },
   { code: "seo",                 label: "SEO AI Agent",         desc: "Autopilot site audits, AI-proposed SEO fixes (add-on)"  },
@@ -102,7 +103,7 @@ function ALL_MODULES_CODES(): string[] {
   return [
     "pos", "restaurant", "recipe", "inventory", "purchase", "sales", "crm", "finance", "hr",
     "reports", "project-management", "real-estate", "construction", "hospitality", "healthcare",
-    "education", "insurance", "b2b", "visa", "manufacturing", "library", "trade", "settings", "users",
+    "education", "insurance", "b2b", "visa", "manufacturing", "ecommerce", "library", "trade", "settings", "users",
   ];
 }
 
@@ -135,6 +136,7 @@ const CHIP_STYLE: Record<string, string> = {
   "b2b":                "bg-slate-100   border-slate-400   text-slate-700   dark:bg-slate-900/40   dark:border-slate-500   dark:text-slate-300",
   "visa":               "bg-green-100   border-green-400   text-green-800   dark:bg-green-900/40   dark:border-green-600   dark:text-green-300",
   "manufacturing":      "bg-zinc-100    border-zinc-400    text-zinc-800    dark:bg-zinc-900/40    dark:border-zinc-500    dark:text-zinc-300",
+  "ecommerce":          "bg-emerald-100 border-emerald-400 text-emerald-800 dark:bg-emerald-900/40 dark:border-emerald-600 dark:text-emerald-300",
   "library":            "bg-indigo-100  border-indigo-400  text-indigo-800  dark:bg-indigo-900/40  dark:border-indigo-600  dark:text-indigo-300",
   "trade":              "bg-sky-100     border-sky-400     text-sky-800     dark:bg-sky-900/40     dark:border-sky-600     dark:text-sky-300",
   "seo":                "bg-stone-100   border-stone-400   text-stone-800   dark:bg-stone-900/40   dark:border-stone-500   dark:text-stone-300",
@@ -144,6 +146,41 @@ const CHIP_STYLE: Record<string, string> = {
 
 function chipStyle(code: string) {
   return CHIP_STYLE[code] ?? "bg-gray-100 border-gray-400 text-gray-700";
+}
+
+// ── Dependencies ──────────────────────────────────────────────────────────────
+
+/**
+ * Module → modules it cannot work without. Inventory is the single source of truth for products
+ * and stock, so POS, Restaurant POS, Manufacturing and E-commerce all bring it along and it cannot
+ * be switched off while one of them is on. Mirrors the backend `ModuleDependencies` (which is what
+ * actually decides a workspace's modules) and the signup picker in `lib/onboarding/module-data.ts`.
+ */
+const REQUIRES: Record<string, string[]> = {
+  pos:           ["inventory"],
+  restaurant:    ["pos"],
+  manufacturing: ["inventory"],
+  ecommerce:     ["inventory"],
+};
+
+/** Adds everything the selected modules need, following chains (restaurant → pos → inventory). */
+export function closeModules(modules: string[]): string[] {
+  const out = new Set(modules);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const m of [...out])
+      for (const dep of REQUIRES[m] ?? [])
+        if (!out.has(dep)) { out.add(dep); grew = true; }
+  }
+  return [...out];
+}
+
+/** Selected modules that need `code`, directly or through a chain. */
+function dependentsOf(code: string, selected: string[]): string[] {
+  const needs = (m: string, depth = 0): boolean =>
+    depth < 8 && (REQUIRES[m] ?? []).some(d => d === code || needs(d, depth + 1));
+  return selected.filter(m => m !== code && needs(m));
 }
 
 // ── ModuleSelector ────────────────────────────────────────────────────────────
@@ -166,12 +203,28 @@ export function ModuleSelector({
   readOnly = false,
   showReset = true,
 }: ModuleSelectorProps) {
+  const labelOf = (code: string) => ALL_MODULES.find(m => m.code === code)?.label ?? code;
+
   const toggle = (code: string) => {
     if (readOnly) return;
-    onChange(
-      selected.includes(code) ? selected.filter(m => m !== code) : [...selected, code],
-    );
+    if (selected.includes(code)) {
+      // Something selected still needs this one — leave it on (the chip says why).
+      if (dependentsOf(code, selected).length > 0) return;
+      onChange(selected.filter(m => m !== code));
+    } else {
+      // Turning a module on brings what it needs.
+      onChange(closeModules([...selected, code]));
+    }
   };
+
+  // A list that arrives without a dependency (an older tenant, a saved override) is completed
+  // rather than shown as valid — the backend would add it anyway, so the screen should say so.
+  React.useEffect(() => {
+    if (readOnly) return;
+    const closed = closeModules(selected);
+    if (closed.length !== selected.length) onChange(closed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected.join(","), readOnly]);
 
   const isDefault = React.useMemo(
     () => defaults.length > 0 && moduleSetsEqual(selected, defaults),
@@ -183,23 +236,28 @@ export function ModuleSelector({
       <div className="flex flex-wrap gap-1.5">
         {ALL_MODULES.map(m => {
           const active = selected.includes(m.code);
+          const neededBy = active ? dependentsOf(m.code, selected) : [];
+          const locked = neededBy.length > 0;
           return (
             <button
               key={m.code}
               type="button"
-              title={m.desc}
+              title={locked ? `Required by ${neededBy.map(labelOf).join(", ")}` : m.desc}
               disabled={readOnly}
+              aria-disabled={locked}
               onClick={() => toggle(m.code)}
               className={cn(
                 "flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all select-none",
                 active
-                  ? cn(chipStyle(m.code), "border-2 shadow-sm")
+                  ? cn(chipStyle(m.code), "border-2 shadow-sm", locked && "cursor-not-allowed")
                   : readOnly
                     ? "hidden"   // in read-only mode hide un-selected modules
                     : "bg-muted/40 border-border/50 text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              {!readOnly && active && <Check className="h-2.5 w-2.5 shrink-0" />}
+              {!readOnly && active && (locked
+                ? <Lock className="h-2.5 w-2.5 shrink-0" />
+                : <Check className="h-2.5 w-2.5 shrink-0" />)}
               {m.label}
             </button>
           );

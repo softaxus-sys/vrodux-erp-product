@@ -17,12 +17,14 @@ public sealed class AiAssistantDbContext(DbContextOptions<AiAssistantDbContext> 
     public DbSet<CallAttempt>       CallAttempts    => Set<CallAttempt>();
     public DbSet<AiConversation>    Conversations   => Set<AiConversation>();
     public DbSet<AiConversationMessage> ChatMessages => Set<AiConversationMessage>();
+    public DbSet<PlatformAiSettings> PlatformAi => Set<PlatformAiSettings>();
+    public DbSet<PlatformAiUsage> PlatformUsage => Set<PlatformAiUsage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("aiassistant");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AiAssistantDbContext).Assembly);
-        TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.AiAssistant.Domain");
+        TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.AiAssistant.Domain", [typeof(PlatformAiSettings)]);
         base.OnModelCreating(modelBuilder);
     }
 

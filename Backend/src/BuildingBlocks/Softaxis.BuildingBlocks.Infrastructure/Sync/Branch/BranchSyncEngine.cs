@@ -26,6 +26,7 @@ public sealed class BranchSyncEngine(
     SyncReceiveStore          store,
     BranchSyncClient          client,
     IOptions<BranchSyncOptions> options,
+    IConfiguration            configuration,
     BranchSyncStatus          status,
     ILogger<BranchSyncEngine> logger)
 {
@@ -36,10 +37,11 @@ public sealed class BranchSyncEngine(
     private BranchSyncOptions O => options.Value;
 
     /// <summary>The tables of one owner, parents first.</summary>
-    public async Task<IReadOnlyList<SyncTable>> CatalogueAsync(SyncOwner owner, CancellationToken ct)
+    public async Task<IReadOnlyList<SyncTable>> CatalogueAsync(SyncOwner owner, CancellationToken ct, bool includeOpeningBalances = false)
     {
         var names = BranchSyncCatalog.OwnedBy(owner)
             .Select(e => e.Table).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (includeOpeningBalances) names.UnionWith(BranchSyncCatalog.OpeningBalances);
 
         var existing = await schema.ReadTablesAsync(BranchSyncCatalog.Schemas, ct);
         var tables = existing
@@ -147,8 +149,9 @@ public sealed class BranchSyncEngine(
             var page = await capture.ReadSeedPageAsync(table, O.TenantId, after, BatchSize, ct);
             if (page.Rows.Count == 0) break;
 
-            await SendUpAsync(table, page.Rows, 0, toVersion, ct);
-            sent += page.Rows.Count;
+            var own = await OwnRowsAsync(table, page.Rows, ct);
+            if (own.Count > 0) await SendUpAsync(table, own, 0, toVersion, ct);
+            sent += own.Count;
 
             after = page.Rows[^1].Key;
             await state.SetSeedCursorAsync(table.Name, EncodeKey(after), ct);
@@ -169,14 +172,27 @@ public sealed class BranchSyncEngine(
             var batch = await capture.ReadChangesAsync(table, O.TenantId, cursor, toVersion, BatchSize, ct);
             if (batch.Rows.Count == 0) { await state.SetVersionAsync(table.Name, toVersion, ct); break; }
 
-            await SendUpAsync(table, batch.Rows, cursor, batch.ToVersion, ct);
-            sent += batch.Rows.Count;
+            var own = await OwnRowsAsync(table, batch.Rows, ct);
+            if (own.Count > 0) await SendUpAsync(table, own, cursor, batch.ToVersion, ct);
+            sent += own.Count;
             cursor = batch.ToVersion;
             await state.SetVersionAsync(table.Name, cursor, ct);
 
             if (!batch.HasMore) { await state.SetVersionAsync(table.Name, toVersion, ct); break; }
         }
         return sent;
+    }
+
+    /// <summary>
+    /// Stock rows are keyed by warehouse: only rows of this branch's own warehouses go up. Head-office warehouse
+    /// rows (which the branch may hold as an opening balance) and deletes (no warehouse to check) stay here.
+    /// </summary>
+    private async Task<IReadOnlyList<SyncRow>> OwnRowsAsync(SyncTable table, IReadOnlyList<SyncRow> rows, CancellationToken ct)
+    {
+        if (!BranchSyncCatalog.WarehouseOwned.TryGetValue(table.Name, out var column)) return rows;
+        var mine = await BranchWarehouses.LoadAsync(configuration.GetConnectionString("IdentityDb"), O.TenantId, O.BranchId, ct);
+        return rows.Where(r => r.Data is not null && r.Data.TryGetValue(column, out var w) && w is not null
+                               && Guid.TryParse(w.ToString(), out var id) && mine.Contains(id)).ToList();
     }
 
     private async Task SendUpAsync(SyncTable table, IReadOnlyList<SyncRow> rows, long from, long to, CancellationToken ct)
@@ -196,7 +212,7 @@ public sealed class BranchSyncEngine(
 
     private async Task<int> DownAsync(CancellationToken ct)
     {
-        var catalogue = await CatalogueAsync(SyncOwner.Cloud, ct);
+        var catalogue = await CatalogueAsync(SyncOwner.Cloud, ct, includeOpeningBalances: true);
         var marks = await state.ReadAllAsync(ct);
         var total = 0;
 
@@ -232,7 +248,9 @@ public sealed class BranchSyncEngine(
             {
                 var result = await store.ApplyAsync(
                     new SyncPushRequest(O.TenantId, string.Empty, Guid.NewGuid(), table.Name, 0, page.ToVersion, page.Rows),
-                    catalogue, ct);
+                    catalogue, ct,
+                    // An opening balance is only ever inserted: from then on the branch owns that row.
+                    new ApplyOptions(InsertOnly: BranchSyncCatalog.IsOpeningBalance(table.Name)));
 
                 if (result.Rejected > 0)
                     throw new SyncTransportException(
@@ -366,6 +384,7 @@ public static class BranchSyncExtensions
 
             var owner = o.IsBranch ? SyncOwner.Branch : SyncOwner.Cloud;
             var names = BranchSyncCatalog.OwnedBy(owner).Select(e => e.Table).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (o.IsCloud) names.UnionWith(BranchSyncCatalog.OpeningBalances);
             var existing = await sp.GetRequiredService<SyncSchemaReader>().ReadTablesAsync(BranchSyncCatalog.Schemas);
             var tables = existing
                 .Where(t => t.KeyColumns.Count > 0 && names.Contains($"{t.Schema}.{t.Table}"))

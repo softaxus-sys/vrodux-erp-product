@@ -54,6 +54,8 @@
     <ProjectReference Include="..\..\Services\Library\Softaxis.Library.Infrastructure\Softaxis.Library.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\Trade\Softaxis.Trade.API\Softaxis.Trade.API.csproj" />
     <ProjectReference Include="..\..\Services\Trade\Softaxis.Trade.Infrastructure\Softaxis.Trade.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Ecommerce\Softaxis.Ecommerce.API\Softaxis.Ecommerce.API.csproj" />
+    <ProjectReference Include="..\..\Services\Ecommerce\Softaxis.Ecommerce.Infrastructure\Softaxis.Ecommerce.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\VisaServices\Softaxis.VisaServices.API\Softaxis.VisaServices.API.csproj" />
     <ProjectReference Include="..\..\Services\VisaServices\Softaxis.VisaServices.Infrastructure\Softaxis.VisaServices.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\Support\Softaxis.Support.API\Softaxis.Support.API.csproj" />

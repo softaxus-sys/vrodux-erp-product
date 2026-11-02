@@ -26,14 +26,11 @@ public sealed class AiOrchestrator(
     ISecretProtector protector,
     IAiProviderFactory providerFactory,
     IAiToolRegistry toolRegistry,
+    IAiKeyResolver keyResolver,
     ICurrentUser currentUser,
     ILogger<AiOrchestrator> logger) : IAiOrchestrator
 {
     private const int MaxToolIterations = 6;
-
-    private sealed record ResolvedSettings(
-        IAiChatProvider Provider, string Model, string ApiKey, AiProvider ProviderKind,
-        IAiChatProvider? FallbackProvider, string? FallbackModel, string? FallbackApiKey, AiProvider? FallbackProviderKind);
 
     private readonly record struct ProviderCallResult(
         AiCompletionResult Result, bool UsedFallback, AiProvider AnsweredBy, string AnsweredModel);
@@ -44,7 +41,19 @@ public sealed class AiOrchestrator(
         string? agent,
         CancellationToken ct)
     {
-        var settings = await ResolveSettingsAsync(ct);
+        var reply = await RunCoreAsync(message, history, agent, ct);
+        // Only a reply the model actually produced spends one of the workspace's shared-AI messages.
+        var notice = await keyResolver.RecordMessageAsync(ct);
+        return notice is null ? reply : reply with { PlatformAi = notice };
+    }
+
+    private async Task<AiChatResponseDto> RunCoreAsync(
+        string message,
+        IReadOnlyList<AiChatMessage> history,
+        string? agent,
+        CancellationToken ct)
+    {
+        var settings = await ResolveSettingsAsync(true, ct);
 
         // Call-by-name: if no agent was supplied, detect a leading "Vrodux <agent>" and scope to it.
         var resolvedAgent = string.IsNullOrWhiteSpace(agent)
@@ -108,7 +117,7 @@ public sealed class AiOrchestrator(
 
     public async Task<AiChatResponseDto> ConfirmAsync(string toolName, string argumentsJson, CancellationToken ct)
     {
-        var settings = await ResolveSettingsAsync(ct);
+        var settings = await ResolveSettingsAsync(false, ct);
 
         var tool = toolRegistry.Resolve(toolName);
         if (tool is null)
@@ -143,8 +152,8 @@ public sealed class AiOrchestrator(
     public async Task<AiAutonomousResult> RunAutonomousAsync(
         string instruction, string? agent, bool autopilot, CancellationToken ct)
     {
-        ResolvedSettings settings;
-        try { settings = await ResolveSettingsAsync(ct); }
+        ResolvedAi settings;
+        try { settings = await ResolveSettingsAsync(false, ct); }
         catch (AiNotConfiguredException ex)
         {
             return new AiAutonomousResult("failed", "", [], null, ex.Message);
@@ -253,45 +262,14 @@ public sealed class AiOrchestrator(
         }
     }
 
-    private async Task<ResolvedSettings> ResolveSettingsAsync(CancellationToken ct)
+    private ResolvedAi? _resolved;
+
+    /// <summary>Whose key answers, via the shared resolver. Remembers it so the reply can carry the platform notice.</summary>
+    private async Task<ResolvedAi> ResolveSettingsAsync(bool countMessage, CancellationToken ct)
     {
-        var settings = await db.AiSettings.FirstOrDefaultAsync(ct);
-        if (settings is null || !settings.Enabled)
-            throw new AiNotConfiguredException("The AI assistant is not enabled for your company. Ask an administrator to enable it in Settings.");
-
-        var apiKey = protector.Unprotect(settings.ProtectedApiKey);
-        if (string.IsNullOrEmpty(apiKey))
-            throw new AiNotConfiguredException("No AI provider API key is configured. Ask an administrator to add one in Settings.");
-
-        var provider = providerFactory.Create(settings.Provider);
-        var model    = ResolveModel(settings.Provider, settings.Model)
-                        ?? throw new AiNotConfiguredException(
-                            "No model is set for your AI provider. OpenRouter's free-tier catalog changes " +
-                            "often, so there's no safe default — pick a currently available model at " +
-                            "openrouter.ai/models and paste its id into Settings.");
-
-        // Fallback is optional and BYO — never blocks the primary, silently unavailable if not
-        // fully configured (provider chosen but no key stored, key fails to decrypt, or — for
-        // OpenRouter — no model set, since guessing one here would be just as unsafe as above).
-        IAiChatProvider? fallbackProvider = null;
-        string? fallbackModel = null;
-        string? fallbackApiKey = null;
-        if (settings.FallbackConfigured)
-        {
-            var fbKey   = protector.Unprotect(settings.FallbackProtectedApiKey);
-            var fbModel = ResolveModel(settings.FallbackProvider!.Value, settings.FallbackModel);
-            if (!string.IsNullOrEmpty(fbKey) && fbModel is not null)
-            {
-                fallbackProvider = providerFactory.Create(settings.FallbackProvider!.Value);
-                fallbackModel    = fbModel;
-                fallbackApiKey   = fbKey;
-            }
-        }
-
-        return new ResolvedSettings(
-            provider, model, apiKey, settings.Provider,
-            fallbackProvider, fallbackModel, fallbackApiKey,
-            fallbackProvider is not null ? settings.FallbackProvider : null);
+        var r = await keyResolver.ResolveAsync(countMessage, ct);
+        _resolved = r;
+        return r;
     }
 
     /// <summary>
@@ -302,7 +280,7 @@ public sealed class AiOrchestrator(
     /// real misconfiguration.
     /// </summary>
     private async Task<ProviderCallResult> CallProviderAsync(
-        ResolvedSettings settings, string systemPrompt, IReadOnlyList<AiChatMessage> messages,
+        ResolvedAi settings, string systemPrompt, IReadOnlyList<AiChatMessage> messages,
         IReadOnlyList<AiToolDefinition> toolDefs, CancellationToken ct)
     {
         var primaryRequest = new AiCompletionRequest(settings.Model, settings.ApiKey, systemPrompt, messages, toolDefs);
@@ -345,10 +323,10 @@ public sealed class AiOrchestrator(
         }
     }
 
-    private static AiChatResponseDto Response(
+    private AiChatResponseDto Response(
         string reply, IReadOnlyList<string> toolsUsed, AiProvider provider, string model, bool usedFallback,
         PendingActionDto? pending, string? agent) =>
-        new(reply, toolsUsed, provider.ToString(), model, pending, agent, usedFallback);
+        new(reply, toolsUsed, provider.ToString(), model, pending, agent, usedFallback, _resolved?.Notice);
 
     /// <summary>Detects a leading "Vrodux &lt;agent&gt;" / "&lt;agent&gt; agent" and strips it from the message.</summary>
     private static string? DetectAgent(ref string message)

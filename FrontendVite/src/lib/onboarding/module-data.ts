@@ -4,6 +4,7 @@ import {
   ShoppingCart, Package, DollarSign, Users, BarChart3,
   Truck, Building2, Home, Utensils, BedDouble, Briefcase,
   TrendingUp, HeartPulse, GraduationCap, Stamp, Factory, Library, Ship,
+  Store, KanbanSquare, ShieldCheck, Handshake,
 } from "lucide-react";
 
 // ── Module definitions ────────────────────────────────────────────────────────
@@ -12,7 +13,8 @@ export type ModuleId =
   | "pos" | "inventory" | "sales" | "purchase"
   | "finance" | "hr" | "crm"
   | "restaurant" | "hospitality" | "real-estate" | "construction"
-  | "healthcare" | "education" | "visa" | "manufacturing" | "library" | "trade";
+  | "healthcare" | "education" | "visa" | "manufacturing" | "library" | "trade"
+  | "ecommerce" | "project-management" | "insurance" | "b2b";
 
 export interface ModuleDef {
   id: ModuleId;
@@ -245,6 +247,56 @@ export const MODULES: ModuleDef[] = [
     // and Finance make a trader's day easier but none is required.
     requires: [],
     recommends: ["inventory", "purchase", "sales", "finance"],
+    triggersBusinessType: false,
+    category: "industry",
+  },
+  {
+    id: "ecommerce",
+    label: "Online Store",
+    description: "Your own web store, Shopify sync, orders & payments",
+    icon: Store,
+    color: "bg-pink-500/10",
+    iconColor: "text-pink-500",
+    // Sells what Inventory holds, so Inventory comes with it.
+    requires: ["inventory"],
+    recommends: ["sales", "finance", "pos"],
+    triggersBusinessType: false,
+    category: "commerce",
+    popular: true,
+  },
+  {
+    id: "project-management",
+    label: "Projects & Tasks",
+    description: "Boards, sprints, issues and team workload",
+    icon: KanbanSquare,
+    color: "bg-teal-500/10",
+    iconColor: "text-teal-500",
+    requires: [],
+    recommends: ["hr"],
+    triggersBusinessType: false,
+    category: "operations",
+  },
+  {
+    id: "insurance",
+    label: "Insurance",
+    description: "Policies, renewals and claims on top of your CRM",
+    icon: ShieldCheck,
+    color: "bg-emerald-500/10",
+    iconColor: "text-emerald-500",
+    requires: ["crm"],
+    recommends: ["finance"],
+    triggersBusinessType: false,
+    category: "industry",
+  },
+  {
+    id: "b2b",
+    label: "B2B Sales",
+    description: "Proposals, contracts and support tickets for business clients",
+    icon: Handshake,
+    color: "bg-orange-500/10",
+    iconColor: "text-orange-500",
+    requires: ["crm"],
+    recommends: ["finance", "sales"],
     triggersBusinessType: false,
     category: "industry",
   },

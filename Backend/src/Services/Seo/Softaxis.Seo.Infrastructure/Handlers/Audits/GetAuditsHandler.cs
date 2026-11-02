@@ -14,7 +14,10 @@ internal sealed class GetAuditsHandler(SeoDbContext db) : IQueryHandler<GetAudit
         var audits = await db.Audits.AsNoTracking()
             .Where(a => a.SiteId == query.SiteId)
             .OrderByDescending(a => a.StartedAt)
-            .Select(a => new AuditDto(a.Id, a.SiteId, a.Status, a.StartedAt, a.CompletedAt, a.IssuesFound, a.FixesProposed, a.Error))
+            .Take(100)
+            .Select(a => new AuditDto(a.Id, a.SiteId, a.Status, a.StartedAt, a.CompletedAt, a.IssuesFound, a.FixesProposed, a.Error,
+                a.Score, a.PagesCrawled, a.CriticalCount, a.HighCount, a.MediumCount, a.LowCount, a.NewIssues, a.ResolvedIssues,
+                a.CreditsCharged, a.DurationMs, a.Truncated))
             .ToListAsync(ct);
         return Result.Success<IReadOnlyList<AuditDto>>(audits);
     }

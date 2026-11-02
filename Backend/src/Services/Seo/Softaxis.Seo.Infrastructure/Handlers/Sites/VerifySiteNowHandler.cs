@@ -4,6 +4,7 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Seo.Application.Sites.Commands;
 using Softaxis.Seo.Application.Sites.Dtos;
+using Softaxis.Seo.Infrastructure.Net;
 using Softaxis.Seo.Infrastructure.Persistence;
 
 namespace Softaxis.Seo.Infrastructure.Handlers.Sites;
@@ -11,7 +12,7 @@ namespace Softaxis.Seo.Infrastructure.Handlers.Sites;
 /// <summary>Fetches the tenant's own homepage server-side and checks the snippet tag is present in
 /// the raw HTML — see VerifySiteNowCommand's own remarks on why this, not waiting for a browser
 /// ping, is the verification path that must always work regardless of the tenant's site config.</summary>
-internal sealed class VerifySiteNowHandler(SeoDbContext db, IHttpClientFactory httpFactory, ILogger<VerifySiteNowHandler> logger)
+internal sealed class VerifySiteNowHandler(SeoDbContext db, SafeFetcher fetcher, ILogger<VerifySiteNowHandler> logger)
     : ICommandHandler<VerifySiteNowCommand, SiteDto>
 {
     public async Task<Result<SiteDto>> Handle(VerifySiteNowCommand cmd, CancellationToken ct)
@@ -35,10 +36,12 @@ internal sealed class VerifySiteNowHandler(SeoDbContext db, IHttpClientFactory h
 
     private async Task<bool> TagFoundOnPageAsync(string domain, string snippetKey, CancellationToken ct)
     {
-        var client = httpFactory.CreateClient("seo-crawler");
         try
         {
-            var html = await client.GetStringAsync($"https://{domain}", ct);
+            var scheme = fetcher.AllowPrivate ? "http" : "https";
+            var page = await fetcher.FetchAsync($"{scheme}://{domain}/", ct);
+            if (page.Error is not null || page.Body is null) { logger.LogWarning("Server-side verification fetch failed for {Domain}: {Error}", domain, page.Error); return false; }
+            var html = page.Body;
             // Matches either the literal snippet URL or just the key — a tenant may have copied the
             // tag with a different host (e.g. a CDN mirror) or edited it slightly; the key alone is
             // still the unambiguous proof of installation.

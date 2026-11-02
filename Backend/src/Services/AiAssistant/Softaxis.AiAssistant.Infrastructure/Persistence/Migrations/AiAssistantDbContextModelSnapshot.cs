@@ -18,7 +18,7 @@ namespace Softaxis.AiAssistant.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("aiassistant")
-                .HasAnnotation("ProductVersion", "9.0.19")
+                .HasAnnotation("ProductVersion", "9.0.20")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -368,6 +368,95 @@ namespace Softaxis.AiAssistant.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId");
 
                     b.ToTable("call_attempts", "aiassistant");
+                });
+
+            modelBuilder.Entity("Softaxis.AiAssistant.Domain.Entities.PlatformAiSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<int>("MonthlyMessageCapPerTenant")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NudgeEveryMessages")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProtectedApiKey")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProtectedVoiceApiKey")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("ShowOwnKeyBanner")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SttModel")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("TtsModel")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("TtsVoice")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("VoiceEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("VoiceMonthlyCapPerTenant")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("platform_ai_settings", "aiassistant");
+                });
+
+            modelBuilder.Entity("Softaxis.AiAssistant.Domain.Entities.PlatformAiUsage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Messages")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Month")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("nvarchar(7)");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("VoiceTurns")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Month");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("platform_ai_usage", "aiassistant");
                 });
 
             modelBuilder.Entity("Softaxis.AiAssistant.Domain.Entities.ScheduledCall", b =>

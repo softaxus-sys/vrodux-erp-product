@@ -5,6 +5,8 @@ import { BrowserRouter, HashRouter } from "react-router-dom";
 import { AppProviders } from "@/components/providers/app-providers";
 import { App } from "./App";
 import { initDesktopApiUrl, isDesktop } from "@/lib/desktop";
+import { resolveStoreHost } from "@/lib/storefront/host";
+import { StorefrontByHost } from "@/modules/storefront/storefront-app";
 import "@/i18n";
 import "./index.css";
 
@@ -54,6 +56,23 @@ const Router = isDesktop ? HashRouter : BrowserRouter;
 
 async function boot() {
   await initDesktopApiUrl();
+
+  // A store with its own address is the whole site: no ERP, no sign-in.
+  const storeSlug = await resolveStoreHost();
+  if (storeSlug) {
+    ReactDOM.createRoot(document.getElementById("root")!).render(
+      <React.StrictMode>
+        <ErrorBoundary>
+          <BrowserRouter>
+            <AppProviders>
+              <StorefrontByHost slug={storeSlug} />
+            </AppProviders>
+          </BrowserRouter>
+        </ErrorBoundary>
+      </React.StrictMode>
+    );
+    return;
+  }
 
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>

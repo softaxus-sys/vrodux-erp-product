@@ -15,7 +15,9 @@ public sealed record SiteDto(
     bool      GoogleConnected,
     DateTime  CreatedAt,
     string?   SelectedGscProperty = null,
-    string?   SelectedGa4Property = null);
+    string?   SelectedGa4Property = null,
+    int?      LastScore = null,
+    int       LastPagesCrawled = 0);
 
 public sealed record CreateSiteRequest(string Domain, string DisplayName, string? ScanFrequency);
 public sealed record UpdateSiteRequest(string DisplayName, string ScanFrequency);

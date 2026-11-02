@@ -149,6 +149,7 @@ export type ModuleKey =
   | "project-management"
   | "visa"
   | "manufacturing"
+  | "ecommerce"
   | "library"
   | "trade"
   | "leadgen"

@@ -156,9 +156,12 @@ export function Topbar() {
         {/* AI */}
         <button
           onClick={toggleAiAssistant}
-          className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/8 transition-all duration-150"
+          title="Ask Vrodux"
+          aria-label="Ask Vrodux"
+          className="h-8 px-2 sm:px-2.5 rounded-lg flex items-center justify-center gap-1.5 text-muted-foreground hover:text-primary hover:bg-primary/8 transition-all duration-150"
         >
           <Sparkles className="h-4 w-4" />
+          <span className="hidden md:inline text-xs font-medium">Ask Vrodux</span>
         </button>
 
         <NotificationsButton />

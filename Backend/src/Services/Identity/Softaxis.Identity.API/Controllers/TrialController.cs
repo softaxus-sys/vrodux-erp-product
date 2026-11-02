@@ -71,7 +71,8 @@ public sealed class TrialController(ISender sender) : BaseApiController(sender)
             req.Fbp,
             req.Fbc,
             Request.Headers.UserAgent.ToString(),
-            Request.Headers.Referer.ToString()), ct);
+            Request.Headers.Referer.ToString(),
+            req.Phone), ct);
 
         return result.IsSuccess ? HandleResult(result, successCode: 201) : HandleResult(result);
     }
@@ -99,5 +100,6 @@ public sealed record TrialRegistrationRequest(
     string?        UtmSource = null,
     string?        EventId   = null,
     string?        Fbp       = null,
-    string?        Fbc       = null
+    string?        Fbc       = null,
+    string?        Phone     = null
 );

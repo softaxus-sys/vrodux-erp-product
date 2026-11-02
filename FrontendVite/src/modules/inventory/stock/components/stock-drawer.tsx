@@ -8,6 +8,7 @@ import { useCurrency } from "@/hooks/use-currency";
 import type { ProductSummaryDto } from "@/lib/inventory/types";
 import { useProductStock, useProductBatches } from "@/hooks/inventory/use-product-stock";
 import { IncomingStock } from "@/components/trade/incoming-stock";
+import { ProductPhotos } from "./product-photos";
 
 interface StockDrawerProps {
   item: ProductSummaryDto | null;
@@ -74,6 +75,8 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
+
+              {item && <ProductPhotos productId={item.id} />}
 
               {/* Stock level */}
               <div>

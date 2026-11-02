@@ -8,11 +8,14 @@ using Softaxis.POS.Domain.Repositories;
 
 namespace Softaxis.POS.Application.Products.Queries.GetProducts;
 
-public sealed class GetProductsQueryHandler(IProductRepository productRepo, ICrossSchemaProductService stock)
+public sealed class GetProductsQueryHandler(
+    IProductRepository productRepo, ICrossSchemaProductService stock, ICatalogueGateway catalogue)
     : IQueryHandler<GetProductsQuery, PagedResult<ProductSummaryDto>>
 {
     public async Task<Result<PagedResult<ProductSummaryDto>>> Handle(GetProductsQuery query, CancellationToken ct)
     {
+        if (await catalogue.UsesInventoryAsync(ct)) return await catalogue.GetPagedAsync(query, ct);
+
         var paged = await productRepo.GetPagedAsync(
             query.Page, query.PageSize, query.Search, query.CategoryId,
             query.IsActive, query.LowStock, query.SortBy, query.SortDesc, ct);

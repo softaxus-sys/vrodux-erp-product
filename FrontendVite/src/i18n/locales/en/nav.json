@@ -12,7 +12,7 @@
   },
   "item": {
     "dashboard": "Dashboard",
-    "ai-assistant": "AI Assistant",
+    "ai-assistant": "Ask Vrodux",
     "reports": "Reports",
     "file-manager": "File Manager",
     "project-management": "Project Management",
@@ -62,6 +62,7 @@
     "inventory": "Inventory",
     "warehouses": "Warehouses",
     "stock": "Stock Items",
+    "inv-listings": "Online Listings",
     "movements": "Movements",
     "transfers": "Transfers",
     "inv-categories": "Categories",

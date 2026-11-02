@@ -19,4 +19,5 @@ public sealed record AiSettingsDto(
     bool FallbackEnabled = false,
     string? FallbackProvider = null,
     string? FallbackModel = null,
-    bool HasFallbackApiKey = false);
+    bool HasFallbackApiKey = false,
+    Chat.Dtos.PlatformAiNoticeDto? PlatformAi = null);

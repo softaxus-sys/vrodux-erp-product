@@ -101,7 +101,8 @@ public class MetaConversionBuilderTests
     public void Default_mapping_reports_each_funnel_stage_and_skips_the_opportunity_birth_stage()
     {
         var s = Settings();
-        Assert.Equal("Lead", s.LeadEventFor("new"));
+        // Meta already counts the form submission itself; sending "Lead" back would count every lead twice.
+        Assert.Null(s.LeadEventFor("new"));
         Assert.Equal("Qualified", s.LeadEventFor("qualified"));
         Assert.Equal("Opportunity", s.LeadEventFor("converted"));
         Assert.Equal("Won", s.DealEventFor("won"));

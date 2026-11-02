@@ -24,8 +24,8 @@ export const navigationConfig: NavGroup[] = [
       },
       {
         id: "ai-assistant",
-        label: "AI Assistant",
-        labelAr: "المساعد الذكي",
+        label: "Ask Vrodux",
+        labelAr: "اسأل Vrodux",
         href: "/ai-assistant",
         icon: "Sparkles",
         module: "ai-assistant",
@@ -473,6 +473,24 @@ export const navigationConfig: NavGroup[] = [
         ],
       },
       {
+        id: "ecommerce",
+        label: "E-commerce",
+        labelAr: "التجارة الإلكترونية",
+        icon: "ShoppingBag",
+        module: "ecommerce",
+        children: [
+          { id: "ecommerce-store", label: "Online Store", labelAr: "المتجر الإلكتروني", href: "/ecommerce/store", icon: "Store", requiresPermission: "ecommerce.store.view" },
+          { id: "ecommerce-pages", label: "Pages & Design", labelAr: "الصفحات والتصميم", href: "/ecommerce/store/pages", icon: "Palette", requiresPermission: "ecommerce.store.view" },
+          { id: "ecommerce-collections", label: "Collections", labelAr: "المجموعات", href: "/ecommerce/store/collections", icon: "Layers", requiresPermission: "ecommerce.store.view" },
+          { id: "ecommerce-store-orders", label: "Store Orders", labelAr: "طلبات المتجر", href: "/ecommerce/store/orders", icon: "ShoppingCart", requiresPermission: "ecommerce.orders.view" },
+          { id: "ecommerce-discounts", label: "Discount Codes", labelAr: "أكواد الخصم", href: "/ecommerce/store/discounts", icon: "Tag", requiresPermission: "ecommerce.discounts.view" },
+          { id: "ecommerce-customers", label: "Store Customers", labelAr: "عملاء المتجر", href: "/ecommerce/store/customers", icon: "Users", requiresPermission: "ecommerce.customers.view" },
+          { id: "ecommerce-channels", label: "Stores", labelAr: "المتاجر", href: "/ecommerce/channels", icon: "Globe", requiresPermission: "ecommerce.channels.view" },
+          { id: "ecommerce-listings", label: "Store Listings", labelAr: "منتجات المتاجر", href: "/ecommerce/listings", icon: "Send", requiresPermission: "ecommerce.listings.view" },
+          { id: "ecommerce-orders", label: "Channel Orders", labelAr: "طلبات القنوات", href: "/ecommerce/orders", icon: "ShoppingCart", requiresPermission: "ecommerce.orders.view" },
+        ],
+      },
+      {
         id: "manufacturing",
         label: "Manufacturing",
         labelAr: "التصنيع",
@@ -552,6 +570,13 @@ export const navigationConfig: NavGroup[] = [
             labelAr: "المخزون",
             href: "/inventory/stock",
             icon: "Boxes",
+          },
+          {
+            id: "inv-listings",
+            label: "Online Listings",
+            labelAr: "المنتجات على الإنترنت",
+            href: "/inventory/listings",
+            icon: "ShoppingBag",
           },
           {
             id: "movements",
@@ -806,6 +831,7 @@ export const navigationConfig: NavGroup[] = [
           { id: "restaurant-tax", label: "Restaurant Tax", href: "/settings/integrations?tab=tax", icon: "Percent", module: "restaurant", requiresPermission: "restaurant.tax.view" },
 
           { id: "h-connect", label: "Connections & data", heading: true },
+          { id: "connections", label: "API Keys & Connections", href: "/settings/connections", icon: "KeyRound", requiresPermission: "settings.integrations.view" },
           { id: "integrations", label: "Integrations", href: "/settings/integrations", icon: "Plug", requiresPermission: "settings.integrations.view|restaurant.integrations.view" },
           // on-premises only — the screen itself says so on a cloud deployment
           { id: "cloud-sync", label: "Cloud Sync", href: "/settings/cloud-sync", icon: "CloudUpload", onPremOnly: true, requiresPermission: "settings.integrations.edit" },
