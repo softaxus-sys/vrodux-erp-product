@@ -5,6 +5,11 @@ import LeadFormScreen from "@/screens/crm/LeadFormScreen";
 import LeadReassignScreen from "@/screens/crm/LeadReassignScreen";
 import AccountsListScreen from "@/screens/crm/AccountsListScreen";
 import AccountFormScreen from "@/screens/crm/AccountFormScreen";
+import AccountDetailScreen from "@/screens/crm/AccountDetailScreen";
+import ContactFormScreen from "@/screens/crm/ContactFormScreen";
+import ActivitiesScreen from "@/screens/crm/ActivitiesScreen";
+import CrmReportsScreen from "@/screens/crm/CrmReportsScreen";
+import CrmReportScreen from "@/screens/crm/CrmReportScreen";
 import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { LeadsStackParamList } from "@/navigation/types";
 
@@ -21,6 +26,11 @@ export default function LeadsStack() {
       <Stack.Screen name="LeadReassign" component={LeadReassignScreen} options={{ headerTitle: "Reassign lead" }} />
       <Stack.Screen name="AccountsList" component={AccountsListScreen} options={{ headerTitle: "Accounts" }} />
       <Stack.Screen name="AccountForm" component={AccountFormScreen} options={({ route }) => ({ headerTitle: route.params?.accountId ? "Edit account" : "New account" })} />
+      <Stack.Screen name="AccountDetail" component={AccountDetailScreen} options={{ headerTitle: "Account" }} />
+      <Stack.Screen name="ContactForm" component={ContactFormScreen} options={{ headerTitle: "Contact" }} />
+      <Stack.Screen name="Activities" component={ActivitiesScreen} options={{ headerTitle: "Tasks & activities" }} />
+      <Stack.Screen name="CrmReports" component={CrmReportsScreen} options={{ headerTitle: "CRM reports" }} />
+      <Stack.Screen name="CrmReport" component={CrmReportScreen} options={({ route }) => ({ headerTitle: route.params.title })} />
     </Stack.Navigator>
   );
 }

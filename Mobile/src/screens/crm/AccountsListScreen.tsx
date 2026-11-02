@@ -3,7 +3,7 @@ import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { hasPermission } from "@/store/auth.store";
 import { useAccountsSearch } from "@/hooks/use-crm-write";
-import { CRM_CUSTOMERS_CREATE, CRM_CUSTOMERS_EDIT } from "@/lib/crm-write.api";
+import { CRM_CUSTOMERS_CREATE } from "@/lib/crm-write.api";
 import { useHeaderActions } from "@/components/forms/useHeaderAction";
 import { Badge, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
@@ -17,7 +17,6 @@ export default function AccountsListScreen({ navigation }: Props) {
   const [search, setSearch] = useState("");
   const query = useAccountsSearch(search);
   const canCreate = hasPermission(...CRM_CUSTOMERS_CREATE);
-  const canEdit = hasPermission(...CRM_CUSTOMERS_EDIT);
 
   useHeaderActions(navigation, [{ label: "New", enabled: canCreate, onPress: () => navigation.navigate("AccountForm", {}) }]);
 
@@ -36,7 +35,7 @@ export default function AccountsListScreen({ navigation }: Props) {
         refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => query.refetch()} />}
         ListEmptyComponent={<EmptyListState title="No accounts" subtitle={search ? "Try another search." : "Create the first account."} />}
         renderItem={({ item }) => (
-          <ListItemCard onPress={canEdit ? () => navigation.navigate("AccountForm", { accountId: item.id }) : undefined}>
+          <ListItemCard onPress={() => navigation.navigate("AccountDetail", { accountId: item.id, accountName: item.name })}>
             <View style={styles.row}>
               <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
               {item.tier ? <Badge label={item.tier} tone="primary" /> : null}

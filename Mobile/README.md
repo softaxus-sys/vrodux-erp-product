@@ -1066,6 +1066,29 @@ oversight.
 - No notification preferences screen (mute a category, quiet hours, etc.) — there's exactly one
   notification type today, so there's nothing yet to let someone turn off selectively.
 
+## Release 1.2.0 — Lead Generation, Master Data, CRM completion
+
+- **Lead Generation** (`LeadGen` tab, module `leadgen`, `screens/leadgen/`, `lib/leadgen.api.ts`). Overview with funnel
+  and attention list; Prospects (search, status filter, reveal a contact with credits after a confirm, add to CRM,
+  set status); Find businesses (run a search with a pre-check of what it will use; cancel a running one); Campaigns
+  (view, start, pause, stop); Inbox (replies, classify, archive, reply); Credits (balance and history); Mailboxes
+  (pause, resume, check for replies). Every action is gated on the same `leadgen.*` keys as the controllers.
+  Left on the web on purpose: connecting a mailbox (OAuth), the campaign builder, buying credits (Billing),
+  suppression lists, the super-admin console.
+- **Master Data** (`MasterData` tab, `lib/master-data.ts`). One data-driven registry mirrors the web one
+  (categories, brands, units, warehouses, currencies, tax rates, payment terms, customer groups, customers,
+  vendors, branches) and three generic screens serve all of them. A list shows only if the tenant owns the module
+  and the user holds a view key; with no write key it opens read-only. Inventory writes gate on `inventory.stock.*`
+  (what the API enforces), POS-backed lists on `pos.sessions.approve` / `pos.customers.edit`.
+- **CRM** (the earlier README text saying lead/account create and accounts view were missing was out of date —
+  those already existed). Added: account detail (details, contacts add/edit/primary/remove, linked opportunities,
+  timeline, log activity); opportunity contacts with roles; lead assignment history; the activity composer now
+  covers call / meeting / email / task / note with due date and time; a Tasks screen (overdue / today / upcoming /
+  done); and all eight CRM reports (`lib/crm-reports.ts` describes each as data; date presets are computed live).
+- Not on the phone: CRM reports export, lead import, team filing, quotations from a template, document upload,
+  Meta lead-quality feedback, creating campaigns.
+- Verified by `tsc --noEmit` and a full Android bundle only — not run on a device or against a live gateway.
+
 ## Next module
 
 **Full ERP module parity is the active program** — the web app has ~25 modules across 18 nav

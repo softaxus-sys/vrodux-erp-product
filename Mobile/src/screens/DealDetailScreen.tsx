@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Linking, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useDeal, useMoveDealStage } from "@/hooks/use-deals";
-import { useActivities, useCreateActivity } from "@/hooks/use-activities";
+import { useActivities } from "@/hooks/use-activities";
+import { ActivityComposer, ActivityRow } from "@/components/crm/ActivityParts";
+import { DealContactsPanel } from "@/components/crm/DealContactsPanel";
 import { cleanPhone, formatCompactValue } from "@/lib/crm-helpers";
 import { hasPermission, useAuthStore } from "@/store/auth.store";
 import { CRM_PIPELINE_EDIT } from "@/lib/crm.api";
@@ -34,13 +36,9 @@ export default function DealDetailScreen({ route, navigation }: Props) {
   const deal = useDeal(dealId);
   const activities = useActivities("deal", dealId);
   const moveStage = useMoveDealStage();
-  const createActivity = useCreateActivity();
-  const userName = useAuthStore((s) => s.user?.fullName ?? "");
 
   const [movingTo, setMovingTo] = useState<DealStage | null>(null);
   const [lossReason, setLossReason] = useState("");
-  const [logType, setLogType] = useState<ActivityType | null>(null);
-  const [logNote, setLogNote] = useState("");
 
   if (deal.isLoading || !deal.data) {
     return <LoadingState />;
@@ -65,22 +63,6 @@ export default function DealDetailScreen({ route, navigation }: Props) {
     );
   }
 
-  function submitLog() {
-    if (!logType) return;
-    createActivity.mutate(
-      {
-        type: logType,
-        subject: logType === "call" ? "Phone call" : "Note",
-        description: logNote.trim() || undefined,
-        relatedToType: "deal",
-        relatedToId: d.id,
-        relatedToName: d.title,
-        assignedTo: userName,
-      },
-      { onSuccess: () => setLogNote("") }
-    );
-    setLogType(null);
-  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -164,30 +146,11 @@ export default function DealDetailScreen({ route, navigation }: Props) {
         </SectionCard>
       ) : null}
 
+      <DealContactsPanel dealId={d.id} customerId={d.customerId} canEdit={hasPermission(...CRM_PIPELINE_EDIT)} />
+
       {/* Log activity */}
       <SectionCard title="Log activity">
-        {logType ? (
-          <View style={styles.formGap}>
-            <TextInput
-              style={[styles.input, styles.multiline]}
-              placeholder={logType === "call" ? "What was discussed? (optional)" : "Note"}
-              placeholderTextColor={colors.subtleForeground}
-              value={logNote}
-              onChangeText={setLogNote}
-              multiline
-              autoFocus
-            />
-            <View style={styles.buttonsRow}>
-              <Button label={createActivity.isPending ? "Saving..." : "Save"} onPress={submitLog} disabled={createActivity.isPending} />
-              <Button label="Cancel" variant="ghost" onPress={() => setLogType(null)} />
-            </View>
-          </View>
-        ) : (
-          <View style={styles.chipRow}>
-            <Chip label="Log call" onPress={() => setLogType("call")} />
-            <Chip label="Add note" onPress={() => setLogType("note")} />
-          </View>
-        )}
+        <ActivityComposer relatedToType="deal" relatedToId={d.id} relatedToName={d.title} />
       </SectionCard>
 
       {/* Activity feed */}
@@ -197,15 +160,7 @@ export default function DealDetailScreen({ route, navigation }: Props) {
         ) : !activities.data || activities.data.length === 0 ? (
           <Text style={styles.notes}>Nothing logged yet.</Text>
         ) : (
-          activities.data.map((a) => (
-            <View key={a.id} style={styles.activityRow}>
-              <Text style={styles.activitySubject}>
-                {a.type === "call" ? "☎️" : "📝"} {a.subject}
-              </Text>
-              {a.description ? <Text style={styles.notes}>{a.description}</Text> : null}
-              <Text style={styles.activityDate}>{new Date(a.createdAt).toLocaleString()}</Text>
-            </View>
-          ))
+          activities.data.map((a) => <ActivityRow key={a.id} a={a} />)
         )}
       </SectionCard>
     </ScrollView>

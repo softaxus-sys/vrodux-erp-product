@@ -6,6 +6,7 @@ import { buildLeadSummary, formatCompactValue, leadHeat, urgencyLabel } from "@/
 import type { LeadDto } from "@/types/crm";
 import { hasPermission } from "@/store/auth.store";
 import { CRM_LEADS_CREATE } from "@/lib/crm-write.api";
+import { CRM_REPORTS_VIEW } from "@/lib/crm-extra.api";
 import { useHeaderActions } from "@/components/forms/useHeaderAction";
 import { Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
@@ -69,6 +70,8 @@ export default function LeadsListScreen({ navigation }: Props) {
       <SearchInput value={search} onChangeText={setSearch} placeholder="Search leads by name, company, phone…" />
 
       <View style={styles.filterRow}>
+        <Chip label="✅ Tasks" onPress={() => navigation.navigate("Activities")} />
+        {hasPermission(...CRM_REPORTS_VIEW) ? <Chip label="📊 Reports" onPress={() => navigation.navigate("CrmReports")} /> : null}
         {FILTERS.map((f) => (
           <Chip key={f.key} label={f.label} active={status === f.key} onPress={() => setStatus(f.key)} />
         ))}
