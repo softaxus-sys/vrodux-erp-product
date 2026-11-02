@@ -8,6 +8,14 @@
     <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
   </PropertyGroup>
 
+  <!-- The gateway serves no static web assets (no wwwroot). Under hot reload (dotnet watch / Visual
+       Studio) the .NET 11 preview SDK injects a Blazor helper script that has no endpoint here and
+       fails the build with "scoped css bundles do not have matching endpoints". Skip static web
+       assets for that build only; normal builds and publishes are unaffected. -->
+  <PropertyGroup Condition="'$(DotNetWatchBuild)' == 'true'">
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.*" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.0" />
@@ -52,6 +60,8 @@
     <ProjectReference Include="..\..\Services\Manufacturing\Softaxis.Manufacturing.Infrastructure\Softaxis.Manufacturing.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\Library\Softaxis.Library.API\Softaxis.Library.API.csproj" />
     <ProjectReference Include="..\..\Services\Library\Softaxis.Library.Infrastructure\Softaxis.Library.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Fitness\Softaxis.Fitness.API\Softaxis.Fitness.API.csproj" />
+    <ProjectReference Include="..\..\Services\Fitness\Softaxis.Fitness.Infrastructure\Softaxis.Fitness.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\Trade\Softaxis.Trade.API\Softaxis.Trade.API.csproj" />
     <ProjectReference Include="..\..\Services\Trade\Softaxis.Trade.Infrastructure\Softaxis.Trade.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\Ecommerce\Softaxis.Ecommerce.API\Softaxis.Ecommerce.API.csproj" />

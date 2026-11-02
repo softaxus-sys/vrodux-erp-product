@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ShoppingCart, Package, DollarSign, Users, BarChart3,
   Truck, Building2, Home, Utensils, BedDouble, Briefcase,
-  TrendingUp, HeartPulse, GraduationCap, Stamp, Factory, Library, Ship,
+  TrendingUp, HeartPulse, GraduationCap, Stamp, Factory, Library, Dumbbell, Ship,
   Store, KanbanSquare, ShieldCheck, Handshake,
 } from "lucide-react";
 
@@ -13,7 +13,7 @@ export type ModuleId =
   | "pos" | "inventory" | "sales" | "purchase"
   | "finance" | "hr" | "crm"
   | "restaurant" | "hospitality" | "real-estate" | "construction"
-  | "healthcare" | "education" | "visa" | "manufacturing" | "library" | "trade"
+  | "healthcare" | "education" | "visa" | "manufacturing" | "library" | "fitness" | "trade"
   | "ecommerce" | "project-management" | "insurance" | "b2b";
 
 export interface ModuleDef {
@@ -222,6 +222,19 @@ export const MODULES: ModuleDef[] = [
     recommends: ["purchase", "finance"],
     triggersBusinessType: false,
     category: "industry",
+  },
+  {
+    id: "fitness",
+    category: "industry",
+    label: "Fitness & Gym",
+    description: "Members, memberships, check-in, classes & personal training",
+    icon: Dumbbell,
+    color: "bg-orange-500/10",
+    iconColor: "text-orange-500",
+    // Stands alone: it keeps its own members, plans and branches.
+    requires: [],
+    recommends: ["finance"],
+    triggersBusinessType: false,
   },
   {
     id: "library",

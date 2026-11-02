@@ -183,6 +183,20 @@ public static class PermissionSeedData
         ["library.fines"]       = ["view","create","edit","approve"],
         ["library.setup"]       = ["view","edit"],
 
+        // Fitness & Gym — members, memberships (selling, freezing, cancelling), payments (approve =
+        // void a receipt), the front-desk check-in, classes + bookings, trainers + personal training,
+        // equipment and lockers, leads, setup (branches, plans, rules) and reports.
+        ["fitness.members"]     = ["view","create","edit","delete"],
+        ["fitness.memberships"] = ["view","create","edit"],
+        ["fitness.payments"]    = ["view","create","approve"],
+        ["fitness.checkin"]     = ["view","create","edit"],
+        ["fitness.classes"]     = ["view","create","edit","delete"],
+        ["fitness.training"]    = ["view","create","edit","delete"],
+        ["fitness.facility"]    = ["view","create","edit","delete"],
+        ["fitness.leads"]       = ["view","create","edit","delete"],
+        ["fitness.setup"]       = ["view","edit"],
+        ["fitness.reports"]     = ["view"],
+
         // Trade (import / export) — shipments (edit also moves the status), the parties they involve,
         // the paper that travels with them, landed costs and the money for the goods. Costs and payments
         // are separate keys: seeing where the cargo is does not mean seeing what it cost.

@@ -9249,3 +9249,62 @@ Online listings could only be started from the listing editor, so a stock item h
 - **List online + variants:** with "list online" ticked each new or unlisted item becomes a draft listing; rows sharing `Group` become the variants of one listing, each row giving its choices in `Options` (`Size=M; Colour=Blue`). A group is checked up front and is all-or-nothing (every row needs Options, same option names, no two rows with the same choices, max 3 options).
 - **UI:** the stock import dialog reads CSV or Excel, auto-matches columns (and lets you correct them), and shows picture progress and failures. Template: Name, SKU, Barcode, Category, Brand, Unit, CostPrice, SalePrice, TaxRate, OpeningStock, ReorderLevel, Description, Image1–4, Images, Group, Options. en + ar strings under `inventory:productImport`.
 - Migration `AddPendingProductPhotos`.
+
+
+---
+
+## Module 99 - Fitness & Gym (new module, "Fitness & Gym" industry)
+
+New service `Softaxis.Fitness` (schema `fitness`, clean CQRS, same shape as Library). Module code `fitness`; stands alone (Finance suggested, never required). Picked up from a half-built state: the Domain, the Application contracts and the API skeleton existed, but there was no DbContext, no handlers, no controllers, no wiring, no permissions and no frontend.
+
+### Model
+- `FitnessBranch`, `MembershipPlan` (category gym / classes / combo / personal_training / day_pass, price, joining fee, class credits, visits, freeze rules, guest passes, off-peak hours), `FitnessSettings` (one row per workspace, created on first read), `FitnessMember` (member number `PREFIX-00001` from `FitnessCounter`), `Subscription` (a sold plan; **copies the plan values at sale**, so editing a plan never changes a sold membership), `FreezePeriod`, `FitnessPayment` (receipt `RCT-000001`; voided, never deleted), `CheckIn`, `BodyMeasurement`, `FitnessProgram`, `Trainer`, `ClassType`, `ClassSession`, `ClassBooking`, `PtPackage`, `PtSession`, `Equipment`, `MaintenanceLog`, `Locker`, `FitnessLead`.
+- Dates are `yyyy-MM-dd` strings. **expired / upcoming / overdue are never stored**; they are worked out from the date (`Fx.State`). The client sends its own `today` and local time with every dated call (server clock is UTC).
+- Migration `InitialFitness` (22 tables). Identity migration `AddFitnessPermissions`.
+
+### Rules worth knowing (all in `Infrastructure/Handlers`)
+- A renewal starts the day after the old one ends. A freeze gives back only the days the plan allows. A balance is `total - paid` per subscription and PT package.
+- Check-in (`DeskHandlers`): refuses blacklisted / inactive / frozen / not started / expired past grace / other branch / visit limit / off-peak hours / unpaid balance (setting) / unsigned waiver (setting) / already inside. Staff can override everything except blacklisted. Every scan is recorded, allowed or not. Someone still "in" after 6 hours is treated as gone.
+- Classes: booking spends credits from the member's running plan; full class goes to a waitlist; a timely cancel returns the credit, a late one (inside the cut-off) keeps it spent; freeing a seat promotes the waitlist. Cancelling a class refunds everyone. No re-booking after a *late* cancel; a plain cancel row is removed on re-book.
+- Personal training: a session cannot overlap another PT session or class of the same trainer; booked sessions count against the package so it cannot be over-booked; completed and no-show use a session, cancelled does not.
+- Deleting is refused while it would strand something (member with payments, plan in use, branch with members, locker assigned, trainer with clients).
+- `Fx.BranchesAsync` creates a first branch ("Main Branch") per workspace on first read, never at startup.
+
+### Permissions (seeded, `fitness.*`)
+`members` view/create/edit/delete, `memberships` view/create/edit, `payments` view/create/**approve (= void a receipt)**, `checkin` view/create/**edit (= override, check everyone out)**, `classes`, `training`, `facility` (equipment + lockers), `leads` (all view/create/edit/delete), `setup` view/edit, `reports` view. Lists that feed forms across the module (branches, plans, trainers, class types, settings) are readable with any Fitness view key.
+
+### Licensing
+`ModuleCodes.Fitness`, in `PlanDefinitions.AllModules`, `/api/fitness/` in `ModuleEnforcementMiddleware`, industry `fitness_gym` / `fitness` attaches the module without CRM, super-admin module chip, onboarding picker, industry pack, permission-matrix group.
+
+### Frontend
+`lib/fitness/fitness.api.ts`, `hooks/fitness/use-fitness.ts` (`useAct` refreshes the whole module after a write), `modules/fitness/{shared,dashboard,members,frontdesk,classes,training,facility,leads,payments,setup}`, pages `/fitness/*` in `ModuleGuard module="fitness"`, nav group "Fitness & Gym". English only (no i18n namespace yet). `shared/ui.tsx` has a small spec-driven `FormModal` most screens use.
+
+### Verified / not verified
+- Gateway, Fitness projects build with 0 errors; frontend `tsc -p tsconfig.app.json` 0 errors.
+- Runtime smoke test: see the status line at the end of the session notes (run against a throwaway LocalDB database because the dev SQL Server was not reachable from this machine).
+- Not built: member photo upload in the UI, workout / diet program screens (API exists), Reports-hub entries (`GET /api/fitness/reports/run/{id}` exists), expiry alert emails (`ExpiryAlertsEnabled` setting and `FitnessAlertState` table exist, no sender yet), posting payments to Finance, member self-service portal, Arabic strings, AI-assistant tools, door / turnstile hardware.
+
+### Module 99b - Fitness & Gym: reports, programs, photos, expiry alert
+- **Reports hub:** new "Fitness" category with 9 reports (`FITNESS_REPORTS` in `report-registry.ts`), run by `GET /api/fitness/reports/run/{id}`; one permission, `fitness.reports.view`. The runner builds the column list from the first row's keys.
+- **Programs:** `modules/fitness/programs/components/programs-panel.tsx`. A program is a list of blocks (`[{label, text}]` in `ItemsJson`): a workout day or a diet meal. Templates live on Personal Training > Program templates; a member's own programs are on the member drawer's Programs tab ("Use a template" copies one). Gated on `fitness.members.edit`.
+- **Photos:** click the round picture in the member drawer; the image is shrunk to 480 px JPEG in the browser (a few tens of KB) and saved with the member. The server only replaces a photo when one is sent.
+- **Expiry alert:** `FitnessAlertService` (8 min after start, every 6 h) sends one bell alert a day to holders of `fitness.memberships.edit` when memberships end within the workspace's "expiring" window. Uses each member's latest membership, so renewed members are not counted. Switch: the `expiryAlertsEnabled` setting. Module key `fitness` is in `NotificationModuleAccess`.
+- **Verified:** gateway build 0 errors, frontend `tsc` 0 errors. Not run: the new screens in a browser, the alert service against a database.
+- **Still not built:** posting payments to Finance, member self-service portal, Arabic strings, AI-assistant tools, turnstile hardware.
+
+### Module 99c - Fitness & Gym: AI tools and Finance posting
+- **AI assistant:** agent `fitness` ("Fitness & Gym"), 19 tools in `ModuleToolCatalogMore.cs`: dashboard, lists (members, plans, branches, payments, visits, occupancy, class types, sessions, trainers, PT packages, equipment, lockers, leads), get member, create lead, take payment, check a member in, book a class, freeze / unfreeze a membership. Writes are confirm-gated like every other module. Not exposed: creating a member (its body is nested), selling a membership, voiding a payment, deleting anything.
+- **Finance:** queue source `fitness.payment` (`PostingSources`, `IntegrationCatalogue`): Dr cash or bank, Cr one revenue account (4001), voided receipts skipped, a receipt voided after posting is flagged. "Post to Finance" button on the Payments page. Off until the workspace switches it on in Finance Posting.
+- **Verified:** gateway build 0 errors, frontend `tsc` 0 errors, AI project builds. Not run against a database or a model; the SQL for `fitness.payment` is checked only by `SourceSchemaTests` when `FINANCE_TEST_DB` is set (not run here).
+- **Still not built:** Arabic strings, turnstile / door hardware (needs a per-branch device key and an anonymous scan endpoint). The member portal is built, see 99d.
+
+### Module 99d - Fitness & Gym: member portal (member number + PIN)
+Same design as the Library portal (Module 72g). A public page per gym, `/gym-portal/{tenant-slug}`: a member sees their membership(s), class credits, balance owed, the classes they can book (and books or cancels them), payments and recent visits, and can change their PIN. **Off per workspace until the gym turns it on** (Setup > Rules > Member portal), and a member can sign in only after staff give them a PIN (member drawer > Online access).
+- **Members are not Identity users.** No plan seat, no staff permissions. The session is the portal's own HMAC token (12 h, key derived from `Jwt:Secret` under its own label, sent as `X-Member-Token`), so it cannot be used as a staff token and a staff JWT is refused as a member session. PINs are PBKDF2-hashed; five wrong PINs lock sign-in for 15 minutes; a new, changed or removed PIN ends open sessions at once because the member is re-read on every request.
+- **Tenant from the slug** (`TenantLookup` over `identity.tenants`). Every handler calls `PortalGate.OpenAsync` then the plain, non-async `door.Enter()` (ambient set inside an awaited helper is lost on return). Unknown address and closed portal give the same 404; unknown number, no PIN and wrong PIN give the same 401.
+- Booking and cancelling go through the desk's own `BookClassCommand` / `CancelBookingCommand`, so every class rule (credits, waitlist, late-cancel) applies online. The member always comes from the session; someone else's booking looks like one that does not exist (404). `PortalSettings.AllowBooking` can switch online booking off.
+- API: public `api/fitness/portal/{slug}` (info, `sign-in`, `change-pin`, `account`, `classes`, `bookings`, `bookings/{id}/cancel`); staff `api/fitness/portal-settings` (`fitness.setup.*`) and `members/{id}/portal-pin` POST / DELETE (`fitness.members.edit`). Rate limits `fitness_portal` (120/min/IP) and `fitness_portal_signin` (30/min/IP), registered in the gateway.
+- Migration `AddMemberPortal` (3 columns on `Members` + `PortalSettings`). `MemberDetailDto.HasPortalAccess` is a trailing optional field.
+- **Verified:** 45 scripted checks against a local gateway and a throwaway LocalDB database (closed by default, staff 403, no PIN, wrong then right PIN, lockout and desk reset, account figures, booking, double booking 409, credit used and returned, someone else's booking 404, booking switch, PIN change ending the old session, removal ending a session, a second gym cannot be reached, switched-off portal 404). Test database dropped. `tsc` 0 errors, gateway build 0 errors.
+- **Not verified:** the public page and the staff PIN dialog in a browser, a phone, Arabic (English only). Not built: PIN reset by email, member self-registration, paying online, freezing a membership from the portal.
+- **Test gotcha:** a super-admin test token bypasses the tenant filter, so settings and plan-name checks cross workspaces; use a normal tenant token with explicit permissions.

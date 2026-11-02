@@ -118,6 +118,24 @@ public static class ModuleToolCatalogMore
         new("recipe_list_recipes", "List recipes with cost per serving and status.", "recipe", "api/recipes", null),
         new("recipe_summary", "Recipe counts and average food cost.", "recipe", "api/recipes/summary", null),
         new("recipe_food_cost_report", "Food-cost report across recipes.", "recipe", "api/recipes/reports/food-cost", null),
+        new("fitness_dashboard", "Gym overview — members, active and expiring memberships, who is inside now, today's takings, class and lead figures.", "fitness", "api/fitness/dashboard", "fitness.members.view,fitness.checkin.view,fitness.reports.view"),
+        new("fitness_list_members", "Search gym members — number, name, phone, plan, membership state, balance owed.", "fitness", "api/fitness/members", "fitness.members.view,fitness.memberships.view,fitness.checkin.view,fitness.payments.view,fitness.classes.view,fitness.training.view",
+        [
+            new("search", "string", "Name, phone, email or member number (optional)"),
+            new("state", "string", "active, expiring, expired, frozen, none (optional)"),
+        ]),
+        new("fitness_list_plans", "List membership plans with their ids and prices.", "fitness", "api/fitness/plans", "fitness.members.view,fitness.memberships.view,fitness.checkin.view,fitness.payments.view,fitness.classes.view,fitness.training.view"),
+        new("fitness_list_branches", "List gym branches with their ids.", "fitness", "api/fitness/branches", "fitness.members.view,fitness.memberships.view,fitness.checkin.view,fitness.payments.view,fitness.classes.view,fitness.training.view"),
+        new("fitness_list_payments", "List payments received — receipt, member, amount, method, date.", "fitness", "api/fitness/payments", "fitness.payments.view"),
+        new("fitness_list_visits", "List recent gym check-ins, including refused ones.", "fitness", "api/fitness/visits", "fitness.checkin.view,fitness.members.view"),
+        new("fitness_occupancy", "How many people are in the gym right now, per branch.", "fitness", "api/fitness/occupancy", "fitness.checkin.view"),
+        new("fitness_list_class_types", "List class types (yoga, spin...) with ids.", "fitness", "api/fitness/class-types", "fitness.members.view,fitness.memberships.view,fitness.checkin.view,fitness.payments.view,fitness.classes.view,fitness.training.view"),
+        new("fitness_list_sessions", "List scheduled classes — date, time, class, trainer, seats booked.", "fitness", "api/fitness/sessions", "fitness.classes.view,fitness.members.view"),
+        new("fitness_list_trainers", "List trainers with their ids and rates.", "fitness", "api/fitness/trainers", "fitness.members.view,fitness.memberships.view,fitness.checkin.view,fitness.payments.view,fitness.classes.view,fitness.training.view"),
+        new("fitness_list_pt_packages", "List personal-training packages — member, trainer, sessions used and left.", "fitness", "api/fitness/pt-packages", "fitness.training.view,fitness.members.view"),
+        new("fitness_list_equipment", "List gym equipment and its status.", "fitness", "api/fitness/equipment", "fitness.facility.view"),
+        new("fitness_list_lockers", "List lockers and who has them.", "fitness", "api/fitness/lockers", "fitness.facility.view,fitness.checkin.view"),
+        new("fitness_list_leads", "List gym enquiries / leads and their follow-up status.", "fitness", "api/fitness/leads", "fitness.leads.view"),
     ];
 
     public static readonly IReadOnlyList<AiGetByIdSpec> GetByIds =
@@ -133,6 +151,7 @@ public static class ModuleToolCatalogMore
         new("seo_get_site", "Get one tracked website by id — score, trend and settings.", "seo", "api/seo/sites/{id}", "siteId", "seo.sites.view"),
         new("construction_get_project", "Get one construction project by id.", "construction", "api/construction/projects/{id}", "projectId", ""),
         new("recipe_get_recipe", "Get one recipe by id with ingredients and cost.", "recipe", "api/recipes/{id}", "recipeId", ""),
+        new("fitness_get_member", "Get one gym member by id with memberships, balance and recent visits.", "fitness", "api/fitness/members/{id}", "memberId", "fitness.members.view,fitness.memberships.view,fitness.checkin.view,fitness.payments.view,fitness.classes.view,fitness.training.view"),
     ];
 
     public static readonly IReadOnlyList<AiCreateSpec> Creates =
@@ -240,6 +259,33 @@ public static class ModuleToolCatalogMore
             new("siteEngineer",    "string", "Site engineer (required)", true),
             new("notes",           "string", "Notes (optional)"),
         ]),
+        new("fitness_create_lead", "Record a gym enquiry / lead.", "fitness", "api/fitness/leads", "fitness.leads.create",
+        [
+            new("name",   "string", "Name (required)", true),
+            new("phone",  "string", "Phone (optional)"),
+            new("email",  "string", "Email (optional)"),
+            new("source", "string", "Where they heard of the gym (optional)"),
+            new("notes",  "string", "Notes (optional)"),
+            new("status", "string", "new, contacted, tour, trial", false, "new"),
+        ]),
+        new("fitness_take_payment", "Record a payment from a gym member against a membership. Get the member and membership ids from fitness_get_member. Cannot exceed what is owed.", "fitness", "api/fitness/payments", "fitness.payments.create",
+        [
+            new("memberId",       "string", "Member id (GUID) (required)", true),
+            new("subscriptionId", "string", "Membership id (GUID) (required)", true),
+            new("amount",         "number", "Amount (required)", true),
+            new("method",         "string", "cash, card, bank_transfer, online (required)", true),
+        ]),
+        new("fitness_check_in_member", "Check a member in at the front desk by member number. The desk's rules apply (expired, frozen, unpaid...) and a refusal is reported back.", "fitness", "api/fitness/checkin", "fitness.checkin.create",
+        [
+            new("memberRef", "string", "Member number, phone or card (required)", true),
+            new("branchId",  "string", "Branch id (GUID) (required)", true),
+        ]),
+        new("fitness_book_class", "Book a member into a scheduled class. A full class puts them on the waitlist; a class credit is spent from their plan.", "fitness", "api/fitness/bookings", "fitness.classes.create",
+        [
+            new("sessionId",      "string",  "Class session id (GUID) (required)", true),
+            new("memberId",       "string",  "Member id (GUID) (required)", true),
+            new("allowWaitlist",  "boolean", "Join the waitlist if full", false, "true"),
+        ]),
     ];
 
     public static readonly IReadOnlyList<AiUpdateSpec> Updates = [];
@@ -303,6 +349,15 @@ public static class ModuleToolCatalogMore
         new("recipe_archive", "Archive a recipe.", "recipe", "PATCH", "api/recipes/{recipeId}/archive", "",
         [
             new("recipeId", "string", "Recipe id (GUID) (required)", true),
+        ]),
+        new("fitness_freeze_membership", "Freeze a gym membership. Refused if the plan does not allow it.", "fitness", "POST", "api/fitness/memberships/{id}/freeze", "fitness.memberships.edit",
+        [
+            new("id",     "string", "Membership id (GUID) (required)", true),
+            new("reason", "string", "Reason (optional)"),
+        ]),
+        new("fitness_unfreeze_membership", "Unfreeze a gym membership; the end date moves out by the days it was frozen.", "fitness", "POST", "api/fitness/memberships/{id}/unfreeze", "fitness.memberships.edit",
+        [
+            new("id", "string", "Membership id (GUID) (required)", true),
         ]),
     ];
 }

@@ -15,6 +15,7 @@ const ResetPasswordPage  = lazyWithRetry(() => import("@/pages/auth/reset-passwo
 const VerifyEmailPage    = lazyWithRetry(() => import("@/pages/auth/verify-email"));
 const PublicQuotationPage = lazyWithRetry(() => import("@/pages/public/quotation"));
 const LibraryPortalPage   = lazyWithRetry(() => import("@/pages/public/library-portal"));
+const GymPortalPage       = lazyWithRetry(() => import("@/pages/public/gym-portal"));
 // A workspace's own online store served from the ERP address (/shop/:slug/...). Fully public.
 const StorefrontByPathPage = lazyWithRetry(() => import("@/pages/storefront/by-path"));
 
@@ -156,6 +157,16 @@ const EcommerceDiscountsPage    = lazyWithRetry(() => import("@/pages/ecommerce/
 const EcommerceCustomersPage    = lazyWithRetry(() => import("@/pages/ecommerce/store-customers"));
 
 // ── Library ──────────────────────────────────────────────────────────────────
+// ── Fitness & Gym ─────────────────────────────────────────────────────────
+const FitnessDashboardPage = lazyWithRetry(() => import("@/pages/fitness/dashboard"));
+const FitnessMembersPage = lazyWithRetry(() => import("@/pages/fitness/members"));
+const FitnessFrontDeskPage = lazyWithRetry(() => import("@/pages/fitness/front-desk"));
+const FitnessClassesPage = lazyWithRetry(() => import("@/pages/fitness/classes"));
+const FitnessTrainingPage = lazyWithRetry(() => import("@/pages/fitness/training"));
+const FitnessFacilityPage = lazyWithRetry(() => import("@/pages/fitness/facility"));
+const FitnessLeadsPage = lazyWithRetry(() => import("@/pages/fitness/leads"));
+const FitnessPaymentsPage = lazyWithRetry(() => import("@/pages/fitness/payments"));
+const FitnessSetupPage = lazyWithRetry(() => import("@/pages/fitness/setup"));
 const LibraryDashboardPage   = lazyWithRetry(() => import("@/pages/library/dashboard"));
 const LibraryCirculationPage = lazyWithRetry(() => import("@/pages/library/circulation"));
 const LibraryCataloguePage   = lazyWithRetry(() => import("@/pages/library/catalogue"));
@@ -380,6 +391,7 @@ export function App() {
         <Route path="/q/:token" element={<PublicQuotationPage />} />
         {/* Library members' own page: card number + PIN, no staff sign-in. */}
         <Route path="/library-portal/:slug" element={<LibraryPortalPage />} />
+        <Route path="/gym-portal/:slug" element={<GymPortalPage />} />
         {/* A store's customers: browse, cart, checkout, their account. No staff sign-in. */}
         <Route path="/shop/:slug/*" element={<StorefrontByPathPage />} />
 
@@ -626,6 +638,19 @@ export function App() {
             <Route path="/library/members"     element={<LibraryMembersPage />} />
             <Route path="/library/fines"       element={<LibraryFinesPage />} />
             <Route path="/library/setup"       element={<LibrarySetupPage />} />
+          </Route>
+
+          {/* ── Fitness & Gym ─────────────────────────────────────────────── */}
+          <Route element={<ModuleGuard module="fitness" />}>
+            <Route path="/fitness/dashboard" element={<FitnessDashboardPage />} />
+            <Route path="/fitness/members" element={<FitnessMembersPage />} />
+            <Route path="/fitness/front-desk" element={<FitnessFrontDeskPage />} />
+            <Route path="/fitness/classes" element={<FitnessClassesPage />} />
+            <Route path="/fitness/training" element={<FitnessTrainingPage />} />
+            <Route path="/fitness/facility" element={<FitnessFacilityPage />} />
+            <Route path="/fitness/leads" element={<FitnessLeadsPage />} />
+            <Route path="/fitness/payments" element={<FitnessPaymentsPage />} />
+            <Route path="/fitness/setup" element={<FitnessSetupPage />} />
           </Route>
 
           {/* ── Import / Export ─────────────────────────────────────────────── */}

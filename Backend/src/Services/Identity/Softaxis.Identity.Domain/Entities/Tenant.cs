@@ -135,6 +135,9 @@ public sealed class Tenant : AuditableEntity<Guid>
         ["manufacturing"]= "manufacturing",
         // Public, school, university and corporate libraries.
         ["library"]      = "library",
+        // Gyms, fitness studios and health clubs. "Fitness & Gym" signs up as fitness_gym.
+        ["fitness_gym"]  = "fitness",
+        ["fitness"]      = "fitness",
         // Importers, exporters and trading companies. "Import & Export" signs up as import_export.
         ["import_export"]= "trade",
         // Hotels, tour operators and travel agencies. "Hospitality & Tourism" signs up as hospitality_tourism.
@@ -236,7 +239,7 @@ public sealed class Tenant : AuditableEntity<Guid>
                 {
                     // The CRM verticals build on CRM. Manufacturing does not — it builds on
                     // Inventory, which is added below. Library and Trade build on nothing.
-                    if (pack is not ("manufacturing" or "library" or "trade" or "restaurant") && !list.Contains("crm")) list.Add("crm");
+                    if (pack is not ("manufacturing" or "library" or "trade" or "restaurant" or "fitness") && !list.Contains("crm")) list.Add("crm");
                     if (!list.Contains(pack))   list.Add(pack);
                 }
             }

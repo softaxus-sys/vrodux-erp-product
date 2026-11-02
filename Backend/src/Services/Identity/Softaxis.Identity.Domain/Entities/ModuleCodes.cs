@@ -44,6 +44,9 @@ public static class ModuleCodes
     // ── Library Management ───────────────────────────────────────────────────
     public const string Library = "library";
 
+    // ── Fitness & Gym ────────────────────────────────────────────────────────
+    public const string Fitness = "fitness";
+
     // ── Import / Export (trade) ──────────────────────────────────────────────
     public const string Trade = "trade";
 
