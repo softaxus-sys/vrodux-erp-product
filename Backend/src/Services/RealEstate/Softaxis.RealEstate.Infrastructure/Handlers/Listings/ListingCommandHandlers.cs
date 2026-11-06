@@ -147,6 +147,11 @@ internal sealed class UpdateListingHandler(RealEstateDbContext db, ICurrentUser 
         var unit = await db.PropertyUnits.FirstOrDefaultAsync(u => u.Id == cmd.Id && !u.IsDeleted, ct);
         if (unit is null) return Result.Failure<ListingDto>(Error.NotFoundById("Listing", cmd.Id));
 
+        // Only the agent who owns the listing (or an administrator) may change it. units.edit alone
+        // lets you reach the endpoint; it does not make the listing yours.
+        if (!ListingConfidentiality.CanModify(user, unit.AgentUserId))
+            return Result.Failure<ListingDto>(ListingConfidentiality.NotOwner());
+
         var property = await db.Properties
             .FirstOrDefaultAsync(p => p.Id == unit.PropertyId && !p.IsDeleted, ct);
         if (property is null)
@@ -249,4 +254,54 @@ internal sealed class UpdateListingHandler(RealEstateDbContext db, ICurrentUser 
     }
 
     private static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+}
+
+internal sealed class ParkListingHandler(RealEstateDbContext db, ICurrentUser user)
+    : ICommandHandler<ParkListingCommand>
+{
+    public async Task<Result> Handle(ParkListingCommand cmd, CancellationToken ct)
+    {
+        var unit = await db.PropertyUnits.FirstOrDefaultAsync(u => u.Id == cmd.Id && !u.IsDeleted, ct);
+        if (unit is null) return Result.Failure(Error.NotFoundById("Listing", cmd.Id));
+
+        if (!ListingConfidentiality.CanModify(user, unit.AgentUserId))
+            return Result.Failure(ListingConfidentiality.NotOwner());
+
+        if (unit.ParkedAt is not null) return Result.Success(); // already parked — nothing to do
+
+        // A unit with a live lease is still earning rent and being chased for it. Parking would hide
+        // it from the very screens used to manage that tenancy, so end the lease first.
+        var hasActiveLease = await db.LeaseContracts.AsNoTracking()
+            .AnyAsync(c => !c.IsDeleted && c.UnitId == cmd.Id && c.Status == "active", ct);
+        if (hasActiveLease)
+            return Result.Failure(Error.Custom("Listing.Conflict",
+                "This unit has an active lease. End the lease before parking the listing."));
+
+        unit.Park(cmd.Reason, user.Id, user.Username ?? user.Email);
+        await db.SaveChangesAsync(ct);
+
+        await PropertyCounts.RefreshAsync(db, unit.PropertyId, ct);
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+}
+
+internal sealed class UnparkListingHandler(RealEstateDbContext db, ICurrentUser user)
+    : ICommandHandler<UnparkListingCommand>
+{
+    public async Task<Result> Handle(UnparkListingCommand cmd, CancellationToken ct)
+    {
+        var unit = await db.PropertyUnits.FirstOrDefaultAsync(u => u.Id == cmd.Id && !u.IsDeleted, ct);
+        if (unit is null) return Result.Failure(Error.NotFoundById("Listing", cmd.Id));
+
+        if (!ListingConfidentiality.CanModify(user, unit.AgentUserId))
+            return Result.Failure(ListingConfidentiality.NotOwner());
+
+        unit.Unpark();
+        await db.SaveChangesAsync(ct);
+
+        await PropertyCounts.RefreshAsync(db, unit.PropertyId, ct);
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
 }

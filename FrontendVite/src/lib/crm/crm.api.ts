@@ -309,6 +309,8 @@ export interface ActivityPageParams {
   dueBefore?: string;
   /** yyyy-MM-dd — activities due on this exact date (the "today" tab). */
   dueOn?: string;
+  /** Only activities assigned to the signed-in user. */
+  mine?: boolean;
 }
 
 export function leadDate(
@@ -763,9 +765,11 @@ export const crmApi = {
     if (p.search)    qs.set("search", p.search);
     if (p.dueBefore) qs.set("dueBefore", p.dueBefore);
     if (p.dueOn)     qs.set("dueOn", p.dueOn);
+    if (p.mine)      qs.set("mine", "true");
     return rawApiClient.get(`${BASE}/activities/paged?${qs}`);
   },
-  getActivitiesSummary: (): Promise<ActivitiesSummaryDto> => rawApiClient.get(`${BASE}/activities/summary`),
+  getActivitiesSummary: (mine = false): Promise<ActivitiesSummaryDto> =>
+    rawApiClient.get(`${BASE}/activities/summary${mine ? "?mine=true" : ""}`),
   getCustomerTimeline:  (customerId: string): Promise<ActivityDto[]> => rawApiClient.get(`${BASE}/customers/${customerId}/timeline`),
   createActivity:  (a: CreateActivityRequest): Promise<ActivityDto> => rawApiClient.post(`${BASE}/activities`, a),
   completeActivity:(id: string): Promise<void> => rawApiClient.post(`${BASE}/activities/${id}/complete`),

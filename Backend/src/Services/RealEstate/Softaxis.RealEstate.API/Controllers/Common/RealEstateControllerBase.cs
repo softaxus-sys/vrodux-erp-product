@@ -38,6 +38,7 @@ public abstract class RealEstateControllerBase : ControllerBase
             var c when c.EndsWith(".NotFound")  => NotFound(body),
             var c when c.EndsWith(".Duplicate") => Conflict(body),
             var c when c.EndsWith(".Conflict")  => Conflict(body),
+            var c when c.EndsWith(".Forbidden") => StatusCode(StatusCodes.Status403Forbidden, body),
             // Storage-quota exceeded — 413 names the actual problem rather than overloading 409.
             var c when c.EndsWith(".QuotaExceeded") => StatusCode(StatusCodes.Status413PayloadTooLarge, body),
             "Validation.Failed"                 => UnprocessableEntity(body),

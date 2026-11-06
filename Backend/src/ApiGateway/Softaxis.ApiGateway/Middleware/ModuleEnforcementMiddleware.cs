@@ -52,6 +52,7 @@ public sealed class ModuleEnforcementMiddleware(RequestDelegate next)
             ["/api/visa/"]              = ModuleCodes.Visa,
             ["/api/manufacturing/"]     = ModuleCodes.Manufacturing,
             ["/api/library/"]           = ModuleCodes.Library,
+            ["/api/fitness/"]           = ModuleCodes.Fitness,
             ["/api/trade/"]             = ModuleCodes.Trade,
             ["/api/ecommerce/"]         = ModuleCodes.Ecommerce,
             ["/api/leadgen/"]           = ModuleCodes.LeadGen,

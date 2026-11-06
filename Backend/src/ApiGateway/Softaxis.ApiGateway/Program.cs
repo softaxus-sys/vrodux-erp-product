@@ -31,6 +31,8 @@ using Softaxis.ProjectManagement.Infrastructure.Extensions;
 using Softaxis.AiAssistant.Infrastructure.Extensions;
 using Softaxis.Manufacturing.Infrastructure.Extensions;
 using Softaxis.Library.Infrastructure.Extensions;
+using Softaxis.Fitness.Infrastructure.Extensions;
+using Softaxis.Fitness.Infrastructure.Extensions;
 using Softaxis.Trade.Infrastructure.Extensions;
 using Softaxis.Ecommerce.Infrastructure.Extensions;
 using Softaxis.VisaServices.Infrastructure.Extensions;
@@ -163,6 +165,8 @@ try
     builder.Services.AddManufacturingInfrastructure(builder.Configuration);
     // Library: catalogue, members, lending across branches. Stands alone — no other module needed.
     builder.Services.AddLibraryInfrastructure(builder.Configuration);
+    // Fitness & Gym: members, memberships, check-in, classes, personal training. Stands alone.
+    builder.Services.AddFitnessInfrastructure(builder.Configuration);
     // Trade: import / export shipments, trade documents, landed cost. Stands alone.
     builder.Services.AddTradeInfrastructure(builder.Configuration);
     // E-commerce: connected online stores (Shopify), publishing Inventory listings, stock + order sync. Builds on Inventory.
@@ -240,6 +244,9 @@ try
     builder.Services.AddScoped<
         Softaxis.Library.Application.Abstractions.ICurrentUser,
         Softaxis.Library.API.Middleware.CurrentUserService>();
+    builder.Services.AddScoped<
+        Softaxis.Fitness.Application.Abstractions.ICurrentUser,
+        Softaxis.Fitness.API.Middleware.CurrentUserService>();
 
     // Trade.Application.Abstractions.ICurrentUser  →  Trade CurrentUserService (cost / payment visibility)
     builder.Services.AddScoped<
@@ -333,6 +340,7 @@ try
         .AddApplicationPart(typeof(Softaxis.VisaServices.API.Controllers.VisaCasesController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Manufacturing.API.Controllers.BomsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Library.API.Controllers.CatalogueController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.Fitness.API.Controllers.SetupController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Trade.API.Controllers.ShipmentsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Ecommerce.API.Controllers.ChannelsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Support.API.Controllers.SupportTicketsController).Assembly)
@@ -374,6 +382,8 @@ try
     // The Library member portal's [EnableRateLimiting] attributes name policies that nothing had
     // registered, so its public endpoints threw on the first request. Registered here, like the others.
     Softaxis.Library.API.Extensions.LibraryRateLimitPolicies.AddLibraryPortalRateLimiting(builder.Services);
+    // The gym member portal, same reason.
+    Softaxis.Fitness.API.Extensions.FitnessRateLimitPolicies.AddFitnessPortalRateLimiting(builder.Services);
     // Same for the public storefront (browse / checkout / shopper sign-in).
     Softaxis.Ecommerce.API.Extensions.EcommerceRateLimitPolicies.AddEcommerceRateLimiting(builder.Services, builder.Configuration);
 
@@ -504,6 +514,7 @@ try
         await ForModule("visa",               app.Services.MigrateAndSeedVisaServicesAsync);
         await ForModule("manufacturing",      app.Services.MigrateAndSeedManufacturingAsync);
         await ForModule("library",            app.Services.MigrateAndSeedLibraryAsync);
+        await ForModule("fitness",            app.Services.MigrateAndSeedFitnessAsync);
         await ForModule("trade",              app.Services.MigrateAndSeedTradeAsync);
         await ForModule("ecommerce",          app.Services.MigrateAndSeedEcommerceAsync);
 
@@ -590,7 +601,7 @@ try
         Status  = "Healthy",
         Service = "Softaxis.ERP.Gateway",
         Time    = DateTime.UtcNow,
-        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Trade", "Support", "Seo", "Calendar", "LeadGen" }
+        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Fitness", "Trade", "Support", "Seo", "Calendar", "LeadGen" }
     })).AllowAnonymous();
 
     Log.Information("Vrodux ERP Gateway started on {Env}", app.Environment.EnvironmentName);

@@ -28,7 +28,9 @@ public sealed record GetListingsQuery(
     IReadOnlyList<string>? Agents = null,
     /// <summary>Compared against the asking price for a sale listing and the annual rent otherwise.</summary>
     decimal? MinPrice = null,
-    decimal? MaxPrice = null) : IQuery<PagedResult<ListingDto>>;
+    decimal? MaxPrice = null,
+    /// <summary>True = the parked listings (off the market, kept for later); false = the active stock list.</summary>
+    bool Parked = false) : IQuery<PagedResult<ListingDto>>;
 
 /// <summary>
 /// What the filter bar can offer: only values that some listing actually has, so no option ever

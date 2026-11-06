@@ -60,11 +60,28 @@ public sealed class ListingsController(ISender sender) : RealEstateControllerBas
         [FromQuery] string[]? agents = null,
         [FromQuery] decimal? minPrice = null,
         [FromQuery] decimal? maxPrice = null,
+        [FromQuery] bool parked = false,
         CancellationToken ct = default) =>
         OkOrError(await sender.Send(new GetListingsQuery(
             search, purpose, status, propertyType, category, propertyId, advertised, page, pageSize,
             propertyIds, bedrooms, propertyTypes, statuses, furnishings, cities, agents,
-            minPrice, maxPrice), ct));
+            minPrice, maxPrice, parked), ct));
+
+    /// <summary>
+    /// Parks a listing: off the active list, kept with the date and reason. The handler restricts
+    /// this to the owning agent or an administrator.
+    /// </summary>
+    [HttpPost("{id:guid}/park")]
+    [RequirePermission("real-estate.units.edit")]
+    public async Task<IActionResult> Park(Guid id, [FromBody] ParkRequest req, CancellationToken ct) =>
+        NoContentOrError(await sender.Send(new ParkListingCommand(id, req.Reason), ct));
+
+    [HttpPost("{id:guid}/unpark")]
+    [RequirePermission("real-estate.units.edit")]
+    public async Task<IActionResult> Unpark(Guid id, CancellationToken ct) =>
+        NoContentOrError(await sender.Send(new UnparkListingCommand(id), ct));
+
+    public sealed record ParkRequest(string? Reason);
 
     /// <summary>The choices for the stock list's filter bar — only values some listing has.</summary>
     [HttpGet("filter-options")]

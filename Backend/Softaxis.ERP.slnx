@@ -111,6 +111,12 @@
     <Project Path="src/Services/Trade/Softaxis.Trade.Domain/Softaxis.Trade.Domain.csproj" />
     <Project Path="src/Services/Trade/Softaxis.Trade.Infrastructure/Softaxis.Trade.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/Fitness/">
+    <Project Path="src/Services/Fitness/Softaxis.Fitness.API/Softaxis.Fitness.API.csproj" />
+    <Project Path="src/Services/Fitness/Softaxis.Fitness.Application/Softaxis.Fitness.Application.csproj" />
+    <Project Path="src/Services/Fitness/Softaxis.Fitness.Domain/Softaxis.Fitness.Domain.csproj" />
+    <Project Path="src/Services/Fitness/Softaxis.Fitness.Infrastructure/Softaxis.Fitness.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/Library/">
     <Project Path="src/Services/Library/Softaxis.Library.API/Softaxis.Library.API.csproj" />
     <Project Path="src/Services/Library/Softaxis.Library.Application/Softaxis.Library.Application.csproj" />

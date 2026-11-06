@@ -86,6 +86,7 @@ export const CATEGORY_MODULE: Record<ReportCategory, ModuleKey> = {
   Manufacturing: "manufacturing",
   Library:       "library",
   "Import / Export": "trade",
+  Fitness:       "fitness",
 };
 
 export type ReportCategory =
@@ -101,7 +102,8 @@ export type ReportCategory =
   | "Construction"
   | "Manufacturing"
   | "Library"
-  | "Import / Export";
+  | "Import / Export"
+  | "Fitness";
 
 export type ReportBadge =
   | "Popular"
@@ -1273,6 +1275,37 @@ export const LIBRARY_REPORTS: ReportDefinition[] = LIBRARY_REPORT_CARDS.map(r =>
   subGroup:       r.group,
   requiresModule:     "library",
   requiresPermission: r.permission,
+}));
+
+// ── Fitness & Gym ────────────────────────────────────────────────────────────
+// Tabular runner, served by `GET /api/fitness/reports/run/{id}`. One permission for all of them.
+type FitnessCard = { id: string; title: string; description: string; icon: string; group: string; tone: Tone; columns: string[]; ranged: boolean };
+const FITNESS_REPORT_CARDS: FitnessCard[] = [
+  { id: "payments", title: "Payments Received", group: "Money", icon: "Banknote", tone: "success",
+    description: "Every receipt taken in the period.", columns: ["Date", "Receipt", "Member", "Amount", "Method", "Branch", "Received by"], ranged: true },
+  { id: "revenue-by-method", title: "Revenue by Method", group: "Money", icon: "DollarSign", tone: "success",
+    description: "Cash, card and transfer takings side by side.", columns: ["Method", "Payments", "Total"], ranged: true },
+  { id: "memberships-sold", title: "Memberships Sold", group: "Money", icon: "Layers", tone: "primary",
+    description: "How many of each plan were sold, their value and what was collected.", columns: ["Plan", "Sold", "Value", "Collected"], ranged: true },
+  { id: "outstanding", title: "Outstanding Balances", group: "Money", icon: "AlertTriangle", tone: "warning",
+    description: "Members who still owe money.", columns: ["Member", "Number", "Phone", "Branch", "Balance"], ranged: false },
+  { id: "expiring", title: "Expiring Memberships", group: "Members", icon: "Calendar", tone: "warning",
+    description: "Memberships ending soon, with phone numbers to call.", columns: ["Ends", "Member", "Number", "Phone", "Plan", "Balance"], ranged: false },
+  { id: "attendance", title: "Gym Attendance", group: "Floor", icon: "Users", tone: "primary",
+    description: "Visits and different members per day.", columns: ["Date", "Visits", "Different members"], ranged: true },
+  { id: "class-attendance", title: "Class Attendance", group: "Floor", icon: "ClipboardList", tone: "primary",
+    description: "Booked, attended and no-shows for each class.", columns: ["Date", "Time", "Class", "Capacity", "Booked", "Attended", "No-shows", "Branch"], ranged: true },
+  { id: "trainer-sessions", title: "Trainer Sessions", group: "Floor", icon: "TrendingUp", tone: "success",
+    description: "Sessions each trainer gave, their value and commission.", columns: ["Trainer", "Sessions given", "Value", "Commission"], ranged: true },
+  { id: "leads", title: "Leads by Source", group: "Sales", icon: "TrendingUp", tone: "primary",
+    description: "Where enquiries come from and how many joined.", columns: ["Source", "Leads", "Converted", "Lost"], ranged: true },
+];
+
+export const FITNESS_REPORTS: ReportDefinition[] = FITNESS_REPORT_CARDS.map(r => ({
+  id: `fitness-${r.id}`, title: r.title, description: r.description, category: "Fitness" as ReportCategory,
+  icon: r.icon, color: `text-${r.tone}`, bg: `bg-${r.tone}/10`, previewColumns: r.columns,
+  filters: r.ranged ? [DATE_RANGE] : [], exportFormats: ["PDF", "Excel", "CSV"], subGroup: r.group,
+  requiresModule: "fitness", requiresPermission: "fitness.reports.view",
 }));
 
 // ── Import / Export ──────────────────────────────────────────────────────────

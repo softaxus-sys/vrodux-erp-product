@@ -23,6 +23,7 @@ public static class NotificationModules
     public const string Manufacturing     = "manufacturing";
     public const string Trade             = "trade";
     public const string LeadGen           = "leadgen";
+    public const string Fitness           = "fitness";
     /// <summary>Account-level alerts (billing, security) — never module-gated, everyone sees their own.</summary>
     public const string System            = "system";
 }
@@ -82,6 +83,8 @@ public static class NotificationEvents
     public const string TradeAttention          = "trade.attention";
     /// <summary>Daily digest for people who handle the money: overdue payments, expiring letters of credit.</summary>
     public const string TradePaymentsAttention  = "trade.payments-attention";
+    /// <summary>Daily alert for gym staff: memberships ending soon.</summary>
+    public const string FitnessExpiring         = "fitness.expiring";
 
     // Lead generation: a prospect answered, a mailbox needs attention, a search finished, credits ran low.
     public const string LeadGenReply            = "leadgen.reply";

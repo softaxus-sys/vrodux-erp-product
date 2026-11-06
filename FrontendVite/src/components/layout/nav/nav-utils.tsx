@@ -18,7 +18,7 @@ import {
   Stamp, CalendarClock, Printer, Globe, CalendarDays,
   LifeBuoy, MessageSquare, Headset, PlayCircle,
   Rocket, Search, Wand2, Factory, Library, Ship, Container, PackageSearch,
-  Radar, Send, Mail, Target,
+  Radar, Send, Mail, Target, Dumbbell, UserCog, Wrench, Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +41,7 @@ export const iconMap: Record<string, React.ComponentType<{ className?: string }>
   Stamp, CalendarClock, Printer, Globe, CalendarDays,
   LifeBuoy, MessageSquare, Headset, PlayCircle,
   Rocket, Search, Wand2, Factory, Library, Ship, Container, PackageSearch,
-  Radar, Send, Mail, Target,
+  Radar, Send, Mail, Target, Dumbbell, UserCog, Wrench, Wallet,
 };
 
 export function NavIcon({ name, className }: { name?: string; className?: string }) {

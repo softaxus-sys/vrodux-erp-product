@@ -159,6 +159,21 @@ export const INDUSTRY_PACKS: IndustryPack[] = [
     ],
   },
   {
+    industry: "fitness_gym",
+    moduleKey: "fitness",
+    label: "Fitness & Gym",
+    description: "Gyms and studios — members, memberships, front-desk check-in, classes, personal training, equipment and lockers.",
+    icon: "Dumbbell",
+    crmFlow: "Lead → Trial → Member → Membership → Check-in → Renewal",
+    entities: ["Members", "Memberships", "Payments", "Check-ins", "Classes", "Bookings", "Trainers", "Equipment", "Lockers"],
+    features: [
+      { key: "checkin", label: "Front-desk Check-in" },
+      { key: "classes", label: "Classes & Bookings" },
+      { key: "training", label: "Personal Training" },
+      { key: "branches", label: "Multiple Branches" },
+    ],
+  },
+  {
     industry: "library",
     moduleKey: "library",
     label: "Library",

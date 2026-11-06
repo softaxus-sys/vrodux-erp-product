@@ -18,7 +18,7 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("identity")
-                .HasAnnotation("ProductVersion", "9.0.20")
+                .HasAnnotation("ProductVersion", "9.0.22")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -2993,6 +2993,230 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "edit",
                             Description = "Edit library setup",
                             ModuleId = "library.setup"
+                        },
+                        new
+                        {
+                            Id = new Guid("65187528-c722-94c3-817a-588d34e94ae6"),
+                            Action = "view",
+                            Description = "View fitness members",
+                            ModuleId = "fitness.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("6ff210dc-69ca-d19f-fbc6-da6168e790bc"),
+                            Action = "create",
+                            Description = "Create fitness members",
+                            ModuleId = "fitness.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("1c83aecf-2e7a-149c-44b3-48e365bb9793"),
+                            Action = "edit",
+                            Description = "Edit fitness members",
+                            ModuleId = "fitness.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("f1ff5c80-198e-9f8c-8b75-b0e1f117666a"),
+                            Action = "delete",
+                            Description = "Delete fitness members",
+                            ModuleId = "fitness.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("c751d2d0-d129-6ced-5f96-649507139077"),
+                            Action = "view",
+                            Description = "View fitness memberships",
+                            ModuleId = "fitness.memberships"
+                        },
+                        new
+                        {
+                            Id = new Guid("762af34b-f540-4039-c71f-b94db42f859c"),
+                            Action = "create",
+                            Description = "Create fitness memberships",
+                            ModuleId = "fitness.memberships"
+                        },
+                        new
+                        {
+                            Id = new Guid("253f94ff-b1aa-b10b-8616-575c871d2422"),
+                            Action = "edit",
+                            Description = "Edit fitness memberships",
+                            ModuleId = "fitness.memberships"
+                        },
+                        new
+                        {
+                            Id = new Guid("327e426a-ad41-73bf-0970-43e4bcd44a4b"),
+                            Action = "view",
+                            Description = "View fitness payments",
+                            ModuleId = "fitness.payments"
+                        },
+                        new
+                        {
+                            Id = new Guid("91af8731-2d13-713d-42c3-9dd9ae30f52c"),
+                            Action = "create",
+                            Description = "Create fitness payments",
+                            ModuleId = "fitness.payments"
+                        },
+                        new
+                        {
+                            Id = new Guid("6215cf60-8294-f3e1-85d4-d1f75558101c"),
+                            Action = "approve",
+                            Description = "Approve fitness payments",
+                            ModuleId = "fitness.payments"
+                        },
+                        new
+                        {
+                            Id = new Guid("419cabf8-85ed-91fa-361e-4751f3f65c03"),
+                            Action = "view",
+                            Description = "View fitness checkin",
+                            ModuleId = "fitness.checkin"
+                        },
+                        new
+                        {
+                            Id = new Guid("724ea2ea-8bca-57dc-b98e-85e9042fed5f"),
+                            Action = "create",
+                            Description = "Create fitness checkin",
+                            ModuleId = "fitness.checkin"
+                        },
+                        new
+                        {
+                            Id = new Guid("0f5a9880-6f4b-03a4-7474-f7ed3257440a"),
+                            Action = "edit",
+                            Description = "Edit fitness checkin",
+                            ModuleId = "fitness.checkin"
+                        },
+                        new
+                        {
+                            Id = new Guid("243688b5-0560-72ac-1b71-3e474e67a562"),
+                            Action = "view",
+                            Description = "View fitness classes",
+                            ModuleId = "fitness.classes"
+                        },
+                        new
+                        {
+                            Id = new Guid("3f010403-077c-d12d-946e-5cf81aafc733"),
+                            Action = "create",
+                            Description = "Create fitness classes",
+                            ModuleId = "fitness.classes"
+                        },
+                        new
+                        {
+                            Id = new Guid("2b5f1fbf-1242-967b-00a5-5b38f033dc25"),
+                            Action = "edit",
+                            Description = "Edit fitness classes",
+                            ModuleId = "fitness.classes"
+                        },
+                        new
+                        {
+                            Id = new Guid("4085eff2-0198-686b-7197-c5ffd50a0655"),
+                            Action = "delete",
+                            Description = "Delete fitness classes",
+                            ModuleId = "fitness.classes"
+                        },
+                        new
+                        {
+                            Id = new Guid("3840bc02-8703-5fdf-1a85-0eb95837f6e1"),
+                            Action = "view",
+                            Description = "View fitness training",
+                            ModuleId = "fitness.training"
+                        },
+                        new
+                        {
+                            Id = new Guid("4c417fe8-f9e7-77a8-0865-b5dba562dd56"),
+                            Action = "create",
+                            Description = "Create fitness training",
+                            ModuleId = "fitness.training"
+                        },
+                        new
+                        {
+                            Id = new Guid("8f5eb88d-6878-211d-8a9c-a2b381ea9380"),
+                            Action = "edit",
+                            Description = "Edit fitness training",
+                            ModuleId = "fitness.training"
+                        },
+                        new
+                        {
+                            Id = new Guid("2166bc0d-484f-c56c-c97c-e4724be5c995"),
+                            Action = "delete",
+                            Description = "Delete fitness training",
+                            ModuleId = "fitness.training"
+                        },
+                        new
+                        {
+                            Id = new Guid("d387fb92-6db1-c6f2-1a6d-704d3b181c4e"),
+                            Action = "view",
+                            Description = "View fitness facility",
+                            ModuleId = "fitness.facility"
+                        },
+                        new
+                        {
+                            Id = new Guid("94931e4c-f145-ecf6-f0fd-51c33a97a268"),
+                            Action = "create",
+                            Description = "Create fitness facility",
+                            ModuleId = "fitness.facility"
+                        },
+                        new
+                        {
+                            Id = new Guid("b905cdaa-b641-a849-4119-c143d89a32b1"),
+                            Action = "edit",
+                            Description = "Edit fitness facility",
+                            ModuleId = "fitness.facility"
+                        },
+                        new
+                        {
+                            Id = new Guid("1c9c070f-af8a-bc56-3722-1a52a5b23216"),
+                            Action = "delete",
+                            Description = "Delete fitness facility",
+                            ModuleId = "fitness.facility"
+                        },
+                        new
+                        {
+                            Id = new Guid("bb0c6ac1-9574-650a-a1c1-a21d9de52f12"),
+                            Action = "view",
+                            Description = "View fitness leads",
+                            ModuleId = "fitness.leads"
+                        },
+                        new
+                        {
+                            Id = new Guid("f9228fc3-d2b1-060e-0729-0b1b4eab7b20"),
+                            Action = "create",
+                            Description = "Create fitness leads",
+                            ModuleId = "fitness.leads"
+                        },
+                        new
+                        {
+                            Id = new Guid("34ae5841-254c-ca2d-62a9-75a5d3ae23c5"),
+                            Action = "edit",
+                            Description = "Edit fitness leads",
+                            ModuleId = "fitness.leads"
+                        },
+                        new
+                        {
+                            Id = new Guid("5c6f4784-d3f0-fc7e-d227-6d0f8bd890c5"),
+                            Action = "delete",
+                            Description = "Delete fitness leads",
+                            ModuleId = "fitness.leads"
+                        },
+                        new
+                        {
+                            Id = new Guid("2619ce54-a6b5-3208-c27c-43c66b9fd0de"),
+                            Action = "view",
+                            Description = "View fitness setup",
+                            ModuleId = "fitness.setup"
+                        },
+                        new
+                        {
+                            Id = new Guid("3132dec3-0a0f-2fe8-53b7-3ba65136ca0c"),
+                            Action = "edit",
+                            Description = "Edit fitness setup",
+                            ModuleId = "fitness.setup"
+                        },
+                        new
+                        {
+                            Id = new Guid("1ea51cc0-b8ee-192f-660b-b532d68b95f4"),
+                            Action = "view",
+                            Description = "View fitness reports",
+                            ModuleId = "fitness.reports"
                         },
                         new
                         {

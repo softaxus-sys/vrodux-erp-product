@@ -175,6 +175,11 @@ internal static class IntegrationCatalogue
             "Each payment against a booking is collected once: cash or bank is debited and revenue credited. A deposit taken before the stay is treated as revenue here, not as a liability — change the account in the mapping if your accountant wants advance deposits held until check-in. Payments recorded before individual payments were kept are not posted.",
             [Dr("cash", "Cash received", "1001"), Dr("bank", "Card, cheque or transfer received", "1010"), Cr("revenue", "Room revenue and guest payments", "4001")]),
 
+        new("fitness.payment", "fitness", "Gym membership and training payments", IntegrationKind.Queue,
+            "Payment taken from a gym member",
+            "Each receipt is collected once: cash or bank is debited and revenue credited. Voided receipts are not posted; one voided after posting is flagged. Joining fees, memberships and personal training all go to the one revenue account — change it in the mapping if you split them.",
+            [Dr("cash", "Cash received", "1001"), Dr("bank", "Card, transfer or online received", "1010"), Cr("revenue", "Membership and training revenue", "4001")]),
+
         new("tours.payment", "hospitality", "Tour customer payments", IntegrationKind.Queue,
             "Payment taken on a tour booking",
             "Each payment is collected once and credited to the customer account. Deposits taken before the trip therefore sit as a credit on the customer until the trip is posted, which debits the customer with the full price. A payment voided after posting is flagged for a person.",

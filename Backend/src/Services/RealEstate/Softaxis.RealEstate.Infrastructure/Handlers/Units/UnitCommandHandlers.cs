@@ -6,6 +6,7 @@ using Softaxis.RealEstate.Application.Units.Commands;
 using Softaxis.RealEstate.Application.Units.Dtos;
 using Softaxis.RealEstate.Domain.Entities;
 using Softaxis.RealEstate.Infrastructure.Persistence;
+using Softaxis.RealEstate.Infrastructure.Services;
 
 namespace Softaxis.RealEstate.Infrastructure.Handlers.Units;
 
@@ -24,7 +25,9 @@ internal static class PropertyCounts
         if (property is null) return;
 
         var units = await db.PropertyUnits.AsNoTracking()
-            .Where(u => u.PropertyId == propertyId && !u.IsDeleted)
+            // Parked listings are off the market, so they count toward neither the building's
+            // total nor its occupancy.
+            .Where(u => u.PropertyId == propertyId && !u.IsDeleted && u.ParkedAt == null)
             .Select(u => u.Status)
             .ToListAsync(ct);
 
@@ -77,12 +80,14 @@ internal sealed class CreateUnitHandler(RealEstateDbContext db, ICurrentUser use
     }
 }
 
-internal sealed class UpdateUnitHandler(RealEstateDbContext db) : ICommandHandler<UpdateUnitCommand>
+internal sealed class UpdateUnitHandler(RealEstateDbContext db, ICurrentUser user) : ICommandHandler<UpdateUnitCommand>
 {
     public async Task<Result> Handle(UpdateUnitCommand cmd, CancellationToken ct)
     {
         var unit = await db.PropertyUnits.FirstOrDefaultAsync(u => u.Id == cmd.Id && !u.IsDeleted, ct);
         if (unit is null) return Result.Failure(Error.NotFoundById("Unit", cmd.Id));
+        if (!ListingConfidentiality.CanModify(user, unit.AgentUserId))
+            return Result.Failure(ListingConfidentiality.NotOwner());
 
         var number = cmd.UnitNumber.Trim();
         var duplicate = await db.PropertyUnits.AsNoTracking()
@@ -100,12 +105,14 @@ internal sealed class UpdateUnitHandler(RealEstateDbContext db) : ICommandHandle
     }
 }
 
-internal sealed class DeleteUnitHandler(RealEstateDbContext db) : ICommandHandler<DeleteUnitCommand>
+internal sealed class DeleteUnitHandler(RealEstateDbContext db, ICurrentUser user) : ICommandHandler<DeleteUnitCommand>
 {
     public async Task<Result> Handle(DeleteUnitCommand cmd, CancellationToken ct)
     {
         var unit = await db.PropertyUnits.FirstOrDefaultAsync(u => u.Id == cmd.Id && !u.IsDeleted, ct);
         if (unit is null) return Result.Failure(Error.NotFoundById("Unit", cmd.Id));
+        if (!ListingConfidentiality.CanModify(user, unit.AgentUserId))
+            return Result.Failure(ListingConfidentiality.NotOwner());
 
         // A let unit has a lease, a rent schedule and reminders hanging off it. Deleting it would
         // orphan all three and leave a tenant being chased for a unit that no longer exists.

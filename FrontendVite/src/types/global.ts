@@ -151,6 +151,7 @@ export type ModuleKey =
   | "manufacturing"
   | "ecommerce"
   | "library"
+  | "fitness"
   | "trade"
   | "leadgen"
   | "support"

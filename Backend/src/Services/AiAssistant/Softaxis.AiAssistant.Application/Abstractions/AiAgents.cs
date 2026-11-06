@@ -30,6 +30,7 @@ public static class AiAgents
         ["real-estate"]        = "Real Estate",
         ["hospitality"]        = "Hospitality",
         ["library"]            = "Library",
+        ["fitness"]            = "Fitness & Gym",
         ["leadgen"]            = "Lead Generation",
         ["seo"]                = "SEO",
         ["ecommerce"]          = "E-commerce",
