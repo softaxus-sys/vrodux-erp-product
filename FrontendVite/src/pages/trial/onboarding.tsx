@@ -18,6 +18,8 @@ import i18n from "@/i18n";
 import { MODULES, BUSINESS_TYPES, MODULE_CATEGORIES, resolveModules, needsBusinessType, moduleLabel, moduleDesc, moduleCategoryLabel, businessTypeLabel, type ModuleId, type ModuleDef } from "@/lib/onboarding/module-data";
 import { registerTrial, type TrialRegistrationRequest } from "@/lib/onboarding/trial.api";
 import { useSignupAttribution, clearSignupAttribution } from "@/hooks/use-signup-attribution";
+import { ClarityConsent } from "@/components/analytics/clarity-consent";
+import { clarityEvent, clarityTag } from "@/lib/analytics/clarity";
 import { loadMetaPixel, trackPixelEvent, getMetaIdentifiers, newEventId } from "@/lib/analytics/meta-pixel";
 import { getPlan, amountFor, formatUsd, TRIAL_DAYS } from "@/lib/billing/plans";
 import { authApi } from "@/lib/identity/auth.api";
@@ -466,6 +468,12 @@ function NavBar({ D,onBack,onNext,nextLabel,loading,formId }: { D:P;onBack?:()=>
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
+/** Marks the end of the funnel in the recording; renders nothing. */
+function ClarityDone() {
+  React.useEffect(() => { clarityEvent("signup_complete"); }, []);
+  return null;
+}
+
 export default function OnboardingPage() {
   const { t } = useTranslation("onboarding");
   const navigate=useNavigate();
@@ -502,6 +510,15 @@ export default function OnboardingPage() {
   // Meta Pixel — scoped to this page only (the actual signup funnel), never loaded app-wide.
   // See lib/analytics/meta-pixel.ts for why.
   React.useEffect(() => { loadMetaPixel(); trackPixelEvent("PageView"); }, []);
+
+  // Clarity session replay (only after the visitor allows it - see ClarityConsent). Tags are
+  // non-personal: they let recordings be filtered by plan and traffic source.
+  React.useEffect(() => {
+    clarityTag("plan", signup.plan ?? undefined);
+    clarityTag("billing", signup.billing ?? undefined);
+    clarityTag("utm_source", signup.utmSource ?? undefined);
+  }, [signup]);
+  React.useEffect(() => { clarityEvent(`signup_step_${step+1}`); }, [step]);
 
   const showBT=needsBusinessType(selectedModules);
   const totalSteps=showBT?4:3;
@@ -630,6 +647,7 @@ export default function OnboardingPage() {
 
   if(done) return(
     <div className="h-screen flex items-center justify-center" style={{ background:D.bg }}>
+      <ClarityDone/>
       <motion.div initial={{ opacity:0,y:20 }} animate={{ opacity:1,y:0 }} className="text-center max-w-md w-full px-6">
         <motion.div initial={{ scale:0 }} animate={{ scale:1 }} transition={{ type:"spring",stiffness:260,damping:20,delay:.15 }}
           className="inline-flex h-24 w-24 rounded-full items-center justify-center mb-6"
@@ -674,6 +692,7 @@ export default function OnboardingPage() {
 
   return(
     <div className="h-screen flex overflow-hidden" style={{ background:D.bg }}>
+      <ClarityConsent/>
       <Sidebar D={D} step={step} showBT={showBT} darkMode={darkMode} toggleDarkMode={toggleDarkMode}/>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
