@@ -17,8 +17,9 @@ declare global {
   }
 }
 
-/** Project id from clarity.microsoft.com > Settings > Overview. Not a secret. Empty = feature off. */
-export const CLARITY_PROJECT_ID: string = (import.meta.env.VITE_CLARITY_PROJECT_ID as string | undefined) ?? "";
+/** Project id from clarity.microsoft.com > Settings > Overview. Not a secret. Shared with the vrodux.com marketing site so one funnel shows end to end. */
+export const CLARITY_PROJECT_ID: string =
+  (import.meta.env.VITE_CLARITY_PROJECT_ID as string | undefined) || "z9d4vhepef";
 
 const KEY = "vrodux.analytics-consent";
 let loaded = false;
