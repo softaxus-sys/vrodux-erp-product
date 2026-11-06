@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Softaxis.Finance.Infrastructure.EInvoicing;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Finance.Application.Invoices.Commands;
@@ -43,6 +44,11 @@ internal sealed class UpdateInvoiceHandler(FinanceDbContext db) : ICommandHandle
         if (invoice.Status == "cancelled")
             return Result.Failure(Error.Custom("Invoice.Conflict",
                 "A cancelled invoice cannot be edited."));
+
+        if (await EInvoiceQueue.IsLockedAsync(db, EInvoiceDocumentTypes.Invoice, invoice.Id, ct))
+            return Result.Failure(Error.Custom("Invoice.Conflict",
+                "This invoice is with the e-invoicing provider and can no longer be changed. Issue a credit note to correct it."));
+
 
         // Status is owned by the actions that also post to the ledger. An edit that quietly moved
         // an invoice to "paid" produced a paid invoice and an untouched general ledger.

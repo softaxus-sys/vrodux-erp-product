@@ -45,6 +45,8 @@ public sealed class Invoice
     public string?   Notes         { get; private set; }
     public DateTime? PaidAt        { get; private set; }
     public decimal   AmountPaid    { get; private set; }
+    /// <summary>Total of issued credit notes against this invoice. Reduces what is owed without pretending money was paid.</summary>
+    public decimal   CreditedAmount { get; private set; }
     public DateTime  CreatedAt     { get; private set; }
     public DateTime? UpdatedAt     { get; private set; }
     public bool      IsDeleted     { get; private set; }
@@ -118,7 +120,7 @@ public sealed class Invoice
     public decimal TaxableAmount => Items.Where(i => VatCategory.IsStandard(i.TaxCategory)).Sum(i => i.Quantity * i.UnitPrice);
     public decimal TaxAmount => TaxableAmount * TaxRate / 100;
     public decimal Total     => SubTotal + TaxAmount;
-    public decimal AmountDue => Total - AmountPaid;
+    public decimal AmountDue => Total - AmountPaid - CreditedAmount;
 
     public void Update(string customerName, string? customerEmail, string invoiceDate, string dueDate, decimal taxRate, string? notes, string status, string? ccEmails = null)
     {
@@ -249,7 +251,7 @@ public sealed class Invoice
     public void RecordPayment(decimal amount)
     {
         AmountPaid += amount;
-        if (AmountPaid >= Total)
+        if (AmountPaid + CreditedAmount >= Total)
         {
             Status = "paid";
             PaidAt = DateTime.UtcNow;
@@ -258,6 +260,18 @@ public sealed class Invoice
         {
             Status = "partially_paid";
         }
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void ApplyCredit(decimal amount)
+    {
+        CreditedAmount += amount;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void ReverseCredit(decimal amount)
+    {
+        CreditedAmount = Math.Max(0, CreditedAmount - amount);
         UpdatedAt = DateTime.UtcNow;
     }
 

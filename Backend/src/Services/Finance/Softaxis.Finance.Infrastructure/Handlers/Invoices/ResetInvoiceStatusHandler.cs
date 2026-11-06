@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Softaxis.Finance.Infrastructure.EInvoicing;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Finance.Application.Invoices.Commands;
@@ -23,6 +24,14 @@ internal sealed class ResetInvoiceStatusHandler(FinanceDbContext db) : ICommandH
 
         if (invoice is null)
             return Result.Failure(Error.NotFoundById("Invoice", cmd.Id));
+
+        if (await EInvoiceQueue.IsLockedAsync(db, EInvoiceDocumentTypes.Invoice, invoice.Id, ct))
+            return Result.Failure(Error.Custom("Invoice.Conflict",
+                "This invoice is with the e-invoicing provider and can no longer be changed. Issue a credit note to correct it."));
+
+        if (invoice.CreditedAmount > 0)
+            return Result.Failure(Error.Custom("Invoice.Conflict", "Credit notes have been issued against this invoice."));
+
 
         if (invoice.Status == "draft")
             return Result.Failure(Error.Custom("Invoice.Conflict", "Invoice is already a draft."));

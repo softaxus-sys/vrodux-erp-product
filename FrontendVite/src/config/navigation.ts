@@ -229,6 +229,14 @@ export const navigationConfig: NavGroup[] = [
             requiresPermission: "finance.integrations.view",
           },
           {
+            id: "finance-einvoicing",
+            label: "UAE E-Invoicing",
+            labelAr: "الفوترة الإلكترونية",
+            href: "/finance/einvoicing",
+            icon: "FileCheck2",
+            requiresPermission: "finance.einvoicing.view",
+          },
+          {
             id: "finance-integrations",
             label: "Integration Center",
             labelAr: "مركز الربط المحاسبي",

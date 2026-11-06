@@ -90,6 +90,10 @@ public static class InvoiceScheduleSweep
             // do not. Same ordering as the manual send path.
             await db.SaveChangesAsync(ct);
 
+            await Softaxis.Finance.Infrastructure.EInvoicing.EInvoiceQueue.EnqueueIfEnabledAsync(db,
+                Softaxis.Finance.Infrastructure.EInvoicing.EInvoiceDocumentTypes.Invoice, invoice.Id, invoice.InvoiceDate,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance, ct);
+
             if (await RecurringInvoiceGenerator.SendInvoiceAsync(db, invoice, [], null, email, ct))
             {
                 sent++;

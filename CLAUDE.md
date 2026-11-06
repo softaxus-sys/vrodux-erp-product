@@ -9249,3 +9249,41 @@ Online listings could only be started from the listing editor, so a stock item h
 - **List online + variants:** with "list online" ticked each new or unlisted item becomes a draft listing; rows sharing `Group` become the variants of one listing, each row giving its choices in `Options` (`Size=M; Colour=Blue`). A group is checked up front and is all-or-nothing (every row needs Options, same option names, no two rows with the same choices, max 3 options).
 - **UI:** the stock import dialog reads CSV or Excel, auto-matches columns (and lets you correct them), and shows picture progress and failures. Template: Name, SKU, Barcode, Category, Brand, Unit, CostPrice, SalePrice, TaxRate, OpeningStock, ReorderLevel, Description, Image1–4, Images, Group, Options. en + ar strings under `inventory:productImport`.
 - Migration `AddPendingProductPhotos`.
+
+---
+
+## Module 99 — Finance: provider-neutral UAE e-invoicing (credit notes, PINT AE XML, send queue, readiness)
+
+Everything that does not depend on which Accredited Service Provider (ASP) we pick. **Nothing is sent to anyone**: the registered gateway is `UnavailableEInvoiceGateway`, which reports "no provider connected". Provider research and the Storecove reply: `docs/uae-einvoicing-providers.md`; the legal plan: `docs/uae-einvoicing-plan.md`.
+
+### Credit notes (the only way to correct an issued invoice)
+- `CreditNote` + `CreditNoteItem`, linked to the invoice, `draft → issued | cancelled`. Created for the whole invoice or one entered amount; issuing posts the reversal (Dr revenue 4001, Dr VAT 2200, Cr receivables 1200) through `GlPoster`, refuses a closed fiscal period, and re-checks the creditable balance at issue (another credit note may have been issued since the draft).
+- `Invoice.CreditedAmount` (new column); `AmountDue = Total - AmountPaid - CreditedAmount`; an invoice is `paid` when payments plus credits cover the total. A credit reduces what is owed without pretending money was received.
+- **Gotcha fixed by the live test:** an invoice's `Total` is computed from its lines, so any handler that loads an `Invoice` to read `Total`/`AmountDue` must `Include(x => x.Items)`; without it the total reads 0.
+- An invoice with issued credit notes cannot be cancelled or reset (it would reverse their effect twice).
+
+### Provider seam, queue and processor
+- `IEInvoiceGateway` (`ProviderKey`, `IsAvailable`, `SendAsync` → `Sent|Delivered|Accepted|Rejected|TransientFailure|NotAvailable`). One class per provider later; replace the DI line in `AddFinanceInfrastructure`.
+- `EInvoiceSettings` (one row per workspace, created on first read): provider, environment, enabled, go-live date, legal registration (AE:TL/EID/PAS/CD + number + issuing authority), supplier city. **Sending cannot be switched on without an available provider** (409). No credentials are stored yet; they arrive with the first adapter, encrypted.
+- `EInvoiceSubmission`: one row per document (unique on type + document id = the duplicate-send guard). Statuses `queued, sending, sent, delivered, accepted, rejected, failed, blocked`. `blocked` = data incomplete, nothing left Vrodux, the reasons are stored. The XML snapshot of the first attempt is kept and is what every retry sends. Backoff 1m/5m/30m/2h/6h, give up after 8.
+- `EInvoiceProcessor` claims with an `ExecuteUpdate` (queued → sending) before sending; `EInvoiceHostedService` (6-minute startup delay, 2-minute loop, does nothing while no provider is available). Issuing an invoice (manual or scheduled send) or a credit note calls `EInvoiceQueue.EnqueueIfEnabledAsync` after the commit; a failure to queue never undoes the issue.
+- **Lock:** an invoice whose submission is `sending/sent/delivered/accepted` cannot be edited, deleted, cancelled or reset (corrections = credit note). A merely queued one can still be corrected.
+
+### PINT AE builder and validator (`Finance.Application/EInvoicing/PintAe.cs`, pure)
+- `PintAeBuilder.Build` → UBL 2.1 Invoice (380) or CreditNote (381); `PintAeValidator.Validate` / `ValidateSupplier` / `Totals`. TIN (network id) = first 10 digits of the 15-digit TRN, scheme 0235; buyer with no TRN and no Peppol id gets the reserved endpoint `9900000098`; foreign-currency documents state VAT a second time in AED (needs a stored rate — it never guesses one).
+- **Not certified.** Built from the published structure and the provider's descriptions; not run through the official Schematron or any ASP. The XML says so inside. The issuing-authority placement (`RegistrationAddress/CityName`) is our approximation. Providers such as Storecove build the legal document themselves from our data; the XML is for download, for UBL-accepting providers, and for checking data completeness.
+
+### Readiness and API (`api/finance/einvoicing`)
+`settings` GET/PUT · `readiness` (your own company details, then up to 500 invoices since go-live or 90 days, grouped by what blocks them, plus customer gaps) · `{invoice|credit-note}/{id}/check|xml|queue` · `submissions` + `submissions/{id}/retry` · `credit-notes` list/get/create/`{id}/issue`/DELETE (draft only). New permissions `finance.einvoicing` view / edit / send (Identity migration `AddFinanceEInvoicingPermissions`); credit notes use `finance.invoicing.create/edit/view`. Finance migration `AddEInvoicing`.
+
+### Frontend
+`/finance/einvoicing` ("UAE E-Invoicing": Readiness, Sent documents, Credit notes, Provider & registration) and an **E-invoice panel in the invoice drawer** (check result, download XML, queue, credit note dialog). English only.
+
+### Verified
+- 217 unit tests in `Softaxis.Finance.Tests` pass (45 new: validator rules, XML structure, totals, submission states, credit note maths, invoice balance).
+- Gateway built and run on a **fresh scratch database** (the whole migration chain applied cleanly, the 3 permissions seeded): signed up a real tenant, logged in, and ran 43 API checks, 42 pass — the one miss was a stale assertion in the test script, not the product. Covered: provider cannot be enabled, registration saved, readiness, customer tax identity, XML download, drafts refused, credit note drafted/issued with a balanced ledger entry and the invoice's credited amount, over-credit refused (single and cumulative), double issue refused, issued credit note not discardable, credited invoice not cancellable, queue idempotent (one row), queued invoice still editable, sent invoice locked, incomplete invoice blocked with reasons, anonymous 401, no NULL-tenant rows.
+- Frontend `tsc -p tsconfig.app.json` 0 errors.
+
+### Not verified / not built
+- The processor sending through a real provider (none connected), the screens in a browser, Arabic, per-permission 403s for restricted roles, a two-tenant isolation run.
+- Not built: a provider adapter and credentials storage; incoming supplier invoices → draft purchase bills; mapping Customer/Invoice fields the provider needs beyond the above; credit notes for Real Estate/Visa/POS documents; the invoice create form still has no per-line tax category/reason picker beyond what Module 55 added.

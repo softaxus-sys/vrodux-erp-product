@@ -1,3 +1,4 @@
+using Softaxis.Finance.Infrastructure.EInvoicing;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Finance.Application.Invoices.Commands;
@@ -13,6 +14,11 @@ internal sealed class DeleteInvoiceHandler(FinanceDbContext db) : ICommandHandle
 
         if (invoice is null)
             return Result.Failure(Error.NotFoundById("Invoice", cmd.Id));
+
+        if (await EInvoiceQueue.IsLockedAsync(db, EInvoiceDocumentTypes.Invoice, invoice.Id, ct))
+            return Result.Failure(Error.Custom("Invoice.Conflict",
+                "This invoice is with the e-invoicing provider and can no longer be changed. Issue a credit note to correct it."));
+
 
         invoice.Delete();
         await db.SaveChangesAsync(ct);

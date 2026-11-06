@@ -44,6 +44,7 @@ const BudgetingPage        = lazyWithRetry(() => import("@/pages/finance/budgeti
 const TaxPage              = lazyWithRetry(() => import("@/pages/finance/tax"));
 const BankingPage          = lazyWithRetry(() => import("@/pages/finance/banking"));
 const FinanceIntegrationsPage = lazyWithRetry(() => import("@/pages/finance/integrations"));
+const FinanceEInvoicingPage = lazyWithRetry(() => import("@/pages/finance/einvoicing"));
 const FinancePostingPage = lazyWithRetry(() => import("@/pages/finance/posting"));
 
 // ── HR ────────────────────────────────────────────────────────────────────────
@@ -444,6 +445,7 @@ export function App() {
             <Route path="/finance/banking"        element={<BankingPage />} />
             <Route path="/finance/integrations"   element={<FinanceIntegrationsPage />} />
             <Route path="/finance/posting"        element={<FinancePostingPage />} />
+            <Route path="/finance/einvoicing"     element={<FinanceEInvoicingPage />} />
           </Route>
 
           {/* ── HR ──────────────────────────────────────────────────────────── */}

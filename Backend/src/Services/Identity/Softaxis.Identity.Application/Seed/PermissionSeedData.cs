@@ -45,6 +45,9 @@ public static class PermissionSeedData
         // Integration Center. `approve` is the key that writes other modules' documents into the
         // ledger (post, retry, reverse); `edit` changes modes and account mappings only.
         ["finance.integrations"] = ["view","edit","approve","submit","approve-high"],
+        // UAE e-invoicing. `send` queues a document for the accredited provider; `edit` changes the
+        // provider and registration details; `view` reads readiness, status and the XML.
+        ["finance.einvoicing"]   = ["view","edit","send"],
 
         // HR
         // "create-login" lets HR give an employee portal access without holding

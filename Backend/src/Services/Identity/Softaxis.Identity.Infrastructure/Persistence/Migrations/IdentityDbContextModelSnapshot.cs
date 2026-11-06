@@ -1197,6 +1197,27 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("187eb55e-deef-eb28-5aa9-88b7c6feb3aa"),
+                            Action = "view",
+                            Description = "View finance einvoicing",
+                            ModuleId = "finance.einvoicing"
+                        },
+                        new
+                        {
+                            Id = new Guid("fe34317e-033e-e2b5-29d5-4547c674b87b"),
+                            Action = "edit",
+                            Description = "Edit finance einvoicing",
+                            ModuleId = "finance.einvoicing"
+                        },
+                        new
+                        {
+                            Id = new Guid("53ad24ee-22c1-4f77-6bc8-958f3cbb641b"),
+                            Action = "send",
+                            Description = "Send finance einvoicing",
+                            ModuleId = "finance.einvoicing"
+                        },
+                        new
+                        {
                             Id = new Guid("68c2c635-8f5e-3308-657a-d48bbb0d0006"),
                             Action = "view",
                             Description = "View hr employees",

@@ -74,6 +74,11 @@ public static class InfrastructureExtensions
         services.AddScoped<Integrations.PostingEngine>();
         services.AddHostedService<Integrations.PostingQueueHostedService>();
 
+        // E-invoicing: the default gateway sends nothing. A provider adapter replaces it without touching the handlers.
+        services.AddScoped<Softaxis.Finance.Application.EInvoicing.IEInvoiceGateway, EInvoicing.UnavailableEInvoiceGateway>();
+        services.AddScoped<EInvoicing.EInvoiceProcessor>();
+        services.AddHostedService<EInvoicing.EInvoiceHostedService>();
+
         services.AddHostedService<Services.RecurringInvoiceHostedService>();
         services.AddHostedService<Services.ExchangeRateRefreshService>();
 
