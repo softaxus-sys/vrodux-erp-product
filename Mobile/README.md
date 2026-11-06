@@ -1089,6 +1089,16 @@ oversight.
   Meta lead-quality feedback, creating campaigns.
 - Verified by `tsc --noEmit` and a full Android bundle only — not run on a device or against a live gateway.
 
+## Release 1.3.0 - Hotel front desk
+
+- **Front desk** (Hospitality > Front desk): today's arrivals, departures, in-house guests and no-shows, with occupancy.
+- **Stay detail** (tap any booking): the full bill (room, extras, discount, service, tax, fees), payments and extra charges.
+  Check in, check out (asks before leaving a balance unpaid), take a payment, post a charge, void a charge with a reason,
+  mark a no-show, cancel with a reason. Gated on `hospitality.bookings.edit`, `hospitality.folio.create`, `hospitality.folio.approve`.
+- Not on the phone: cancellation fees, room moves, date amendments, rates, guest profiles, hotel settings.
+- Library, Manufacturing, Trade, Recipes, Calendar, Support and Tours were already in 1.2.0 (module browser).
+- Verified by `tsc --noEmit` only - not run on a device.
+
 ## Next module
 
 **Full ERP module parity is the active program** — the web app has ~25 modules across 18 nav

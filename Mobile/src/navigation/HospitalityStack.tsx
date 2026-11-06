@@ -3,6 +3,8 @@ import HospitalityHomeScreen from "@/screens/hospitality/HospitalityHomeScreen";
 import RoomsListScreen from "@/screens/hospitality/RoomsListScreen";
 import BookingsListScreen from "@/screens/hospitality/BookingsListScreen";
 import HousekeepingListScreen from "@/screens/hospitality/HousekeepingListScreen";
+import FrontDeskScreen from "@/screens/hospitality/FrontDeskScreen";
+import BookingDetailScreen from "@/screens/hospitality/BookingDetailScreen";
 import NewBookingScreen from "@/screens/hospitality/NewBookingScreen";
 import ToursHomeScreen from "@/screens/hospitality/ToursHomeScreen";
 import TourBookingsListScreen from "@/screens/hospitality/TourBookingsListScreen";
@@ -21,6 +23,8 @@ export default function HospitalityStack() {
       <Stack.Screen name="HospitalityHome" component={HospitalityHomeScreen} options={{ headerTitle: "Hospitality" }} />
       <Stack.Screen name="RoomsList" component={RoomsListScreen} options={{ headerTitle: "Rooms" }} />
       <Stack.Screen name="BookingsList" component={BookingsListScreen} options={{ headerTitle: "Bookings" }} />
+      <Stack.Screen name="FrontDesk" component={FrontDeskScreen} options={{ headerTitle: "Front desk" }} />
+      <Stack.Screen name="BookingDetail" component={BookingDetailScreen} />
       <Stack.Screen name="HousekeepingList" component={HousekeepingListScreen} options={{ headerTitle: "Housekeeping" }} />
       <Stack.Screen name="NewBooking" component={NewBookingScreen} options={{ headerTitle: "New booking" }} />
       <Stack.Screen name="ToursHome" component={ToursHomeScreen} options={{ headerTitle: "Tours" }} />

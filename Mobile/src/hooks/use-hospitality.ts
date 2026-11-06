@@ -118,3 +118,22 @@ export function useVerifyTask() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (id: string) => hospitalityApi.verifyTask(id), onSuccess: () => invalidateHousekeeping(qc) });
 }
+
+export function useFrontDesk(enabled = true) {
+  return useQuery({ queryKey: [QK, "front-desk"], queryFn: hospitalityApi.getFrontDesk, enabled, refetchInterval: 60_000 });
+}
+
+export function useFolio(id: string) {
+  return useQuery({ queryKey: [QK, "folio", id], queryFn: () => hospitalityApi.getFolio(id) });
+}
+
+/** One mutation hook for every folio/stay action: each changes the bill, the stay or the room. */
+export function useStayAction<TArgs>(fn: (a: TArgs) => Promise<unknown>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK] });
+    },
+  });
+}

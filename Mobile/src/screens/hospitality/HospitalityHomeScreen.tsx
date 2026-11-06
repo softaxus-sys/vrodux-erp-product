@@ -49,6 +49,7 @@ export default function HospitalityHomeScreen({ navigation }: Props) {
 
       <View style={styles.menu}>
         {canRooms ? <MenuCard icon="home" title="Rooms" subtitle="Live status of every room" tint={colors.primary} onPress={() => navigation.navigate("RoomsList")} /> : null}
+        {canBookings ? <MenuCard icon="log-in" title="Front desk" subtitle="Arrivals, departures and who is in" tint={colors.primary} onPress={() => navigation.navigate("FrontDesk")} /> : null}
         {canBookings ? <MenuCard icon="calendar" title="Bookings" subtitle="Check in and check out guests" tint={colors.info} onPress={() => navigation.navigate("BookingsList")} /> : null}
         {canHousekeeping ? <MenuCard icon="clipboard" title="Housekeeping" subtitle="Start, complete, and verify tasks" tint={colors.warning} onPress={() => navigation.navigate("HousekeepingList")} /> : null}
         {canTours ? (

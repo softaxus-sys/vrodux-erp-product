@@ -137,3 +137,26 @@ export const PRIORITY_TONE: Record<string, Tone> = {
   normal: "neutral",
   low: "neutral",
 };
+
+export interface FolioChargeDto {
+  id: string; date: string; category: string; description: string; quantity: number; unitPrice: number;
+  amount: number; postedBy: string | null; isVoided: boolean; voidReason: string | null;
+}
+export interface FolioPaymentDto {
+  id: string; bookingId: string; amount: number; method: string; paidOn: string; reference: string | null;
+  paidTotal: number; balance: number;
+}
+export interface FolioDto {
+  bookingId: string; bookingNumber: string; status: string; guestName: string; roomNumber: string;
+  checkIn: string; checkOut: string; charges: FolioChargeDto[]; payments: FolioPaymentDto[];
+  roomCharge: number; extrasTotal: number; discountAmount: number; discountReason: string | null;
+  serviceChargePercent: number; serviceAmount: number; taxPercent: number; taxLabel: string; taxAmount: number;
+  nightlyFee: number; nightlyFeeLabel: string | null; feeAmount: number; total: number; paid: number; balance: number;
+}
+export interface FrontDeskDto {
+  today: string; totalRooms: number; occupiedTonight: number; occupancyPercent: number; dirtyRooms: number;
+  arrivalsPending: number; departuresPending: number;
+  arrivals: BookingDto[]; departures: BookingDto[]; inHouse: BookingDto[]; noShows: BookingDto[];
+}
+export const FOLIO_CATEGORIES = ["food", "beverage", "minibar", "laundry", "spa", "transport", "telephone", "other"] as const;
+export const HOTEL_PAYMENT_METHODS = ["cash", "card", "bank_transfer", "other"] as const;

@@ -234,6 +234,8 @@ export type HospitalityStackParamList = {
   HospitalityHome: undefined;
   RoomsList: undefined;
   BookingsList: undefined;
+  FrontDesk: undefined;
+  BookingDetail: { bookingId: string; bookingNumber: string };
   HousekeepingList: undefined;
   NewBooking: undefined;
   ToursHome: undefined;
