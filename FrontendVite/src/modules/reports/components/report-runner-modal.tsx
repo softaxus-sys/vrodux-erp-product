@@ -17,6 +17,7 @@ import { reportsApi }          from "@/lib/pos/reports.api";
 import { reportsApi as restaurantReportsApi } from "@/lib/restaurant/reports.api";
 import { libraryReportsApi } from "@/lib/library/reports.api";
 import { fitnessApi } from "@/lib/fitness/fitness.api";
+import { farmingApi } from "@/lib/farming/farming.api";
 import { tradeReportsApi } from "@/lib/trade/reports.api";
 import { inventoryReportsApi } from "@/lib/inventory/reports.api";
 import type { ReportResult, ReportRunParams } from "@/lib/pos/reports.api";
@@ -143,6 +144,7 @@ const CATEGORY_RUNNERS: Partial<Record<ReportCategory, CategoryRunner>> = {
   Restaurant: (id, params) => restaurantReportsApi.run(id, params),
   Library:    (id, params) => libraryReportsApi.run(id, params),
   "Import / Export": (id, params) => tradeReportsApi.run(id, params),
+  Farming:    (id, params) => farmingApi.runReport(id, params).then(r => ({ ...r, columns: Object.keys(r.rows[0] ?? {}) })),
   Fitness:    (id, params) => fitnessApi.runReport(id, params).then(r => ({ ...r, columns: Object.keys(r.rows[0] ?? {}) })),
 };
 

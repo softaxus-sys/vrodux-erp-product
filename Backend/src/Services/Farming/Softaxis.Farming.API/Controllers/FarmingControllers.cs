@@ -59,6 +59,10 @@ public sealed class FarmSetupController(ISender sender) : FarmingControllerBase
     [HttpDelete("units/{id:guid}")][RequirePermission(Perm.SetupEdit)]
     public async Task<IActionResult> DeleteUnit(Guid id, CancellationToken ct) => NoContentOrError(await sender.Send(new DeleteUnitCommand(id), ct));
 
+    [HttpGet("reports/run/{id}")][RequirePermission(Perm.ReportsView)]
+    public async Task<IActionResult> RunReport(string id, [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? today, CancellationToken ct) =>
+        OkOrError(await sender.Send(new RunFarmReportQuery(id, from, to, today), ct));
+
     [HttpGet("dashboard")][RequirePermission(Perm.ReportsView)]
     public async Task<IActionResult> Dashboard([FromQuery] string? today, CancellationToken ct) =>
         OkOrError(await sender.Send(new GetFarmDashboardQuery(today), ct));

@@ -178,6 +178,13 @@ public sealed record FarmDashboardDto(
 
 public sealed record GetFarmDashboardQuery(string? Today) : IQuery<FarmDashboardDto>;
 
+// ── Reports hub ─────────────────────────────────────────────────────────────
+
+/// <summary>Same shape as the other modules tabular reports, so the Reports hub can run them.</summary>
+public sealed record FarmReportResult(IReadOnlyList<Dictionary<string, object?>> Rows, int TotalCount);
+
+public sealed record RunFarmReportQuery(string ReportId, string? From, string? To, string? Today) : IQuery<FarmReportResult>;
+
 // ── Validators ──────────────────────────────────────────────────────────────
 
 public sealed class SaveFarmValidator : AbstractValidator<SaveFarmCommand>

@@ -105,6 +105,8 @@ export const farmingApi = {
   units: (q: { farmId?: string; type?: string } = {}) => get<FarmUnitDto[]>(`/units${qs(q)}`),
   saveUnit: (id: string | undefined, b: Body) => save<FarmUnitDto>("/units", id, b),
   deleteUnit: (id: string) => del(`/units/${id}`),
+  runReport: (id: string, q: { from?: string; to?: string }) =>
+    get<{ rows: Record<string, unknown>[]; totalCount: number }>(`/reports/run/${id}${qs({ ...q, today: localToday() })}`),
   dashboard: () => get<FarmDashboardDto>(`/dashboard${qs({ today: localToday() })}`),
 
   animals: (q: { type?: string; status?: string; unitId?: string; search?: string } = {}) => get<AnimalDto[]>(`/animals${qs({ ...q, today: localToday() })}`),
