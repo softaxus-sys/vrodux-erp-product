@@ -100,6 +100,8 @@ export function ListingsView() {
   const [filters, setFilters]     = React.useState<Filters>(NO_FILTERS);
   const [minPrice, setMinPrice]   = React.useState("");
   const [maxPrice, setMaxPrice]   = React.useState("");
+  const [minArea, setMinArea]     = React.useState("");
+  const [maxArea, setMaxArea]     = React.useState("");
   const [page, setPage]           = React.useState(1);
   // Parked listings are off the market but kept (they usually come back), so they get their own view.
   const [parkedView, setParkedView] = React.useState(false);
@@ -128,17 +130,19 @@ export function ListingsView() {
   // Typing hits the server, so the request waits until they stop.
   const [debounced, setDebounced] = React.useState("");
   const [debouncedPrice, setDebouncedPrice] = React.useState<{ min?: number; max?: number }>({});
+  const [debouncedArea, setDebouncedArea] = React.useState<{ min?: number; max?: number }>({});
   React.useEffect(() => {
     const id = setTimeout(() => {
       setDebounced(search.trim());
       setDebouncedPrice({ min: toPrice(minPrice), max: toPrice(maxPrice) });
+      setDebouncedArea({ min: toPrice(minArea), max: toPrice(maxArea) });
     }, 350);
     return () => clearTimeout(id);
-  }, [search, minPrice, maxPrice]);
+  }, [search, minPrice, maxPrice, minArea, maxArea]);
 
   // Filtering narrows in SQL. Doing it in the browser cannot survive paging — it would filter
   // within one page and under-report everything.
-  React.useEffect(() => { setPage(1); }, [debounced, debouncedPrice, purpose, filters, propertyId, parkedView]);
+  React.useEffect(() => { setPage(1); }, [debounced, debouncedPrice, debouncedArea, purpose, filters, propertyId, parkedView]);
 
   // An empty list is sent as nothing at all, so "no filter" keeps one cache entry.
   const some = <T,>(a: T[]) => (a.length > 0 ? a : undefined);
@@ -154,6 +158,8 @@ export function ListingsView() {
     agents:        some(filters.agents),
     minPrice:      debouncedPrice.min,
     maxPrice:      debouncedPrice.max,
+    minArea:       debouncedArea.min,
+    maxArea:       debouncedArea.max,
   };
   const { data: paged, isFetching } = useListings({ ...queryParams, page, pageSize: PAGE_SIZE });
 
@@ -175,8 +181,8 @@ export function ListingsView() {
       key: d.key, value, group: d.label,
       label: d.options.find(o => o.value === value)?.label ?? value,
     })));
-  const hasFilters = chips.length > 0 || minPrice !== "" || maxPrice !== "";
-  const clearFilters = () => { setFilters(NO_FILTERS); setMinPrice(""); setMaxPrice(""); };
+  const hasFilters = chips.length > 0 || minPrice !== "" || maxPrice !== "" || minArea !== "" || maxArea !== "";
+  const clearFilters = () => { setFilters(NO_FILTERS); setMinPrice(""); setMaxPrice(""); setMinArea(""); setMaxArea(""); };
   const listings   = paged?.items ?? [];
   // Unit number + owner details belong to the listing's agent and admins. A user who can see
   // none of them gets no Owner column at all rather than a column of "Restricted" badges.
@@ -404,6 +410,25 @@ export function ListingsView() {
               placeholder="Max price"
               value={maxPrice}
               onChange={e => setMaxPrice(e.target.value)}
+              className="h-9 w-28 text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Input
+              type="number" min={0} inputMode="numeric"
+              placeholder="Min sqft"
+              aria-label="Minimum area in sqft"
+              value={minArea}
+              onChange={e => setMinArea(e.target.value)}
+              className="h-9 w-28 text-sm"
+            />
+            <span className="text-muted-foreground text-xs">–</span>
+            <Input
+              type="number" min={0} inputMode="numeric"
+              placeholder="Max sqft"
+              aria-label="Maximum area in sqft"
+              value={maxArea}
+              onChange={e => setMaxArea(e.target.value)}
               className="h-9 w-28 text-sm"
             />
           </div>

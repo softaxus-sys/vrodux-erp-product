@@ -328,6 +328,8 @@ export interface ListingParams {
   /** Compared against the asking price for a sale listing and the annual rent otherwise. */
   minPrice?: number;
   maxPrice?: number;
+  minArea?: number;
+  maxArea?: number;
 }
 
 /** The choices behind the stock list's filters — only values some listing actually has. */
@@ -978,6 +980,8 @@ export const reApi = {
     many("agents", p.agents);
     if (p.minPrice !== undefined) q.set("minPrice", String(p.minPrice));
     if (p.maxPrice !== undefined) q.set("maxPrice", String(p.maxPrice));
+    if (p.minArea !== undefined) q.set("minArea", String(p.minArea));
+    if (p.maxArea !== undefined) q.set("maxArea", String(p.maxArea));
     if (p.parked) q.set("parked", "true");
     return rawApiClient.get(`${BASE}/listings?${q}`);
   },

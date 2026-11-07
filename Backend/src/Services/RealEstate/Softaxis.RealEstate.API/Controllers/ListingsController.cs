@@ -61,11 +61,13 @@ public sealed class ListingsController(ISender sender) : RealEstateControllerBas
         [FromQuery] decimal? minPrice = null,
         [FromQuery] decimal? maxPrice = null,
         [FromQuery] bool parked = false,
+        [FromQuery] decimal? minArea = null,
+        [FromQuery] decimal? maxArea = null,
         CancellationToken ct = default) =>
         OkOrError(await sender.Send(new GetListingsQuery(
             search, purpose, status, propertyType, category, propertyId, advertised, page, pageSize,
             propertyIds, bedrooms, propertyTypes, statuses, furnishings, cities, agents,
-            minPrice, maxPrice, parked), ct));
+            minPrice, maxPrice, parked, minArea, maxArea), ct));
 
     /// <summary>
     /// Parks a listing: off the active list, kept with the date and reason. The handler restricts
