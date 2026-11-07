@@ -1,5 +1,6 @@
 import { rawApiClient } from "@/lib/api-client";
 import { getApiBaseUrl } from "@/lib/desktop";
+import { ft } from "@/lib/farming/ft";
 
 const BASE = `${getApiBaseUrl()}/api/farming`;
 
@@ -32,7 +33,7 @@ export const FARM_TYPES = [
   { value: "beekeeping", label: "Beekeeping",   individual: false, products: ["honey", "other"], unitKind: "apiary" },
   { value: "other",      label: "Other",        individual: false, products: ["other"], unitKind: "other" },
 ] as const;
-export const farmTypeLabel = (t: string) => FARM_TYPES.find(x => x.value === t)?.label ?? t;
+export const farmTypeLabel = (t: string) => ft(FARM_TYPES.find(x => x.value === t)?.label ?? t);
 
 export const PRODUCTS: { value: string; label: string; uom: string }[] = [
   { value: "milk", label: "Milk", uom: "L" }, { value: "eggs", label: "Eggs", uom: "pcs" },
@@ -41,7 +42,7 @@ export const PRODUCTS: { value: string; label: string; uom: string }[] = [
   { value: "crop", label: "Crop / harvest", uom: "kg" }, { value: "manure", label: "Manure", uom: "kg" },
   { value: "animals", label: "Live animals", uom: "head" }, { value: "other", label: "Other", uom: "pcs" },
 ];
-export const productLabel = (p: string) => PRODUCTS.find(x => x.value === p)?.label ?? p;
+export const productLabel = (p: string) => ft(PRODUCTS.find(x => x.value === p)?.label ?? p);
 export const defaultUom = (p: string) => PRODUCTS.find(x => x.value === p)?.uom ?? "pcs";
 export const UNIT_KINDS = ["barn", "shed", "pen", "pond", "tank", "cage", "field", "greenhouse", "apiary", "other"];
 

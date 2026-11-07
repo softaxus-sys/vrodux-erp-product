@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ft, useFt } from "@/lib/farming/ft";
 import { AnimatePresence } from "framer-motion";
 import { Milk, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,16 +23,16 @@ function MilkingSheet({ onClose }: { onClose: () => void }) {
   const total = entries.reduce((s, e) => s + e.quantity, 0);
   return (
     <Modal size="lg" title="Milking sheet" subtitle="Enter litres for each animal. Saving the same date and session again replaces it."
-      onClose={onClose} footer={<><Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-        <Button size="sm" disabled={entries.length === 0 || save.isPending} onClick={() => save.mutate({ date, product, uom: "L", session, entries }, { onSuccess: onClose })}>Save {entries.length} animals · {total.toLocaleString()} L</Button></>}>
+      onClose={onClose} footer={<><Button variant="outline" size="sm" onClick={onClose}>{ft("Cancel")}</Button>
+        <Button size="sm" disabled={entries.length === 0 || save.isPending} onClick={() => save.mutate({ date, product, uom: "L", session, entries }, { onSuccess: onClose })}>{ft("Save {{n}} animals · {{total}} L", { n: entries.length, total: total.toLocaleString() })}</Button></>}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Date"><Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-9" /></Field>
-        <Field label="Session"><select className={SELECT} value={session} onChange={e => setSession(e.target.value)}><option value="morning">Morning</option><option value="midday">Midday</option><option value="evening">Evening</option></select></Field>
+        <Field label="Session"><select className={SELECT} value={session} onChange={e => setSession(e.target.value)}><option value="morning">{ft("Morning")}</option><option value="midday">{ft("Midday")}</option><option value="evening">{ft("Evening")}</option></select></Field>
       </div>
-      {females.length === 0 ? <p className="text-sm text-muted-foreground">No active dairy or goat/sheep females on file yet.</p> : (
+      {females.length === 0 ? <p className="text-sm text-muted-foreground">{ft("No active dairy or goat/sheep females on file yet.")}</p> : (
         <div className="grid sm:grid-cols-2 gap-2">{females.map(a => (
           <label key={a.id} className="flex items-center gap-2 text-sm rounded-md border border-border px-3 py-1.5"><span className="flex-1 truncate">{a.tagNumber}{a.name ? ` — ${a.name}` : ""}</span>
-            <Input type="number" min={0} step="any" className="h-8 w-24 text-end" value={qty[a.id] ?? ""} onChange={e => setQty(p => ({ ...p, [a.id]: e.target.value }))} placeholder="0" /><span className="text-xs text-muted-foreground">L</span></label>))}</div>)}
+            <Input type="number" min={0} step="any" className="h-8 w-24 text-end" value={qty[a.id] ?? ""} onChange={e => setQty(p => ({ ...p, [a.id]: e.target.value }))} placeholder={ft("0")} /><span className="text-xs text-muted-foreground">L</span></label>))}</div>)}
     </Modal>
   );
 }
@@ -69,6 +70,7 @@ function FeedForm({ onClose }: { onClose: () => void }) {
 }
 
 export function ProductionView() {
+  useFt();
   const today = localToday();
   const [tab, setTab] = React.useState<"production" | "feed">("production");
   const [from, setFrom] = React.useState(monthAgo(today)), [to, setTo] = React.useState(today), [product, setProduct] = React.useState("");
@@ -85,28 +87,28 @@ export function ProductionView() {
   return (
     <div className="space-y-4">
       <PageHeader title="Production & feed" description="Milk, eggs, fish, honey and harvest, and what the animals were fed.">
-        <Can permission="farming.production.create"><Button size="sm" variant="outline" className="gap-1.5" onClick={() => setForm("milk")}><Milk className="h-4 w-4" />Milking sheet</Button></Can>
-        <Can permission="farming.production.create"><Button size="sm" variant="outline" className="gap-1.5" onClick={() => setForm("feed")}><Plus className="h-4 w-4" />Feed</Button></Can>
-        <Can permission="farming.production.create"><Button size="sm" className="gap-1.5" onClick={() => setForm("prod")}><Plus className="h-4 w-4" />Production</Button></Can>
+        <Can permission="farming.production.create"><Button size="sm" variant="outline" className="gap-1.5" onClick={() => setForm("milk")}><Milk className="h-4 w-4" />{ft("Milking sheet")}</Button></Can>
+        <Can permission="farming.production.create"><Button size="sm" variant="outline" className="gap-1.5" onClick={() => setForm("feed")}><Plus className="h-4 w-4" />{ft("Feed")}</Button></Can>
+        <Can permission="farming.production.create"><Button size="sm" className="gap-1.5" onClick={() => setForm("prod")}><Plus className="h-4 w-4" />{ft("Production")}</Button></Can>
       </PageHeader>
       <Tabs value={tab} onChange={v => setTab(v as typeof tab)} items={[{ value: "production", label: "Production" }, { value: "feed", label: "Feed" }]} />
       <div className="flex flex-wrap gap-2 items-center">
-        <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="h-9 w-40" /><span className="text-sm text-muted-foreground">to</span><Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-9 w-40" />
-        {tab === "production" && <select className="h-9 rounded-md border border-input bg-card px-3 text-sm" value={product} onChange={e => setProduct(e.target.value)}><option value="">All products</option>{PRODUCTS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}</select>}
+        <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="h-9 w-40" /><span className="text-sm text-muted-foreground">{ft("to")}</span><Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-9 w-40" />
+        {tab === "production" && <select className="h-9 rounded-md border border-input bg-card px-3 text-sm" value={product} onChange={e => setProduct(e.target.value)}><option value="">{ft("All products")}</option>{PRODUCTS.map(p => <option key={p.value} value={p.value}>{ft(p.label)}</option>)}</select>}
         {tab === "production" && totals && <span className="text-sm text-muted-foreground ms-auto">{totals}</span>}
       </div>
       <Card className="overflow-hidden">
         {tab === "production" ? (<>
           <TableState loading={prod.isLoading} error={prod.error as Error | null} empty={(prod.data ?? []).length === 0} emptyText="No production recorded in this range." icon={Milk} />
-          {(prod.data ?? []).length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>Date</th><th className={TH}>Product</th><th className={TH}>Quantity</th><th className={TH}>From</th><th className={TH}>Type</th><th className={TH}>Note</th><th /></tr></thead>
+          {(prod.data ?? []).length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>{ft("Date")}</th><th className={TH}>{ft("Product")}</th><th className={TH}>{ft("Quantity")}</th><th className={TH}>{ft("From")}</th><th className={TH}>{ft("Type")}</th><th className={TH}>{ft("Note")}</th><th /></tr></thead>
             <tbody>{prod.data!.map(p => (<tr key={p.id} className="border-t border-border"><td className="px-4 py-2">{formatDate(p.date)}</td><td className="px-4">{productLabel(p.product)}{p.session ? ` · ${p.session}` : ""}</td>
-              <td className="px-4 tabular-nums">{p.quantity.toLocaleString()} {p.uom}{p.rejected > 0 && <span className="text-xs text-amber-600"> (+{p.rejected} rejected)</span>}</td><td className="px-4">{p.animalTag ?? p.batchCode ?? p.unitName ?? "—"}</td><td className="px-4">{farmTypeLabel(p.type)}</td><td className="px-4 text-muted-foreground">{p.grade ?? p.notes ?? ""}</td>
-              <td className="px-4 text-end"><Can permission="farming.production.delete"><Button size="icon" variant="ghost" aria-label="Delete" onClick={() => setDel({ kind: "prod", id: p.id })}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
+              <td className="px-4 tabular-nums">{p.quantity.toLocaleString()} {p.uom}{p.rejected > 0 && <span className="text-xs text-amber-600"> {ft("(+{{n}} rejected)", { n: p.rejected })}</span>}</td><td className="px-4">{p.animalTag ?? p.batchCode ?? p.unitName ?? "—"}</td><td className="px-4">{farmTypeLabel(p.type)}</td><td className="px-4 text-muted-foreground">{p.grade ?? p.notes ?? ""}</td>
+              <td className="px-4 text-end"><Can permission="farming.production.delete"><Button size="icon" variant="ghost" aria-label={ft("Delete")} onClick={() => setDel({ kind: "prod", id: p.id })}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
         </>) : (<>
           <TableState loading={feed.isLoading} error={feed.error as Error | null} empty={(feed.data ?? []).length === 0} emptyText="No feed recorded in this range." icon={Milk} />
-          {(feed.data ?? []).length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>Date</th><th className={TH}>Feed</th><th className={TH}>Quantity</th><th className={TH}>Cost</th><th className={TH}>For</th><th /></tr></thead>
+          {(feed.data ?? []).length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>{ft("Date")}</th><th className={TH}>{ft("Feed")}</th><th className={TH}>{ft("Quantity")}</th><th className={TH}>{ft("Cost")}</th><th className={TH}>{ft("For")}</th><th /></tr></thead>
             <tbody>{feed.data!.map(f => (<tr key={f.id} className="border-t border-border"><td className="px-4 py-2">{formatDate(f.date)}</td><td className="px-4">{f.feedName}</td><td className="px-4 tabular-nums">{f.quantity.toLocaleString()} {f.uom}</td><td className="px-4 tabular-nums">{f.cost.toLocaleString()}</td><td className="px-4">{f.batchCode ?? f.animalTag ?? f.unitName ?? "—"}</td>
-              <td className="px-4 text-end"><Can permission="farming.production.delete"><Button size="icon" variant="ghost" aria-label="Delete" onClick={() => setDel({ kind: "feed", id: f.id })}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
+              <td className="px-4 text-end"><Can permission="farming.production.delete"><Button size="icon" variant="ghost" aria-label={ft("Delete")} onClick={() => setDel({ kind: "feed", id: f.id })}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
         </>)}
       </Card>
       <AnimatePresence>

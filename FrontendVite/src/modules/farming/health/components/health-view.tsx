@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ft, useFt } from "@/lib/farming/ft";
 import { AnimatePresence } from "framer-motion";
 import { Check, Plus, Syringe, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { monthAgo, useFarmOptions } from "../../shared/options";
 const KINDS = ["vaccination", "treatment", "deworming", "checkup", "other"].map(k => ({ value: k, label: k[0].toUpperCase() + k.slice(1) }));
 
 export function HealthView() {
+  useFt();
   const today = localToday();
   const [tab, setTab] = React.useState<"due" | "history" | "deaths">("due");
   const due = useHealth({ dueOnly: true });
@@ -31,26 +33,26 @@ export function HealthView() {
   return (
     <div className="space-y-4">
       <PageHeader title="Health" description="Vaccinations, treatments and follow-ups, and deaths.">
-        <Can permission="farming.health.create"><Button size="sm" variant="outline" className="gap-1.5" onClick={() => setForm("death")}><Plus className="h-4 w-4" />Record death</Button></Can>
-        <Can permission="farming.health.create"><Button size="sm" className="gap-1.5" onClick={() => setForm("health")}><Plus className="h-4 w-4" />Record vaccination / treatment</Button></Can>
+        <Can permission="farming.health.create"><Button size="sm" variant="outline" className="gap-1.5" onClick={() => setForm("death")}><Plus className="h-4 w-4" />{ft("Record death")}</Button></Can>
+        <Can permission="farming.health.create"><Button size="sm" className="gap-1.5" onClick={() => setForm("health")}><Plus className="h-4 w-4" />{ft("Record vaccination / treatment")}</Button></Can>
       </PageHeader>
       <Tabs value={tab} onChange={v => setTab(v as typeof tab)} items={[{ value: "due", label: "Follow-ups due" }, { value: "history", label: "Last 30 days" }, { value: "deaths", label: "Deaths" }]} />
       <Card className="overflow-hidden">
         {tab !== "deaths" ? (<>
           <TableState loading={rows.isLoading} error={rows.error as Error | null} empty={(rows.data ?? []).length === 0} emptyText={tab === "due" ? "No follow-ups scheduled." : "Nothing recorded in the last 30 days."} icon={Syringe} />
-          {(rows.data ?? []).length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>Date</th><th className={TH}>What</th><th className={TH}>For</th><th className={TH}>Next due</th><th className={TH}>Vet / cost</th><th /></tr></thead>
+          {(rows.data ?? []).length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>{ft("Date")}</th><th className={TH}>{ft("What")}</th><th className={TH}>{ft("For")}</th><th className={TH}>{ft("Next due")}</th><th className={TH}>{ft("Vet / cost")}</th><th /></tr></thead>
             <tbody>{rows.data!.map(h => (<tr key={h.id} className="border-t border-border"><td className="px-4 py-2">{formatDate(h.date)}</td>
-              <td className="px-4"><span className="font-medium">{h.title}</span><span className="text-xs text-muted-foreground"> · {h.kind}{h.medicine ? ` · ${h.medicine}` : ""}{h.dose ? ` ${h.dose}` : ""}</span>
-                {h.withdrawalUntil && string_after(h.withdrawalUntil, today) && <span className="block text-xs text-amber-600">No milk/meat sales until {formatDate(h.withdrawalUntil)}</span>}</td>
+              <td className="px-4"><span className="font-medium">{h.title}</span><span className="text-xs text-muted-foreground"> · {ft(h.kind)}{h.medicine ? ` · ${h.medicine}` : ""}{h.dose ? ` ${h.dose}` : ""}</span>
+                {h.withdrawalUntil && string_after(h.withdrawalUntil, today) && <span className="block text-xs text-amber-600">{ft("No milk/meat sales until {{date}}", { date: formatDate(h.withdrawalUntil) })}</span>}</td>
               <td className="px-4">{h.animalTag ?? h.batchCode ?? "—"}</td><td className="px-4">{h.nextDueOn ? <>{formatDate(h.nextDueOn)} {h.overdue && <Pill state="overdue" />}</> : "—"}</td>
               <td className="px-4 text-muted-foreground">{[h.vetName, h.cost ? h.cost.toLocaleString() : ""].filter(Boolean).join(" · ") || "—"}</td>
-              <td className="px-4 text-end whitespace-nowrap"><Can permission="farming.health.edit">{h.nextDueOn && <Button size="sm" variant="outline" className="gap-1" onClick={() => done.mutate(h.id)}><Check className="h-3.5 w-3.5" />Done</Button>}</Can>
-                <Can permission="farming.health.delete"><Button size="icon" variant="ghost" aria-label="Delete" onClick={() => setDel({ kind: "health", id: h.id })}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
+              <td className="px-4 text-end whitespace-nowrap"><Can permission="farming.health.edit">{h.nextDueOn && <Button size="sm" variant="outline" className="gap-1" onClick={() => done.mutate(h.id)}><Check className="h-3.5 w-3.5" />{ft("Done")}</Button>}</Can>
+                <Can permission="farming.health.delete"><Button size="icon" variant="ghost" aria-label={ft("Delete")} onClick={() => setDel({ kind: "health", id: h.id })}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
         </>) : (<>
           <TableState loading={deaths.isLoading} error={deaths.error as Error | null} empty={(deaths.data ?? []).length === 0} emptyText="No deaths in the last 30 days." icon={Syringe} />
-          {(deaths.data ?? []).length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>Date</th><th className={TH}>Animal / batch</th><th className={TH}>Count</th><th className={TH}>Cause</th><th /></tr></thead>
+          {(deaths.data ?? []).length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>{ft("Date")}</th><th className={TH}>{ft("Animal / batch")}</th><th className={TH}>{ft("Count")}</th><th className={TH}>{ft("Cause")}</th><th /></tr></thead>
             <tbody>{deaths.data!.map(d => (<tr key={d.id} className="border-t border-border"><td className="px-4 py-2">{formatDate(d.date)}</td><td className="px-4">{d.animalTag ?? d.batchCode}</td><td className="px-4">{d.count}</td><td className="px-4 text-muted-foreground">{d.cause ?? "—"}</td>
-              <td className="px-4 text-end"><Can permission="farming.health.delete"><Button size="icon" variant="ghost" aria-label="Delete" onClick={() => setDel({ kind: "death", id: d.id })}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
+              <td className="px-4 text-end"><Can permission="farming.health.delete"><Button size="icon" variant="ghost" aria-label={ft("Delete")} onClick={() => setDel({ kind: "death", id: d.id })}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
         </>)}
       </Card>
       <AnimatePresence>

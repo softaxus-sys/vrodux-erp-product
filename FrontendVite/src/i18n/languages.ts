@@ -24,10 +24,9 @@ export interface LanguageMeta {
 export const LANGUAGES: LanguageMeta[] = [
   { code: "en",    name: "English",              nativeName: "English",   dir: "ltr", short: "EN" },
   { code: "ar",    name: "Arabic",               nativeName: "العربية",    dir: "rtl", short: "ع"  },
-  { code: "ur",    name: "Urdu",                 nativeName: "اردو",       dir: "rtl", short: "اردو" },
-  { code: "zh-CN", name: "Chinese (Simplified)", nativeName: "简体中文",   dir: "ltr", short: "中"  },
-  { code: "es",    name: "Spanish",              nativeName: "Español",   dir: "ltr", short: "ES" },
-  { code: "fr",    name: "French",               nativeName: "Français",  dir: "ltr", short: "FR" },
+  // Urdu, Chinese (Simplified), Spanish and French are NOT offered yet: they have no translation files,
+  // so choosing one only produced an English screen with the wrong direction and fonts. To bring one
+  // back, add its locales/<code>/ folder (all namespaces) and restore its entry here.
 ];
 
 export const DEFAULT_LANGUAGE = "en";

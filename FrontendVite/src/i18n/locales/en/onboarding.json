@@ -270,6 +270,10 @@
       "label": "Library",
       "desc": "Catalogue, members, lending & fines across branches"
     },
+    "farming": {
+      "label": "Farming",
+      "desc": "Dairy, poultry, fish, goat & sheep, cattle, crops & beekeeping"
+    },
     "trade": {
       "label": "Import / Export",
       "desc": "Shipments, trade documents, landed cost & payments"

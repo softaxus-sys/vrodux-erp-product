@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { farmingApi, FARM_TYPES } from "@/lib/farming/farming.api";
+import { ft } from "@/lib/farming/ft";
 
 const QK = "farming";
 
@@ -9,7 +10,7 @@ export function useAct<TArgs, TRes>(fn: (a: TArgs) => Promise<TRes>, ok?: string
   const qc = useQueryClient();
   return useMutation({
     mutationFn: fn,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: [QK] }); if (ok) toast.success(ok); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: [QK] }); if (ok) toast.success(ft(ok)); },
     onError: (e: Error) => toast.error(e.message),
   });
 }

@@ -77,7 +77,8 @@ const NUMBER_FORMATS = [
   { value: "1.234.567,89", key: "dot" },
   { value: "1 234 567.89", key: "space" },
 ] as const;
-const LANGUAGE_VALUES = ["en-US", "en-GB", "ar-AE", "fr-FR", "hi-IN"] as const;
+// Only languages with a full translation set; French and Hindi were listed but are not translated.
+const LANGUAGE_VALUES = ["en-US", "en-GB", "ar-AE"] as const;
 const FISCAL_MONTHS = ["January", "February", "March", "April", "July", "October"] as const;
 const DIGEST_VALUES = ["realtime", "hourly", "daily", "weekly"] as const;
 const SESSION_TIMEOUTS = ["30", "60", "240", "480", "1440"] as const;
@@ -620,7 +621,7 @@ export function GeneralSettingsView() {
         currency:        resolvedCurrency,
         timezone:        toStr(r.timezone,        countryMeta?.timezone ?? D.regional.timezone),
         dateFormat:      toStr(r.dateFormat,      D.regional.dateFormat),
-        language:        toStr(r.language,        D.regional.language),
+        language:        (LANGUAGE_VALUES as readonly string[]).includes(toStr(r.language, "")) ? toStr(r.language, D.regional.language) : D.regional.language,
         numberFormat:    toStr(r.numberFormat,    D.regional.numberFormat),
         vatRate:         toStr(r.vatRate,         D.regional.vatRate),
         fiscalYearStart: toStr(r.fiscalYearStart, D.regional.fiscalYearStart),

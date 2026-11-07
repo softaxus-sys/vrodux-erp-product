@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ft, useFt } from "@/lib/farming/ft";
 import { AnimatePresence } from "framer-motion";
 import { Beef, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ function AnimalForm({ item, onClose }: { item?: AnimalDto; onClose: () => void }
   const save = useAct((b: Record<string, unknown>) => farmingApi.saveAnimal(item?.id, b), "Animal saved.");
   const parents = (sex: string) => o.rawAnimals.filter(a => a.sex === sex && a.id !== item?.id).map(a => ({ value: a.id, label: `${a.tagNumber}${a.name ? ` — ${a.name}` : ""}` }));
   return (
-    <FormModal title={item ? `Edit ${item.tagNumber}` : "Add animal"} size="lg" pending={save.isPending} onClose={onClose}
+    <FormModal title={item ? ft("Edit {{name}}", { name: item.tagNumber }) : "Add animal"} size="lg" pending={save.isPending} onClose={onClose}
       initial={{ tagNumber: item?.tagNumber ?? "", name: item?.name ?? "", type: item?.type ?? o.types.find(t => individual.includes(t.value))?.value ?? "dairy", species: item?.species ?? "", breed: item?.breed ?? "",
         sex: item?.sex ?? "female", birthDate: item?.birthDate ?? "", unitId: item?.unitId ?? "", damId: item?.damId ?? "", sireId: item?.sireId ?? "", source: item?.source ?? "purchased",
         acquiredOn: item?.acquiredOn ?? "", purchasePrice: String(item?.purchasePrice ?? 0), notes: item?.notes ?? "" }}
@@ -39,7 +40,7 @@ function BatchForm({ item, onClose }: { item?: BatchDto; onClose: () => void }) 
   const o = useFarmOptions();
   const save = useAct((b: Record<string, unknown>) => farmingApi.saveBatch(item?.id, b), "Batch saved.");
   return (
-    <FormModal title={item ? `Edit ${item.code}` : "Add batch"} size="lg" pending={save.isPending} onClose={onClose}
+    <FormModal title={item ? ft("Edit {{name}}", { name: item.code }) : "Add batch"} size="lg" pending={save.isPending} onClose={onClose}
       initial={{ code: item?.code ?? "", type: item?.type ?? o.types.find(t => !["dairy", "goat_sheep", "cattle"].includes(t.value))?.value ?? "poultry", species: item?.species ?? "", breed: item?.breed ?? "",
         unitId: item?.unitId ?? "", startDate: item?.startDate ?? localToday(), initialCount: String(item?.initialCount ?? ""), area: String(item?.area ?? ""), initialCost: String(item?.initialCost ?? 0),
         expectedEndDate: item?.expectedEndDate ?? "", notes: item?.notes ?? "" }}
@@ -66,30 +67,30 @@ function AnimalDrawer({ id, onClose }: { id: string; onClose: () => void }) {
   const a = data.animal;
   return (
     <Modal side size="lg" onClose={onClose} title={`${a.tagNumber}${a.name ? ` — ${a.name}` : ""}`}
-      subtitle={`${farmTypeLabel(a.type)} · ${a.breed ?? a.species ?? ""} · ${a.sex}${a.birthDate ? ` · born ${formatDate(a.birthDate)}` : ""}`}>
+      subtitle={`${farmTypeLabel(a.type)} · ${a.breed ?? a.species ?? ""} · ${ft(a.sex)}${a.birthDate ? ` · born ${formatDate(a.birthDate)}` : ""}`}>
       <div className="flex flex-wrap items-center gap-2"><Pill state={a.status} />
-        {a.pregnantDueOn && <Pill state="pending" label={`Due ${formatDate(a.pregnantDueOn)}`} />}
-        {a.withdrawalUntil && <Pill state="overdue" label={`Do not sell milk/meat until ${formatDate(a.withdrawalUntil)}`} />}</div>
+        {a.pregnantDueOn && <Pill state="pending" label={ft("Due {{date}}", { date: formatDate(a.pregnantDueOn) })} />}
+        {a.withdrawalUntil && <Pill state="overdue" label={ft("Do not sell milk/meat until {{date}}", { date: formatDate(a.withdrawalUntil) })} />}</div>
       <div className="flex flex-wrap gap-2">
-        <Can permission="farming.livestock.create"><Button size="sm" variant="outline" onClick={() => setForm("weight")}>Weigh</Button></Can>
-        {a.sex === "female" && <Can permission="farming.livestock.create"><Button size="sm" variant="outline" onClick={() => setForm("breed")}>Record service</Button></Can>}
-        {a.status === "active" && <Can permission="farming.livestock.edit"><Button size="sm" variant="outline" onClick={() => setForm("status")}>Mark culled</Button></Can>}
-        {a.status === "culled" && <Can permission="farming.livestock.edit"><Button size="sm" variant="outline" onClick={() => act.mutate(() => farmingApi.animalStatus(a.id, { status: "active" }))}>Back to active</Button></Can>}
+        <Can permission="farming.livestock.create"><Button size="sm" variant="outline" onClick={() => setForm("weight")}>{ft("Weigh")}</Button></Can>
+        {a.sex === "female" && <Can permission="farming.livestock.create"><Button size="sm" variant="outline" onClick={() => setForm("breed")}>{ft("Record service")}</Button></Can>}
+        {a.status === "active" && <Can permission="farming.livestock.edit"><Button size="sm" variant="outline" onClick={() => setForm("status")}>{ft("Mark culled")}</Button></Can>}
+        {a.status === "culled" && <Can permission="farming.livestock.edit"><Button size="sm" variant="outline" onClick={() => act.mutate(() => farmingApi.animalStatus(a.id, { status: "active" }))}>{ft("Back to active")}</Button></Can>}
       </div>
       <dl className="grid grid-cols-2 gap-2 text-sm">
-        <div><dt className="text-xs text-muted-foreground">Last weight</dt><dd>{a.lastWeightKg ? `${a.lastWeightKg} kg` : "—"}</dd></div>
-        <div><dt className="text-xs text-muted-foreground">Production, 30 days</dt><dd>{a.production30d.toLocaleString()}</dd></div>
-        <div><dt className="text-xs text-muted-foreground">Mother</dt><dd>{a.damTag ?? "—"}</dd></div><div><dt className="text-xs text-muted-foreground">Father</dt><dd>{a.sireTag ?? "—"}</dd></div>
-        <div><dt className="text-xs text-muted-foreground">Kept in</dt><dd>{a.unitName ?? "—"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">{ft("Last weight")}</dt><dd>{a.lastWeightKg ? ft("{{n}} kg", { n: a.lastWeightKg }) : "—"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">{ft("Production, 30 days")}</dt><dd>{a.production30d.toLocaleString()}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">{ft("Mother")}</dt><dd>{a.damTag ?? "—"}</dd></div><div><dt className="text-xs text-muted-foreground">{ft("Father")}</dt><dd>{a.sireTag ?? "—"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">{ft("Kept in")}</dt><dd>{a.unitName ?? "—"}</dd></div>
       </dl>
       <Section title="Breeding">{data.breeding.length === 0 ? "None recorded." : data.breeding.map(b => (
-        <div key={b.id} className="flex items-center justify-between gap-2 text-sm py-1"><span>{formatDate(b.serviceDate)} · {b.method === "ai" ? "AI" : "natural"}{b.sireTag ? ` · ${b.sireTag}` : b.sireNote ? ` · ${b.sireNote}` : ""}{b.expectedOn ? ` · due ${formatDate(b.expectedOn)}` : ""}</span>
-          <span className="flex items-center gap-2"><Pill state={b.outcome} label={b.outcome === "born" ? `Born ${b.offspring}` : undefined} />
-            {b.outcome === "pending" && <Can permission="farming.livestock.edit"><Button size="sm" variant="outline" onClick={() => { setOutcomeId(b.id); setForm("outcome"); }}>Outcome</Button></Can>}</span></div>))}</Section>
+        <div key={b.id} className="flex items-center justify-between gap-2 text-sm py-1"><span>{formatDate(b.serviceDate)} · {b.method === "ai" ? "AI" : "natural"}{b.sireTag ? ` · ${b.sireTag}` : b.sireNote ? ` · ${b.sireNote}` : ""}{b.expectedOn ? ` · ${ft("due {{date}}", { date: formatDate(b.expectedOn) })}` : ""}</span>
+          <span className="flex items-center gap-2"><Pill state={b.outcome} label={b.outcome === "born" ? ft("Born {{n}}", { n: b.offspring }) : undefined} />
+            {b.outcome === "pending" && <Can permission="farming.livestock.edit"><Button size="sm" variant="outline" onClick={() => { setOutcomeId(b.id); setForm("outcome"); }}>{ft("Outcome")}</Button></Can>}</span></div>))}</Section>
       <Section title="Recent production">{data.production.length === 0 ? "None recorded." : data.production.slice(0, 10).map(p => (
         <p key={p.id} className="text-sm">{formatDate(p.date)} · {p.quantity} {p.uom} {p.product}{p.session ? ` (${p.session})` : ""}</p>))}</Section>
       <Section title="Health">{data.health.length === 0 ? "None recorded." : data.health.slice(0, 10).map(h => (
-        <p key={h.id} className="text-sm">{formatDate(h.date)} · {h.title}{h.nextDueOn ? ` · next ${formatDate(h.nextDueOn)}` : ""}</p>))}</Section>
+        <p key={h.id} className="text-sm">{formatDate(h.date)} · {h.title}{h.nextDueOn ? ` · ${ft("next {{date}}", { date: formatDate(h.nextDueOn) })}` : ""}</p>))}</Section>
       <Section title="Weights">{data.weights.length === 0 ? "None recorded." : data.weights.slice(0, 10).map(w => <p key={w.id} className="text-sm">{formatDate(w.date)} · {w.weightKg} kg</p>)}</Section>
       {data.offspring.length > 0 && <Section title="Offspring">{data.offspring.map(k => <p key={k.id} className="text-sm">{k.tagNumber} · {k.sex} · {k.birthDate ? formatDate(k.birthDate) : ""}</p>)}</Section>}
       <AnimatePresence>
@@ -113,8 +114,8 @@ function AnimalDrawer({ id, onClose }: { id: string; onClose: () => void }) {
 }
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">{title}</p>
-    {typeof children === "string" ? <p className="text-sm text-muted-foreground">{children}</p> : children}</div>);
+  <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">{ft(title)}</p>
+    {typeof children === "string" ? <p className="text-sm text-muted-foreground">{ft(children)}</p> : children}</div>);
 
 function AnimalsPanel() {
   const types = useEnabledTypes().filter(t => t.individual);
@@ -128,25 +129,25 @@ function AnimalsPanel() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 items-center">
-        <SearchBox value={q} onChange={setQ} placeholder="Tag, name or breed" className="w-56" />
-        <select className="h-9 rounded-md border border-input bg-card px-3 text-sm" value={type} onChange={e => setType(e.target.value)}><option value="">All types</option>{types.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select>
+        <SearchBox value={q} onChange={setQ} placeholder={ft("Tag, name or breed")} className="w-56" />
+        <select className="h-9 rounded-md border border-input bg-card px-3 text-sm" value={type} onChange={e => setType(e.target.value)}><option value="">{ft("All types")}</option>{types.map(t => <option key={t.value} value={t.value}>{ft(t.label)}</option>)}</select>
         <select className="h-9 rounded-md border border-input bg-card px-3 text-sm" value={status} onChange={e => setStatus(e.target.value)}>
-          <option value="">Any status</option>{["active", "sold", "dead", "culled"].map(s => <option key={s} value={s}>{s}</option>)}</select>
-        <Can permission="farming.livestock.create"><Button size="sm" className="gap-1.5 ms-auto" onClick={() => setEdit("new")}><Plus className="h-4 w-4" />Add animal</Button></Can>
+          <option value="">{ft("Any status")}</option>{["active", "sold", "dead", "culled"].map(s => <option key={s} value={s}>{ft(s)}</option>)}</select>
+        <Can permission="farming.livestock.create"><Button size="sm" className="gap-1.5 ms-auto" onClick={() => setEdit("new")}><Plus className="h-4 w-4" />{ft("Add animal")}</Button></Can>
       </div>
       <Card className="overflow-hidden"><TableState loading={isLoading} error={error as Error | null} empty={data.length === 0} emptyText="No animals match." icon={Beef} />
-        {data.length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>Tag</th><th className={TH}>Type</th><th className={TH}>Breed</th><th className={TH}>Sex</th><th className={TH}>Kept in</th><th className={TH}>Weight</th><th className={TH}>30-day output</th><th className={TH}>Status</th><th /></tr></thead>
+        {data.length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>{ft("Tag")}</th><th className={TH}>{ft("Type")}</th><th className={TH}>{ft("Breed")}</th><th className={TH}>{ft("Sex")}</th><th className={TH}>{ft("Kept in")}</th><th className={TH}>{ft("Weight")}</th><th className={TH}>30-day output</th><th className={TH}>{ft("Status")}</th><th /></tr></thead>
           <tbody>{data.map(a => (
             <tr key={a.id} className="border-t border-border hover:bg-muted/30 cursor-pointer" onClick={() => setOpen(a.id)}>
               <td className="px-4 py-2 font-medium">{a.tagNumber}{a.name ? <span className="text-muted-foreground font-normal"> {a.name}</span> : null}</td><td className="px-4">{farmTypeLabel(a.type)}</td>
-              <td className="px-4">{a.breed ?? "—"}</td><td className="px-4 capitalize">{a.sex}</td><td className="px-4">{a.unitName ?? "—"}</td><td className="px-4 tabular-nums">{a.lastWeightKg ? `${a.lastWeightKg} kg` : "—"}</td>
+              <td className="px-4">{a.breed ?? "—"}</td><td className="px-4 capitalize">{ft(a.sex)}</td><td className="px-4">{a.unitName ?? "—"}</td><td className="px-4 tabular-nums">{a.lastWeightKg ? ft("{{n}} kg", { n: a.lastWeightKg }) : "—"}</td>
               <td className="px-4 tabular-nums">{a.production30d ? a.production30d.toLocaleString() : "—"}</td><td className="px-4"><Pill state={a.status} /></td>
-              <td className="px-4 text-end whitespace-nowrap" onClick={e => e.stopPropagation()}><Can permission="farming.livestock.edit"><Button size="icon" variant="ghost" aria-label="Edit" onClick={() => setEdit(a)}><Pencil className="h-4 w-4" /></Button></Can>
-                <Can permission="farming.livestock.delete"><Button size="icon" variant="ghost" aria-label="Delete" onClick={() => setDel(a)}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
+              <td className="px-4 text-end whitespace-nowrap" onClick={e => e.stopPropagation()}><Can permission="farming.livestock.edit"><Button size="icon" variant="ghost" aria-label={ft("Edit")} onClick={() => setEdit(a)}><Pencil className="h-4 w-4" /></Button></Can>
+                <Can permission="farming.livestock.delete"><Button size="icon" variant="ghost" aria-label={ft("Delete")} onClick={() => setDel(a)}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
       </Card>
       <AnimatePresence>{edit && <AnimalForm item={edit === "new" ? undefined : edit} onClose={() => setEdit(null)} />}
         {open && <AnimalDrawer id={open} onClose={() => setOpen(null)} />}
-        {del && <ConfirmDialog title={`Delete ${del.tagNumber}?`} body="Animals with production or sales on record cannot be deleted; mark them culled instead." confirmLabel="Delete" pending={remove.isPending} onClose={() => setDel(null)} onConfirm={() => remove.mutate(del.id, { onSuccess: () => setDel(null) })} />}</AnimatePresence>
+        {del && <ConfirmDialog title={ft("Delete {{name}}?", { name: del.tagNumber })} body="Animals with production or sales on record cannot be deleted; mark them culled instead." confirmLabel="Delete" pending={remove.isPending} onClose={() => setDel(null)} onConfirm={() => remove.mutate(del.id, { onSuccess: () => setDel(null) })} />}</AnimatePresence>
     </div>
   );
 }
@@ -161,26 +162,27 @@ function BatchesPanel() {
   return (
     <div className="space-y-4">
       <div className="flex gap-2 items-center">
-        <select className="h-9 rounded-md border border-input bg-card px-3 text-sm" value={status} onChange={e => setStatus(e.target.value)}><option value="active">Active</option><option value="closed">Closed</option><option value="">All</option></select>
-        <Can permission="farming.livestock.create"><Button size="sm" className="gap-1.5 ms-auto" onClick={() => setEdit("new")}><Plus className="h-4 w-4" />Add batch</Button></Can>
+        <select className="h-9 rounded-md border border-input bg-card px-3 text-sm" value={status} onChange={e => setStatus(e.target.value)}><option value="active">{ft("Active")}</option><option value="closed">{ft("Closed")}</option><option value="">{ft("All")}</option></select>
+        <Can permission="farming.livestock.create"><Button size="sm" className="gap-1.5 ms-auto" onClick={() => setEdit("new")}><Plus className="h-4 w-4" />{ft("Add batch")}</Button></Can>
       </div>
       <Card className="overflow-hidden"><TableState loading={isLoading} error={error as Error | null} empty={data.length === 0} emptyText="No batches yet. A batch is a flock, a pond of fish, a crop planting or a set of hives." icon={Beef} />
-        {data.length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>Batch</th><th className={TH}>Type</th><th className={TH}>Kept in</th><th className={TH}>Age</th><th className={TH}>Now / started</th><th className={TH}>Deaths</th><th className={TH}>Feed cost</th><th className={TH}>FCR</th><th className={TH}>Status</th><th /></tr></thead>
+        {data.length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>{ft("Batch")}</th><th className={TH}>{ft("Type")}</th><th className={TH}>{ft("Kept in")}</th><th className={TH}>{ft("Age")}</th><th className={TH}>{ft("Now / started")}</th><th className={TH}>{ft("Deaths")}</th><th className={TH}>{ft("Feed cost")}</th><th className={TH}>{ft("FCR")}</th><th className={TH}>{ft("Status")}</th><th /></tr></thead>
           <tbody>{data.map(b => (
             <tr key={b.id} className="border-t border-border"><td className="px-4 py-2 font-medium">{b.code}{b.species ? <span className="text-muted-foreground font-normal"> {b.species}</span> : null}</td><td className="px-4">{farmTypeLabel(b.type)}</td><td className="px-4">{b.unitName ?? "—"}</td>
               <td className="px-4">{b.ageDays} d</td><td className="px-4 tabular-nums">{b.currentCount.toLocaleString()} / {b.initialCount.toLocaleString()}</td><td className="px-4 tabular-nums">{b.deaths} ({b.mortalityPct}%)</td>
               <td className="px-4 tabular-nums">{b.feedCost.toLocaleString()}</td><td className="px-4">{b.fcr ?? "—"}</td><td className="px-4"><Pill state={b.status} /></td>
-              <td className="px-4 text-end whitespace-nowrap"><Can permission="farming.livestock.edit"><Button size="icon" variant="ghost" aria-label="Edit" onClick={() => setEdit(b)}><Pencil className="h-4 w-4" /></Button>
-                <Button size="sm" variant="outline" onClick={() => close.mutate({ id: b.id, reopen: b.status === "closed" })}>{b.status === "closed" ? "Reopen" : "Close"}</Button></Can>
-                <Can permission="farming.livestock.delete"><Button size="icon" variant="ghost" aria-label="Delete" onClick={() => setDel(b)}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
+              <td className="px-4 text-end whitespace-nowrap"><Can permission="farming.livestock.edit"><Button size="icon" variant="ghost" aria-label={ft("Edit")} onClick={() => setEdit(b)}><Pencil className="h-4 w-4" /></Button>
+                <Button size="sm" variant="outline" onClick={() => close.mutate({ id: b.id, reopen: b.status === "closed" })}>{ft(b.status === "closed" ? "Reopen" : "Close")}</Button></Can>
+                <Can permission="farming.livestock.delete"><Button size="icon" variant="ghost" aria-label={ft("Delete")} onClick={() => setDel(b)}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
       </Card>
       <AnimatePresence>{edit && <BatchForm item={edit === "new" ? undefined : edit} onClose={() => setEdit(null)} />}
-        {del && <ConfirmDialog title={`Delete ${del.code}?`} body="Batches with production or sales on record cannot be deleted; close them instead." confirmLabel="Delete" pending={remove.isPending} onClose={() => setDel(null)} onConfirm={() => remove.mutate(del.id, { onSuccess: () => setDel(null) })} />}</AnimatePresence>
+        {del && <ConfirmDialog title={ft("Delete {{name}}?", { name: del.code })} body="Batches with production or sales on record cannot be deleted; close them instead." confirmLabel="Delete" pending={remove.isPending} onClose={() => setDel(null)} onConfirm={() => remove.mutate(del.id, { onSuccess: () => setDel(null) })} />}</AnimatePresence>
     </div>
   );
 }
 
 export function LivestockView() {
+  useFt();
   const [tab, setTab] = React.useState<"animals" | "batches">("animals");
   return (
     <div className="space-y-4">

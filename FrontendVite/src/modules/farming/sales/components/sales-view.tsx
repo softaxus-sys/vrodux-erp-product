@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ft, useFt } from "@/lib/farming/ft";
 import { AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { monthAgo, useFarmOptions } from "../../shared/options";
 const CATEGORIES = ["Labour", "Power & water", "Rent", "Equipment", "Transport", "Stock purchase", "Repairs", "Other"].map(c => ({ value: c, label: c }));
 
 export function SalesView() {
+  useFt();
   const cur = useCurrency();
   const today = localToday();
   const [tab, setTab] = React.useState<"sales" | "expenses">("sales");
@@ -35,25 +37,25 @@ export function SalesView() {
     <div className="space-y-4">
       <PageHeader title="Sales & expenses" description="What you sold, who still owes you, and what else the farm cost.">
         <PostToFinanceButton module="farming" />
-        <Can permission="farming.sales.create"><Button size="sm" variant="outline" className="gap-1.5" onClick={() => setForm("expense")}><Plus className="h-4 w-4" />Expense</Button></Can>
-        <Can permission="farming.sales.create"><Button size="sm" className="gap-1.5" onClick={() => setForm("sale")}><Plus className="h-4 w-4" />Sale</Button></Can>
+        <Can permission="farming.sales.create"><Button size="sm" variant="outline" className="gap-1.5" onClick={() => setForm("expense")}><Plus className="h-4 w-4" />{ft("Expense")}</Button></Can>
+        <Can permission="farming.sales.create"><Button size="sm" className="gap-1.5" onClick={() => setForm("sale")}><Plus className="h-4 w-4" />{ft("Sale")}</Button></Can>
       </PageHeader>
       <div className="grid grid-cols-3 gap-3"><Stat label="Sales in range" value={formatCurrency(totalSales, cur)} /><Stat label="Still owed" value={formatCurrency(owed, cur)} tone={owed > 0 ? "warn" : undefined} /><Stat label="Other expenses" value={formatCurrency(totalExp, cur)} /></div>
-      <div className="flex flex-wrap gap-2 items-center"><Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="h-9 w-40" /><span className="text-sm text-muted-foreground">to</span><Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-9 w-40" /></div>
+      <div className="flex flex-wrap gap-2 items-center"><Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="h-9 w-40" /><span className="text-sm text-muted-foreground">{ft("to")}</span><Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-9 w-40" /></div>
       <Tabs value={tab} onChange={v => setTab(v as typeof tab)} items={[{ value: "sales", label: "Sales" }, { value: "expenses", label: "Expenses" }]} />
       <Card className="overflow-hidden">
         {tab === "sales" ? (<>
           <TableState loading={sales.isLoading} error={sales.error as Error | null} empty={(sales.data ?? []).length === 0} emptyText="No sales in this range." icon={Wallet} />
-          {(sales.data ?? []).length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>Date</th><th className={TH}>Product</th><th className={TH}>Buyer</th><th className={TH}>Quantity</th><th className={TH}>Total</th><th className={TH}>Balance</th><th /></tr></thead>
+          {(sales.data ?? []).length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>{ft("Date")}</th><th className={TH}>{ft("Product")}</th><th className={TH}>{ft("Buyer")}</th><th className={TH}>{ft("Quantity")}</th><th className={TH}>{ft("Total")}</th><th className={TH}>{ft("Balance")}</th><th /></tr></thead>
             <tbody>{sales.data!.map(s => (<tr key={s.id} className="border-t border-border"><td className="px-4 py-2">{formatDate(s.date)}</td><td className="px-4">{productLabel(s.product)} <span className="text-xs text-muted-foreground">{farmTypeLabel(s.type)}{s.animalTag ? ` · ${s.animalTag}` : s.batchCode ? ` · ${s.batchCode}` : ""}</span></td>
               <td className="px-4">{s.buyer ?? "—"}</td><td className="px-4 tabular-nums">{s.quantity.toLocaleString()} {s.uom}</td><td className="px-4 tabular-nums">{formatCurrency(s.total, cur)}</td>
               <td className="px-4">{s.balance > 0 ? <span className="tabular-nums text-amber-600">{formatCurrency(s.balance, cur)}</span> : <Pill state="paid" />}</td>
-              <td className="px-4 text-end"><Can permission="farming.sales.delete"><Button size="icon" variant="ghost" aria-label="Delete" onClick={() => setDel({ kind: "sale", id: s.id })}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
+              <td className="px-4 text-end"><Can permission="farming.sales.delete"><Button size="icon" variant="ghost" aria-label={ft("Delete")} onClick={() => setDel({ kind: "sale", id: s.id })}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
         </>) : (<>
           <TableState loading={expenses.isLoading} error={expenses.error as Error | null} empty={(expenses.data ?? []).length === 0} emptyText="No expenses in this range." icon={Wallet} />
-          {(expenses.data ?? []).length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>Date</th><th className={TH}>Category</th><th className={TH}>Description</th><th className={TH}>Amount</th><th className={TH}>Paid to</th><th /></tr></thead>
-            <tbody>{expenses.data!.map(e => (<tr key={e.id} className="border-t border-border"><td className="px-4 py-2">{formatDate(e.date)}</td><td className="px-4">{e.category}</td><td className="px-4">{e.description}</td><td className="px-4 tabular-nums">{formatCurrency(e.amount, cur)}</td><td className="px-4">{e.paidTo ?? "—"}</td>
-              <td className="px-4 text-end"><Can permission="farming.sales.delete"><Button size="icon" variant="ghost" aria-label="Delete" onClick={() => setDel({ kind: "expense", id: e.id })}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
+          {(expenses.data ?? []).length > 0 && <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs"><tr><th className={TH}>{ft("Date")}</th><th className={TH}>{ft("Category")}</th><th className={TH}>{ft("Description")}</th><th className={TH}>{ft("Amount")}</th><th className={TH}>{ft("Paid to")}</th><th /></tr></thead>
+            <tbody>{expenses.data!.map(e => (<tr key={e.id} className="border-t border-border"><td className="px-4 py-2">{formatDate(e.date)}</td><td className="px-4">{ft(e.category)}</td><td className="px-4">{e.description}</td><td className="px-4 tabular-nums">{formatCurrency(e.amount, cur)}</td><td className="px-4">{e.paidTo ?? "—"}</td>
+              <td className="px-4 text-end"><Can permission="farming.sales.delete"><Button size="icon" variant="ghost" aria-label={ft("Delete")} onClick={() => setDel({ kind: "expense", id: e.id })}><Trash2 className="h-4 w-4" /></Button></Can></td></tr>))}</tbody></table></div>}
         </>)}
       </Card>
       <AnimatePresence>
