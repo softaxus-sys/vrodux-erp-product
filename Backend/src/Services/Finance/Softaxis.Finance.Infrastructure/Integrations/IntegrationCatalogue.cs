@@ -192,8 +192,13 @@ internal static class IntegrationCatalogue
 
         new("farming.feed", "farming", "Farm feed and fertiliser purchases", IntegrationKind.Queue,
             "Feed or fertiliser recorded with a cost",
-            "Each feed record with a cost is collected once: the cost is debited to cost of goods sold and cash credited. Records with no cost are skipped. Treated as paid in cash; change the cash account in the mapping if the feed was bought on account or from the bank. Vet and medicine costs are not posted here.",
+            "Each feed record with a cost is collected once: the cost is debited to cost of goods sold and cash credited. Records with no cost are skipped. Treated as paid in cash; change the cash account in the mapping if the feed was bought on account or from the bank. Vet and medicine costs are posted separately.",
             [Dr("cost", "Feed and fertiliser cost", "5400"), Cr("cash", "Cash paid", "1001")]),
+
+        new("farming.health", "farming", "Veterinary and medicine costs", IntegrationKind.Queue,
+            "Vaccination or treatment recorded with a cost",
+            "Each health record with a cost is collected once: the cost is debited to the farm operating cost account and cash credited. Records with no cost are skipped. Treated as paid in cash; change the cash account in the mapping if it was paid from the bank or is owed to the vet.",
+            [Dr("cost", "Veterinary and medicine cost", "5900"), Cr("cash", "Cash paid", "1001")]),
 
         new("tours.payment", "hospitality", "Tour customer payments", IntegrationKind.Queue,
             "Payment taken on a tour booking",

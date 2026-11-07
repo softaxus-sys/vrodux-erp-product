@@ -303,6 +303,27 @@ internal static class PostingSources
             CancelledFrom: "FROM [farming].[Feed] f",
             CancelledWhere: "f.[IsDeleted] = 1"),
 
+        // Vaccinations and treatments with a cost: A1 cost.
+        new("farming.health",
+            IdExpr: "h.[Id]",
+            Select: $"""
+                h.[Id], CAST('FH-' + UPPER(LEFT(CAST(h.[Id] AS varchar(36)), 8)) AS nvarchar(100)) AS [Number],
+                CAST(LEFT(h.[Date], 10) AS varchar(10)) AS [Date],
+                CAST(LEFT(h.[Kind] + N' — ' + h.[Title], 200) AS nvarchar(200)) AS [Description],
+                CAST(h.[Cost] AS decimal(18,2)) AS A1,
+                {Zero("A2", "A3", "A4", "A5", "A6", "A7")}
+                """,
+            FromWhere: """
+                FROM [farming].[Health] h
+                WHERE h.[TenantId] = {0} AND h.[IsDeleted] = 0 AND h.[Cost] > 0
+                  AND LEFT(h.[Date], 10) >= {1}
+                """,
+            OrderBy: "h.[CreatedAt]",
+            Amounts: r => new() { ["cost"] = r.A1, ["cash"] = r.A1 },
+            Check: r => r.A1 <= 0 ? "The cost is not more than zero." : null,
+            CancelledFrom: "FROM [farming].[Health] h",
+            CancelledWhere: "h.[IsDeleted] = 1"),
+
         // Travel agency: money received from the customer.
         new("tours.payment",
             IdExpr: "p.[Id]",

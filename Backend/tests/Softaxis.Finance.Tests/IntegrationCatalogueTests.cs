@@ -79,6 +79,7 @@ public class PostingSourceAmountTests
         ["farming.sale",      new SourceRow { A1 = 500m, A2 = 0m }],                                  // all on account
         ["farming.expense",   new SourceRow { A1 = 300m }],
         ["farming.feed",      new SourceRow { A1 = 260m }],
+        ["farming.health",    new SourceRow { A1 = 85m }],
         ["pos.sale",          new SourceRow { A1 = 105m, A2 = 5m, A6 = 105m }],                       // all cash
         ["pos.sale",          new SourceRow { A1 = 105m, A2 = 5m, A6 = 200m }],                       // cash over-tendered, change given
         ["pos.sale",          new SourceRow { A1 = 105m, A2 = 5m, A3 = 60m, A6 = 105m }],             // cash + card

@@ -627,6 +627,8 @@ internal sealed class PostingEngine(FinanceDbContext db, ILogger<PostingEngine> 
             "SELECT COUNT(*) AS [Value] FROM [farming].[Sales] WHERE [TenantId] = {0} AND [IsDeleted] = 0", null),
         ["farming.expense"] = (
             "SELECT COUNT(*) AS [Value] FROM [farming].[Expenses] WHERE [TenantId] = {0} AND [IsDeleted] = 0", null),
+        ["farming.health"] = (
+            "SELECT COUNT(*) AS [Value] FROM [farming].[Health] WHERE [TenantId] = {0} AND [IsDeleted] = 0 AND [Cost] > 0", null),
         ["farming.feed"] = (
             "SELECT COUNT(*) AS [Value] FROM [farming].[Feed] WHERE [TenantId] = {0} AND [IsDeleted] = 0 AND [Cost] > 0", null),
         ["tours.payment"] = (
