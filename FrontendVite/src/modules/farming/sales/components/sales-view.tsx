@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Can } from "@/components/auth/can";
+import { PostToFinanceButton } from "@/components/finance/post-to-finance";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useAct, useExpenses, useSales } from "@/hooks/farming/use-farming";
@@ -33,6 +34,7 @@ export function SalesView() {
   return (
     <div className="space-y-4">
       <PageHeader title="Sales & expenses" description="What you sold, who still owes you, and what else the farm cost.">
+        <PostToFinanceButton module="farming" />
         <Can permission="farming.sales.create"><Button size="sm" variant="outline" className="gap-1.5" onClick={() => setForm("expense")}><Plus className="h-4 w-4" />Expense</Button></Can>
         <Can permission="farming.sales.create"><Button size="sm" className="gap-1.5" onClick={() => setForm("sale")}><Plus className="h-4 w-4" />Sale</Button></Can>
       </PageHeader>

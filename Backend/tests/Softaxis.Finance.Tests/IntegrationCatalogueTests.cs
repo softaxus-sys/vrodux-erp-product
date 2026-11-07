@@ -74,6 +74,11 @@ public class PostingSourceAmountTests
     // A1..A7 per source — see PostingSources. Every sample here is a document that may be posted.
     public static IEnumerable<object[]> Samples() =>
     [
+        ["farming.sale",      new SourceRow { A1 = 500m, A2 = 500m }],                                // paid in full
+        ["farming.sale",      new SourceRow { A1 = 500m, A2 = 100m }],                                // part paid, balance owed
+        ["farming.sale",      new SourceRow { A1 = 500m, A2 = 0m }],                                  // all on account
+        ["farming.expense",   new SourceRow { A1 = 300m }],
+        ["farming.feed",      new SourceRow { A1 = 260m }],
         ["pos.sale",          new SourceRow { A1 = 105m, A2 = 5m, A6 = 105m }],                       // all cash
         ["pos.sale",          new SourceRow { A1 = 105m, A2 = 5m, A6 = 200m }],                       // cash over-tendered, change given
         ["pos.sale",          new SourceRow { A1 = 105m, A2 = 5m, A3 = 60m, A6 = 105m }],             // cash + card
