@@ -10,6 +10,7 @@ import { useWarehouses } from "@/hooks/inventory/use-warehouses";
 import { useCreateStockMovement } from "@/hooks/inventory/use-stock-movements";
 import { MovementType, type ProductSummaryDto } from "@/lib/inventory/types";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
+import { inventoryProductsApi } from "@/lib/inventory/products.api";
 import { toast } from "sonner";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -100,17 +101,27 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
   // Barcode scanner — when form is open, scan to find item
   useBarcodeScanner({
     enabled: open,
-    onScan: ({ barcode }) => {
-      const item = scanLookupProducts.find(
-        i => i.barcode === barcode || i.sku === barcode || i.id === barcode
-      );
-      if (item) {
+    onScan: async ({ barcode }) => {
+      const pick = (item: ProductSummaryDto) => {
         setSelectedItem(item);
         setItemSearch(item.name);
         setShowItemList(false);
         setScanFeedback("found");
+      };
+      const local = scanLookupProducts.find(
+        i => i.barcode === barcode || i.sku === barcode || i.id === barcode
+      );
+      if (local) {
+        pick(local);
       } else {
-        setScanFeedback("not_found");
+        // The list above holds only the first page of products. Ask the server, which also understands
+        // QR links and UPC/EAN spellings, before saying the code is unknown.
+        try {
+          const res = await inventoryProductsApi.lookup(barcode);
+          if (res.existing) pick(res.existing); else setScanFeedback("not_found");
+        } catch {
+          setScanFeedback("not_found");
+        }
       }
       setTimeout(() => setScanFeedback(null), 2500);
     },

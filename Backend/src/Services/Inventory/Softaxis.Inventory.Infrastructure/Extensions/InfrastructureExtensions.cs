@@ -43,6 +43,16 @@ public static class InfrastructureExtensions
                            && configuration.GetValue<bool>("Inventory:AllowPrivateImageUrls");
         services.AddHttpClient(SafeImageDownloader.ClientName).ConfigurePrimaryHttpMessageHandler(() => SsrfGuard.CreateHandler(allowPrivate));
         services.AddScoped<SafeImageDownloader>();
+
+        // Public product databases for pre-filling a new product from a scanned barcode.
+        services.AddMemoryCache();
+        services.AddHttpClient(ProductCatalogueLookup.ClientName, c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(10);
+            // Open Food Facts asks every client to identify itself.
+            c.DefaultRequestHeaders.UserAgent.ParseAdd("VroduxERP/1.0 (support@vrodux.com)");
+        });
+        services.AddScoped<IProductCatalogueLookup, ProductCatalogueLookup>();
         services.AddHostedService<ProductPhotoDownloadWorker>();
 
         return services;

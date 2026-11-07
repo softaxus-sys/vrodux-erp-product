@@ -65,7 +65,8 @@ export type InventoryStackParamList = {
   ProductDetail: { productId: string; productName: string };
   BarcodeScanner: undefined;
   StockAdjust: { productId: string; productName: string };
-  NewProduct: undefined;
+  /** Opened from a scan: the code and whatever the product databases know about it. */
+  NewProduct: { barcode?: string; name?: string; description?: string; brand?: string; source?: string } | undefined;
   TransfersList: undefined;
   NewTransfer: undefined;
 };

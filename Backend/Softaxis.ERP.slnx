@@ -167,5 +167,6 @@
     <Project Path="tests/Softaxis.Ecommerce.Tests/Softaxis.Ecommerce.Tests.csproj" />
     <Project Path="tests/Softaxis.Seo.Tests/Softaxis.Seo.Tests.csproj" />
     <Project Path="tests/Softaxis.Identity.Tests/Softaxis.Identity.Tests.csproj" />
+    <Project Path="tests/Softaxis.Inventory.Tests/Softaxis.Inventory.Tests.csproj" />
   </Folder>
 </Solution>

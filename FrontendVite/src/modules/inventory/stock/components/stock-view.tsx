@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import {
   PackageSearch, Package, AlertTriangle, XCircle, DollarSign, Search, Plus,
-  RefreshCw, ShoppingCart, Loader2, Upload, Download, Printer, Globe,
+  RefreshCw, ShoppingCart, Loader2, Upload, Download, Printer, Globe, ScanLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { useBranches } from "@/hooks/identity/use-branches";
 import type { ProductSummaryDto } from "@/lib/inventory/types";
 import { StockDrawer } from "./stock-drawer";
 import { AddStockItemForm } from "./add-stock-item-form";
+import { ScanStockDialog } from "./scan-stock-dialog";
 import { CatalogueImportDialog } from "@/modules/pos/retail/components/catalogue-import-dialog";
 import { Can, useCan } from "@/components/auth/can";
 import { AddAdjustmentForm } from "../../movements/components/add-adjustment-form";
@@ -57,6 +58,8 @@ export function StockView() {
   const [editingId, setEditingId]     = React.useState<string | null>(null);
   const [adjustItemId, setAdjustItemId] = React.useState<string | null>(null);
   const [showImport, setShowImport]   = React.useState(false);
+  const [showScan, setShowScan]       = React.useState(false);
+  const [scannedCode, setScannedCode] = React.useState<string | null>(null);
   const [exporting, setExporting]     = React.useState(false);
   const [picked, setPicked]           = React.useState<Set<string>>(new Set());
   const importPhotos = useImportPhotoStatus();
@@ -69,7 +72,7 @@ export function StockView() {
 
   const openEdit = (p: ProductSummaryDto) => { setDrawerOpen(false); setEditingId(p.id); setShowAddForm(true); };
   const openAdjust = (p: ProductSummaryDto) => { setDrawerOpen(false); setAdjustItemId(p.id); };
-  const closeForm = () => { setShowAddForm(false); setEditingId(null); };
+  const closeForm = () => { setShowAddForm(false); setEditingId(null); setScannedCode(null); };
 
   // Stock is held per branch: picking one shows what THAT branch holds; "All branches" is the head-office total.
   const { data: branchList } = useBranches();
@@ -138,6 +141,11 @@ export function StockView() {
           <Can permission="pos.products.create">
             <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setShowCatalogue(true)}>
               <PackageSearch className="h-4 w-4" />{t("stock.catalogue", { defaultValue: "Catalogue" })}
+            </Button>
+          </Can>
+          <Can permission="inventory.movements.create">
+            <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setShowScan(true)}>
+              <ScanLine className="h-4 w-4" />{t("scanStock.button", { defaultValue: "Scan to add stock" })}
             </Button>
           </Can>
           <Can permission="inventory.stock.create">
@@ -331,7 +339,9 @@ export function StockView() {
       <StockDrawer item={selectedProduct} open={drawerOpen} onClose={() => setDrawerOpen(false)}
         onEdit={openEdit} onAdjust={openAdjust} />
       <CatalogueImportDialog open={showCatalogue} onClose={() => setShowCatalogue(false)} />
-      <AddStockItemForm open={showAddForm} onClose={closeForm} editingId={editingId} />
+      <ScanStockDialog open={showScan} onClose={() => setShowScan(false)}
+        onCreateProduct={code => { setShowScan(false); setScannedCode(code); setShowAddForm(true); }} />
+      <AddStockItemForm open={showAddForm} onClose={closeForm} editingId={editingId} initialBarcode={scannedCode} />
       <AddAdjustmentForm open={!!adjustItemId} onClose={() => setAdjustItemId(null)}
         preselectedItemId={adjustItemId ?? undefined} />
       <ProductImportDialog open={showImport} onClose={() => setShowImport(false)} />

@@ -1,5 +1,5 @@
 import { apiClient, type PagedResult } from "@/lib/api-client";
-import type { ProductDto, ProductsPageParams, ProductStockSummaryDto, ProductSummaryDto, WarehouseDto } from "@/types/inventory";
+import type { ProductDto, ProductLookupDto, ProductsPageParams, ProductStockSummaryDto, ProductSummaryDto, WarehouseDto } from "@/types/inventory";
 
 const BASE = "/api/inventory";
 
@@ -23,6 +23,11 @@ export const inventoryApi = {
 
   getProductByBarcode: (barcode: string): Promise<ProductDto> =>
     apiClient.get(`${BASE}/products/barcode/${encodeURIComponent(barcode)}`),
+
+  /** The server cleans the scan (QR links, GS1 strings, UPC/EAN spellings), finds the product in stock, and otherwise
+   *  suggests details from public product databases. An unknown code is a normal answer, not an error. */
+  lookupCode: (code: string): Promise<ProductLookupDto> =>
+    apiClient.get(`${BASE}/products/lookup?code=${encodeURIComponent(code)}`),
 
   getProductStock: (productId: string): Promise<ProductStockSummaryDto> =>
     apiClient.get(`${BASE}/product-stock/${productId}`),

@@ -11,6 +11,7 @@ using Softaxis.Inventory.Application.Products.Commands.UpdateProduct;
 using Softaxis.Inventory.Application.Products.Queries.GetProductByBarcode;
 using Softaxis.Inventory.Application.Products.Queries.GetProductById;
 using Softaxis.Inventory.Application.Products.Queries.GetProducts;
+using Softaxis.Inventory.Application.Products.Queries.LookupProductByCode;
 
 namespace Softaxis.Inventory.API.Controllers;
 
@@ -52,6 +53,17 @@ public sealed class ProductsController(ISender sender) : BaseApiController(sende
     [RequirePermission("inventory.stock.view")]
     public async Task<IActionResult> GetByBarcode(string barcode, CancellationToken ct)
         => HandleResult(await Sender.Send(new GetProductByBarcodeQuery(barcode), ct));
+
+    // ── GET /api/inventory/products/lookup?code= ──────────────────────────────
+    /// <summary>
+    /// "What is this scanned code?" Cleans the scan (QR link, GS1 string, UPC/EAN spellings), finds the product
+    /// already in stock, and otherwise suggests details from public product databases for a new one.
+    /// The code travels in the query string so a QR holding a whole web link never breaks the route.
+    /// </summary>
+    [HttpGet("lookup")]
+    [RequirePermission("inventory.stock.view")]
+    public async Task<IActionResult> Lookup([FromQuery] string? code, CancellationToken ct)
+        => HandleResult(await Sender.Send(new LookupProductByCodeQuery(code ?? ""), ct));
 
     // ── POST /api/inventory/products ─────────────────────────────────────────
     [HttpPost]

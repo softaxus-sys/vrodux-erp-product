@@ -24,9 +24,11 @@ interface AddStockItemFormProps {
   onClose: () => void;
   /** When set, the form opens in edit mode and updates this product. */
   editingId?: string | null;
+  /** A scanned code to start from: the form fills in what the product databases know about it. */
+  initialBarcode?: string | null;
 }
 
-export function AddStockItemForm({ open, onClose, editingId }: AddStockItemFormProps) {
+export function AddStockItemForm({ open, onClose, editingId, initialBarcode }: AddStockItemFormProps) {
   const { t } = useTranslation("inventory");
   const qc = useQueryClient();
   const isEdit = !!editingId;
@@ -91,6 +93,14 @@ export function AddStockItemForm({ open, onClose, editingId }: AddStockItemFormP
     setTrackInventory(editingProduct.trackInventory);
   }, [open, isEdit, editingProduct]);
 
+  // Opened straight from a scan: put the code in and look it up.
+  React.useEffect(() => {
+    if (!open || isEdit || !initialBarcode) return;
+    setBarcode(initialBarcode);
+    autofill.lookup(initialBarcode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, initialBarcode]);
+
   // Auto-focus barcode field when form opens so scanner goes there immediately
   React.useEffect(() => {
     if (!open) return;
@@ -125,6 +135,16 @@ export function AddStockItemForm({ open, onClose, editingId }: AddStockItemFormP
     enabled:  open,
     staleTime: 60_000,
   });
+
+  // The database names a brand as text. If the workspace already has that brand, select it; otherwise leave the
+  // field alone rather than inventing a brand record from a guess.
+  React.useEffect(() => {
+    const wanted = autofill.data?.brand?.trim().toLowerCase();
+    if (!wanted || autofill.data?.alreadyExists || brandId) return;
+    const match = brands.find(b => b.name.trim().toLowerCase() === wanted);
+    if (match) setBrandId(match.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autofill.data, brands]);
 
   const { data: uoms = [] } = useQuery({
     queryKey: uomKeys.list({ isActive: true }),

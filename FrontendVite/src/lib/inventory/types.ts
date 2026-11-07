@@ -64,6 +64,27 @@ export interface ProductDto {
   updatedAt: string | null;
 }
 
+/** What a public product database knows about a barcode. Only the name is guaranteed. */
+export interface ExternalProductInfoDto {
+  code: string;
+  name: string;
+  brand: string | null;
+  description: string | null;
+  category: string | null;
+  quantity: string | null;
+  imageUrl: string | null;
+  source: string;
+  sourceLabel: string;
+}
+
+/** Answer to "what is this scanned code?" - the product already in stock, or details to pre-fill a new one. */
+export interface ProductLookupDto {
+  /** The code as cleaned up from the scan (a QR link becomes the number inside it). */
+  code: string;
+  existing: ProductDto | null;
+  suggested: ExternalProductInfoDto | null;
+}
+
 export interface ProductSummaryDto {
   id: string;
   name: string;
