@@ -143,6 +143,9 @@ public sealed class PropertyUnit
         Area = area; Floor = floor; RentPerYear = rentPerYear; SalePrice = salePrice;
     }
 
+    /// <summary>Moves this unit to another building record (used when one listing's building details are edited).</summary>
+    public void MoveToProperty(Guid propertyId) => PropertyId = propertyId;
+
     public void Update(string unitNumber, string unitType, decimal area, int floor,
         decimal rentPerYear, decimal salePrice)
     {

@@ -11,6 +11,7 @@ import { formatCurrency, cn } from "@/lib/utils";
 import { exportPdf } from "@/lib/pdf";
 import { useCurrency } from "@/hooks/use-currency";
 import type { PropertyDto as Property } from "@/lib/real-estate/re.api";
+import { PropertyPhotoSlider } from "./property-photos";
 
 const TYPE_LABELS: Record<string, string> = {
   residential: "Residential",

@@ -23,7 +23,7 @@ internal sealed class GetListingsHandler(RealEstateDbContext db, ICurrentUser us
         var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
 
         var canViewAllConfidential = ListingConfidentiality.CanViewAll(user);
-        var q = Build(db, query, canViewAllConfidential);
+        var q = Build(db, query, canViewAllConfidential, user.Id);
 
         // Counted before paging so the caller knows how many pages exist.
         var total = await q.CountAsync(ct);
@@ -70,8 +70,9 @@ internal sealed class GetListingsHandler(RealEstateDbContext db, ICurrentUser us
     /// never searches, so it never matters there) — widening a search to a field the caller cannot
     /// then see would itself be a leak: a hit vs. no hit already tells them the owner exists.
     /// </param>
+    /// <param name="callerId">The caller, who may also search the confidential fields of listings they own.</param>
     internal static IQueryable<UnitWithProperty> Build(
-        RealEstateDbContext db, GetListingsQuery query, bool canViewAllConfidential = false)
+        RealEstateDbContext db, GetListingsQuery query, bool canViewAllConfidential = false, Guid? callerId = null)
     {
         // The tenant filter replaces any entity-level soft-delete filter, so !IsDeleted is manual
         // on BOTH sides — a unit in a deleted building is not a listing.
@@ -163,21 +164,34 @@ internal sealed class GetListingsHandler(RealEstateDbContext db, ICurrentUser us
             q = q.Where(x => (x.Unit.Purpose == "sale" ? x.Unit.SalePrice : x.Unit.RentPerYear) <= max);
         }
 
+        // Size in sqft. A unit with no recorded area (0) never matches a size range.
+        if (query.MinArea.HasValue)
+        {
+            var minArea = query.MinArea.Value;
+            q = q.Where(x => x.Unit.Area > 0 && x.Unit.Area >= minArea);
+        }
+
+        if (query.MaxArea.HasValue)
+        {
+            var maxArea = query.MaxArea.Value;
+            q = q.Where(x => x.Unit.Area > 0 && x.Unit.Area <= maxArea);
+        }
+
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var s = query.Search.Trim();
-            // Covers what someone actually searches a stock list by: the tower, where it is, the
-            // door number, and the agent whose listing they are trying to find again. The owner's
-            // name is only matched for a row the searcher could see anyway — either they hold the
-            // tenant-wide permission, or this particular listing opted out of the restriction
-            // (see the param doc above).
+            // Covers what someone actually searches a stock list by: the tower, where it is, and the
+            // agent whose listing they are trying to find again. The unit number and owner's name are
+            // confidential, so they are matched only on rows the searcher may see them on (admins, or
+            // the listing's own agent). Matching them elsewhere would leak by hit vs. no hit.
+            var me = callerId ?? Guid.Empty;
             q = q.Where(x => x.Property.Name.Contains(s)
                           || x.Property.City.Contains(s)
                           || x.Property.Address.Contains(s)
                           || x.Property.PropertyNumber.Contains(s)
-                          || x.Unit.UnitNumber.Contains(s)
-                          || ((canViewAllConfidential || !x.Unit.RestrictConfidentialDetails)
-                              && x.Unit.OwnerName != null && x.Unit.OwnerName.Contains(s))
+                          || ((canViewAllConfidential || x.Unit.AgentUserId == me)
+                              && (x.Unit.UnitNumber.Contains(s)
+                                  || (x.Unit.OwnerName != null && x.Unit.OwnerName.Contains(s))))
                           || (x.Unit.AgentName != null && x.Unit.AgentName.Contains(s))
                           || (x.Unit.BedsLabel != null && x.Unit.BedsLabel.Contains(s)));
         }

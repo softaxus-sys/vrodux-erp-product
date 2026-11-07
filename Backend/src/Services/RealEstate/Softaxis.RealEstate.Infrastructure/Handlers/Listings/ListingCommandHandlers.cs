@@ -115,7 +115,8 @@ internal sealed class CreateListingHandler(RealEstateDbContext db, ICurrentUser 
 
         // Defaults to whoever is creating the listing — they just supplied the owner data, so they
         // are the natural first agent. An explicit AgentUserId hands it straight to someone else.
-        unit.AssignAgent(cmd.AgentUserId ?? user.Id);
+        // The person adding the listing owns it: only they and admins see its confidential details.
+        unit.AssignAgent(user.Id);
         unit.SetConfidentialRestriction(cmd.RestrictConfidentialDetails);
 
         if (!string.IsNullOrWhiteSpace(cmd.Status)) unit.SetOccupancy(cmd.Status.Trim());
@@ -185,23 +186,65 @@ internal sealed class UpdateListingHandler(RealEstateDbContext db, ICurrentUser 
         }
 
         // ── the building ──
-        // Only when the form sent a name. Property.Update is a full replace, so writing it from a
-        // payload that does not carry these fields would blank the address and the valuation — the
-        // exact failure Module 53e fixed on the property form.
+        // A building record is shared by every listing in that tower, so editing one listing must
+        // never rewrite the others. When the building details change and other listings share the
+        // record, this listing alone moves to a matching building (or a new one).
+        var previousPropertyId = property.Id;
         if (!string.IsNullOrWhiteSpace(cmd.PropertyName))
         {
-            property.Update(
-                cmd.PropertyName.Trim(),
-                Clean(cmd.PropertyType) ?? property.PropertyType,
-                Clean(cmd.Address) ?? property.Address,
-                Clean(cmd.City) ?? property.City,
-                Clean(cmd.Emirate) ?? property.Emirate,
-                property.TotalArea,
-                property.TotalUnits,
-                cmd.PropertyMarketValue ?? property.MarketValue,
-                Clean(cmd.Developer) ?? property.Developer,
-                Clean(cmd.PropertyDescription) ?? property.Description,
-                cmd.Category);
+            var newName     = cmd.PropertyName.Trim();
+            var newType     = Clean(cmd.PropertyType) ?? property.PropertyType;
+            var newAddress  = Clean(cmd.Address) ?? property.Address;
+            var newCity     = Clean(cmd.City) ?? property.City;
+            var newEmirate  = Clean(cmd.Emirate) ?? property.Emirate;
+            var newValue    = cmd.PropertyMarketValue ?? property.MarketValue;
+            var newDev      = Clean(cmd.Developer) ?? property.Developer;
+            var newDesc     = Clean(cmd.PropertyDescription) ?? property.Description;
+            var newCategory = Clean(cmd.Category) ?? property.Category;
+
+            var changed = newName != property.Name || newType != property.PropertyType
+                || newAddress != property.Address || newCity != property.City
+                || newEmirate != property.Emirate || newValue != property.MarketValue
+                || newDev != property.Developer || newDesc != property.Description
+                || newCategory != property.Category;
+
+            if (changed)
+            {
+                var shared = await db.PropertyUnits.AsNoTracking()
+                    .AnyAsync(u => !u.IsDeleted && u.PropertyId == property.Id && u.Id != unit.Id, ct);
+
+                if (!shared)
+                {
+                    property.Update(newName, newType, newAddress, newCity, newEmirate,
+                        property.TotalArea, property.TotalUnits, newValue, newDev, newDesc, newCategory);
+                }
+                else
+                {
+                    var target = await db.Properties.FirstOrDefaultAsync(p => !p.IsDeleted
+                        && p.Id != property.Id && p.Name == newName && p.PropertyType == newType
+                        && p.Address == newAddress && p.City == newCity && p.Emirate == newEmirate
+                        && p.MarketValue == newValue && p.Developer == newDev
+                        && p.Description == newDesc && p.Category == newCategory, ct);
+
+                    if (target is null)
+                    {
+                        target = new Property(newName, newType, newAddress, newCity, newEmirate,
+                            totalArea: 0, totalUnits: 0, newValue, newDev, newDesc, newCategory);
+                        db.Properties.Add(target);
+                    }
+                    property = target;
+                }
+            }
+        }
+
+        if (property.Id != previousPropertyId)
+        {
+            var clash = await db.PropertyUnits.AsNoTracking()
+                .AnyAsync(u => !u.IsDeleted && u.PropertyId == property.Id && u.UnitNumber == number, ct);
+            if (clash)
+                return Result.Failure<ListingDto>(Error.Custom("Unit.Duplicate",
+                    $"That building already has a unit numbered {number}."));
+            unit.MoveToProperty(property.Id);
         }
 
         // ── the unit ──
@@ -228,7 +271,8 @@ internal sealed class UpdateListingHandler(RealEstateDbContext db, ICurrentUser 
         // this listing's confidential fields.
         if (canManageConfidential)
         {
-            unit.AssignAgent(cmd.AgentUserId);
+            // Ownership moves only by an admin (e.g. when the agent who added it leaves).
+            if (ListingConfidentiality.CanViewAll(user)) unit.AssignAgent(cmd.AgentUserId);
             unit.SetConfidentialRestriction(cmd.RestrictConfidentialDetails);
         }
 
@@ -239,6 +283,8 @@ internal sealed class UpdateListingHandler(RealEstateDbContext db, ICurrentUser 
         await db.SaveChangesAsync(ct);
 
         await PropertyCounts.RefreshAsync(db, property.Id, ct);
+        if (property.Id != previousPropertyId)
+            await PropertyCounts.RefreshAsync(db, previousPropertyId, ct);
         await db.SaveChangesAsync(ct);
 
         var galleries = await ListingMappings.LoadGalleriesAsync(db, [property.Id], ct);

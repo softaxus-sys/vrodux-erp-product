@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useCan } from "@/components/auth/can";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Loader2, Check, Plus, Building2, Lock } from "lucide-react";
 import { toast } from "sonner";
@@ -107,6 +108,8 @@ export function ListingForm({ open, onClose, editing }: Props) {
   // Unit Number / Owner fields and the restriction checkbox. Deliberately `canManageConfidential`,
   // not `hasConfidentialAccess`: an unrestricted listing is visible to every staff member, but
   // that must not also let any of them edit the owner's phone number or re-lock the listing.
+  // Only admins can hand a listing to someone else; a new listing belongs to whoever adds it.
+  const isListingAdmin = useCan("real-estate.units.view-confidential");
   const canSeeConfidential = !isEdit || (editing?.canManageConfidential ?? true);
 
   const { data: buildingPage } = useProperties({ pageSize: 200 });
@@ -592,21 +595,6 @@ export function ListingForm({ open, onClose, editing }: Props) {
               <Section title="Owner">
                 {canSeeConfidential ? (
                   <>
-                    <label className="col-span-2 flex items-start gap-2.5 rounded-lg border border-border p-2.5 cursor-pointer hover:bg-muted/40">
-                      <input type="checkbox" checked={restrictConfidential}
-                        onChange={e => setRestrictConfidential(e.target.checked)}
-                        className="mt-0.5 h-4 w-4 rounded border-border accent-primary" />
-                      <span className="text-xs">
-                        <span className="font-medium text-foreground">
-                          Restrict to owner/agent only
-                        </span>
-                        <p className="text-muted-foreground mt-0.5">
-                          {restrictConfidential
-                            ? "Unit Number and Owner Details below are hidden from other staff — only the assigned agent and tenant admins can see them."
-                            : "Unit Number and Owner Details will be visible to every staff member who can see this listing — uncheck only if the owner does not mind their number being shared."}
-                        </p>
-                      </span>
-                    </label>
                     <div className="col-span-2 space-y-1.5">
                       <Label>Owner name</Label>
                       <Input value={ownerName} onChange={e => setOwnerName(e.target.value)}
@@ -622,19 +610,19 @@ export function ListingForm({ open, onClose, editing }: Props) {
                       <Input value={ownerPhoneAlt} onChange={e => setOwnerPhoneAlt(e.target.value)}
                         placeholder="Optional" className="h-9 text-sm" />
                     </div>
+                    {isListingAdmin && (
                     <div className="col-span-2 space-y-1.5">
-                      <Label>Assigned agent (sees these details)</Label>
+                      <Label>Listing owner (sees these details)</Label>
                       <select value={agentUserId ?? ""} onChange={e => setAgentUserId(e.target.value || null)}
                         className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                         <option value="">Unassigned — admins only</option>
                         {agentOptions.map(o => <option key={o.id} value={o.id}>{o.fullName}</option>)}
                       </select>
                       <p className="text-[11px] text-muted-foreground">
-                        {restrictConfidential
-                          ? "Only this person and tenant admins can see the Unit Number and Owner Details above — everyone else on the team sees the rest of the listing as normal. Grant \"View confidential listing details\" to a role to widen that."
-                          : "The restriction above is off, so this only matters if it's switched back on later — set it now to avoid leaving the listing admin-only when someone re-enables it."}
+                        Only the person who added this listing and admins can see the Unit Number and Owner Details. Everyone else sees the rest of the listing.
                       </p>
                     </div>
+                    )}
                   </>
                 ) : (
                   <div className="col-span-2 flex items-start gap-2 rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground">

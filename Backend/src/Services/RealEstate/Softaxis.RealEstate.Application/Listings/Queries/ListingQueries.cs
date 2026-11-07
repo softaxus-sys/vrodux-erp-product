@@ -30,7 +30,10 @@ public sealed record GetListingsQuery(
     decimal? MinPrice = null,
     decimal? MaxPrice = null,
     /// <summary>True = the parked listings (off the market, kept for later); false = the active stock list.</summary>
-    bool Parked = false) : IQuery<PagedResult<ListingDto>>;
+    bool Parked = false,
+    /// <summary>Size range in sqft, compared against the unit's area.</summary>
+    decimal? MinArea = null,
+    decimal? MaxArea = null) : IQuery<PagedResult<ListingDto>>;
 
 /// <summary>
 /// What the filter bar can offer: only values that some listing actually has, so no option ever

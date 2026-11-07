@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ImagePlus, Loader2, Star, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Share2, ImagePlus, Loader2, Star, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -239,6 +239,157 @@ export function PropertyPhotos({
           These upload once the property is saved.
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * One building photo as a JPEG file. Uploads are stored as WebP, which WhatsApp and some phones
+ * treat as a sticker or refuse to show as a photo, so they are re-encoded to JPEG for sharing.
+ */
+async function propertyImageAsJpeg(propertyId: string, img: PropertyImageDto, baseName: string, index: number): Promise<File> {
+  const url = await reApi.getPropertyImageObjectUrl(propertyId, img.id);
+  try {
+    const el = new Image();
+    el.src = url;
+    await el.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = el.naturalWidth;
+    canvas.height = el.naturalHeight;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#ffffff"; // JPEG has no transparency
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(el, 0, 0);
+    const blob = await new Promise<Blob>((res, rej) =>
+      canvas.toBlob(b => (b ? res(b) : rej(new Error("encode"))), "image/jpeg", 0.92));
+    const safe = baseName.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-") || "property";
+    const stem = img.fileName?.trim().replace(/\.[^.]+$/, "");
+    return new File([blob], `${stem || `${safe}-${index + 1}`}.jpg`, { type: "image/jpeg" });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function saveFile(file: File) {
+  const url = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = file.name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * Read-only photo slider for anyone viewing a property or listing: one large photo with
+ * previous / next, thumbnails, and buttons to download the current photo or all of them.
+ */
+export function PropertyPhotoSlider({
+  propertyId, images, name, className,
+}: { propertyId: string; images: PropertyImageDto[]; name: string; className?: string }) {
+  const ordered = React.useMemo(
+    () => [...images].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.sortOrder - b.sortOrder),
+    [images]);
+  const [index, setIndex] = React.useState(0);
+  const [busy, setBusy] = React.useState(false);
+
+  React.useEffect(() => { if (index >= ordered.length) setIndex(0); }, [ordered.length, index]);
+  if (ordered.length === 0) return null;
+
+  const current = ordered[Math.min(index, ordered.length - 1)];
+  const go = (d: number) => setIndex(i => (i + d + ordered.length) % ordered.length);
+
+  const files = (list: PropertyImageDto[]) =>
+    Promise.all(list.map(img => propertyImageAsJpeg(propertyId, img, name, ordered.indexOf(img))));
+
+  const run = async (list: PropertyImageDto[]) => {
+    setBusy(true);
+    try {
+      for (const f of await files(list)) {
+        saveFile(f);
+        // Browsers drop rapid back-to-back downloads; space them out a little.
+        if (list.length > 1) await new Promise(r => setTimeout(r, 350));
+      }
+    } catch {
+      toast.error("Could not download the photo. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Phones (and some desktop browsers) can hand files straight to WhatsApp through the share sheet.
+  const canShare = typeof navigator !== "undefined" && typeof navigator.canShare === "function";
+  const share = async () => {
+    setBusy(true);
+    try {
+      const list = await files(ordered);
+      if (navigator.canShare?.({ files: list })) {
+        await navigator.share({ files: list, title: name });
+      } else {
+        toast.info("Sharing isn't available on this device — use Download, then attach in WhatsApp.");
+      }
+    } catch (e) {
+      if ((e as Error)?.name !== "AbortError") toast.error("Could not share the photos.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={`space-y-2 ${className ?? ""}`}>
+      <div className="relative group">
+        <PropertyImg key={current.id} propertyId={propertyId} imageId={current.id}
+          alt={current.caption ?? name}
+          className="w-full h-56 object-cover rounded-xl border border-border bg-muted" />
+        {ordered.length > 1 && (
+          <>
+            <button type="button" onClick={() => go(-1)} aria-label="Previous photo"
+              className="absolute start-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70">
+              <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
+            </button>
+            <button type="button" onClick={() => go(1)} aria-label="Next photo"
+              className="absolute end-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70">
+              <ChevronRight className="w-4 h-4 rtl:rotate-180" />
+            </button>
+            <span className="absolute bottom-2 end-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] text-white">
+              {index + 1} / {ordered.length}
+            </span>
+          </>
+        )}
+      </div>
+
+      {current.caption && <p className="text-xs text-muted-foreground">{current.caption}</p>}
+
+      {ordered.length > 1 && (
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          {ordered.map((img, i) => (
+            <button key={img.id} type="button" onClick={() => setIndex(i)} aria-label={`Photo ${i + 1}`}
+              className={`shrink-0 rounded-md border-2 ${i === index ? "border-primary" : "border-transparent opacity-70 hover:opacity-100"}`}>
+              <PropertyImg propertyId={propertyId} imageId={img.id} className="h-12 w-16 object-cover rounded" />
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <button type="button" disabled={busy} onClick={() => run([current])}
+          className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-lg border border-border text-xs hover:bg-muted disabled:opacity-50">
+          <Download className="w-3.5 h-3.5" /> Download photo
+        </button>
+        {ordered.length > 1 && (
+          <button type="button" disabled={busy} onClick={() => run(ordered)}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-lg border border-border text-xs hover:bg-muted disabled:opacity-50">
+            <Download className="w-3.5 h-3.5" /> {busy ? "Downloading…" : `Download all (${ordered.length})`}
+          </button>
+        )}
+        {canShare && (
+          <button type="button" disabled={busy} onClick={share}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-lg border border-border text-xs hover:bg-muted disabled:opacity-50">
+            <Share2 className="w-3.5 h-3.5" /> Share
+          </button>
+        )}
+      </div>
     </div>
   );
 }
