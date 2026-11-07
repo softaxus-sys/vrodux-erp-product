@@ -32,7 +32,7 @@ export function FarmDashboardView() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Farm dashboard" description={ft("Running: {{types}}", { types: data.enabledTypes.map(farmTypeLabel).join("، ") })} />
+      <PageHeader title="Farm dashboard" description={ft("Running: {{types}}", { types: data.enabledTypes.map(farmTypeLabel).join(ft(", ")) })} />
       {empty && (
         <Card className="p-5 text-sm">
           <p className="font-semibold">{ft("Get started")}</p>

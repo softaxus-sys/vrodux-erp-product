@@ -43,11 +43,11 @@ function ProductionForm({ onClose }: { onClose: () => void }) {
   const save = useAct((b: Record<string, unknown>) => farmingApi.saveProduction(undefined, b), "Recorded.");
   return (
     <FormModal title="Record production" size="lg" pending={save.isPending} onClose={onClose}
-      initial={{ date: localToday(), type: o.types[0]?.value ?? "dairy", product, quantity: "", uom: defaultUom(product), session: "", grade: "", rejected: "0", animalId: "", batchId: "", unitId: "", notes: "" }}
+      initial={{ date: localToday(), type: o.types[0]?.value ?? "dairy", product, quantity: "", uom: "", session: "", grade: "", rejected: "0", animalId: "", batchId: "", unitId: "", notes: "" }}
       fields={[
         { key: "date", label: "Date", type: "date", required: true }, { key: "type", label: "Type of farming", type: "select", required: true, options: o.types },
         { key: "product", label: "Product", type: "select", required: true, options: o.products }, { key: "quantity", label: "Quantity", type: "number", required: true },
-        { key: "uom", label: "Unit", required: true, hint: "L, kg, pcs, trays, crates…" }, { key: "session", label: "Session", type: "select", options: [{ value: "morning", label: "Morning" }, { value: "midday", label: "Midday" }, { value: "evening", label: "Evening" }] },
+        { key: "uom", label: "Unit", hint: "Leave blank for the usual unit. Or type L, kg, pcs, trays, crates…" }, { key: "session", label: "Session", type: "select", options: [{ value: "morning", label: "Morning" }, { value: "midday", label: "Midday" }, { value: "evening", label: "Evening" }] },
         { key: "rejected", label: "Rejected / spoiled", type: "number", hint: "Not included in the quantity." }, { key: "grade", label: "Grade / note" },
         { key: "animalId", label: "From animal", type: "select", options: o.animals }, { key: "batchId", label: "From batch", type: "select", options: o.batches }, { key: "unitId", label: "Shed / pond / field", type: "select", options: o.units },
         { key: "notes", label: "Notes", type: "textarea" },

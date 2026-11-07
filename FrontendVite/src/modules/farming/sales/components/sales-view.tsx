@@ -60,12 +60,12 @@ export function SalesView() {
       </Card>
       <AnimatePresence>
         {form === "sale" && <FormModal title="Record sale" size="lg" pending={saveS.isPending} onClose={() => setForm(null)}
-          initial={{ date: today, type: o.types[0]?.value ?? "dairy", product: "milk", buyer: "", buyerPhone: "", quantity: "", uom: "L", unitPrice: "", amountPaid: "0", animalId: "", batchId: "", headCount: "0", notes: "" }}
+          initial={{ date: today, type: o.types[0]?.value ?? "dairy", product: "milk", buyer: "", buyerPhone: "", quantity: "", uom: "", unitPrice: "", amountPaid: "0", animalId: "", batchId: "", headCount: "0", notes: "" }}
           fields={[{ key: "date", label: "Date", type: "date", required: true }, { key: "type", label: "Type of farming", type: "select", required: true, options: o.types }, { key: "product", label: "Product", type: "select", required: true, options: o.products },
-            { key: "buyer", label: "Buyer" }, { key: "buyerPhone", label: "Buyer phone" }, { key: "quantity", label: "Quantity", type: "number", required: true }, { key: "uom", label: "Unit", required: true, hint: `Usually ${defaultUom("milk")} for milk, kg for fish and meat.` },
+            { key: "buyer", label: "Buyer" }, { key: "buyerPhone", label: "Buyer phone" }, { key: "quantity", label: "Quantity", type: "number", required: true }, { key: "uom", label: "Unit", hint: "Leave blank for the usual unit (L for milk, kg for fish and meat, pcs for eggs)." },
             { key: "unitPrice", label: "Price per unit", type: "number", required: true }, { key: "amountPaid", label: "Paid so far", type: "number" },
             { key: "animalId", label: "Animal sold", type: "select", options: o.animals, hint: "For live animals or meat." }, { key: "batchId", label: "From batch", type: "select", options: o.batches }, { key: "headCount", label: "Head taken from batch", type: "number", hint: "Live birds or fish sold." }, { key: "notes", label: "Notes", type: "textarea" }]}
-          onSubmit={v => saveS.mutate({ date: v.date, type: v.type, product: v.product, buyer: orUndef(v.buyer), buyerPhone: orUndef(v.buyerPhone), quantity: num(v.quantity), uom: String(v.uom).trim(), unitPrice: num(v.unitPrice), amountPaid: num(v.amountPaid),
+          onSubmit={v => saveS.mutate({ date: v.date, type: v.type, product: v.product, buyer: orUndef(v.buyer), buyerPhone: orUndef(v.buyerPhone), quantity: num(v.quantity), uom: String(v.uom).trim() || defaultUom(String(v.product)), unitPrice: num(v.unitPrice), amountPaid: num(v.amountPaid),
             animalId: orUndef(v.animalId), batchId: orUndef(v.batchId), headCount: Math.round(num(v.headCount)), notes: orUndef(v.notes) }, { onSuccess: () => setForm(null) })} />}
         {form === "expense" && <FormModal title="Record expense" size="sm" pending={saveE.isPending} onClose={() => setForm(null)}
           initial={{ date: today, category: "Labour", description: "", amount: "", type: "", unitId: "", batchId: "", paidTo: "" }}
