@@ -18,7 +18,7 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("identity")
-                .HasAnnotation("ProductVersion", "9.0.22")
+                .HasAnnotation("ProductVersion", "9.0.21")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -3217,6 +3217,139 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "view",
                             Description = "View fitness reports",
                             ModuleId = "fitness.reports"
+                        },
+                        new
+                        {
+                            Id = new Guid("3d476236-d170-b8e5-9e64-a0a2aad9b26f"),
+                            Action = "view",
+                            Description = "View farming setup",
+                            ModuleId = "farming.setup"
+                        },
+                        new
+                        {
+                            Id = new Guid("284fe9e7-79e5-3ef2-5838-e82233b7aae3"),
+                            Action = "edit",
+                            Description = "Edit farming setup",
+                            ModuleId = "farming.setup"
+                        },
+                        new
+                        {
+                            Id = new Guid("e1e60d41-1f4c-cf00-67b4-9f2bd2cdf558"),
+                            Action = "view",
+                            Description = "View farming livestock",
+                            ModuleId = "farming.livestock"
+                        },
+                        new
+                        {
+                            Id = new Guid("eb4014d2-1bd2-07ab-1aa4-268576491af6"),
+                            Action = "create",
+                            Description = "Create farming livestock",
+                            ModuleId = "farming.livestock"
+                        },
+                        new
+                        {
+                            Id = new Guid("ca38cdd3-0387-b736-d31a-05aead55f7bf"),
+                            Action = "edit",
+                            Description = "Edit farming livestock",
+                            ModuleId = "farming.livestock"
+                        },
+                        new
+                        {
+                            Id = new Guid("194de3b7-15a6-d722-5c24-7a4baf4a6404"),
+                            Action = "delete",
+                            Description = "Delete farming livestock",
+                            ModuleId = "farming.livestock"
+                        },
+                        new
+                        {
+                            Id = new Guid("da6e82cd-334b-659c-2180-43091c029dde"),
+                            Action = "view",
+                            Description = "View farming production",
+                            ModuleId = "farming.production"
+                        },
+                        new
+                        {
+                            Id = new Guid("e4b8c87c-fa8f-a3a0-41a5-bb4a777275a9"),
+                            Action = "create",
+                            Description = "Create farming production",
+                            ModuleId = "farming.production"
+                        },
+                        new
+                        {
+                            Id = new Guid("ca9f9f7d-c85a-6dc7-997d-8002d83c3147"),
+                            Action = "edit",
+                            Description = "Edit farming production",
+                            ModuleId = "farming.production"
+                        },
+                        new
+                        {
+                            Id = new Guid("35560930-f140-c166-4d70-677d10725bff"),
+                            Action = "delete",
+                            Description = "Delete farming production",
+                            ModuleId = "farming.production"
+                        },
+                        new
+                        {
+                            Id = new Guid("6ad2ba2f-6302-1127-db12-660cf0ec6475"),
+                            Action = "view",
+                            Description = "View farming health",
+                            ModuleId = "farming.health"
+                        },
+                        new
+                        {
+                            Id = new Guid("90d3f325-f66e-42c8-4da8-a2cd947dfc1f"),
+                            Action = "create",
+                            Description = "Create farming health",
+                            ModuleId = "farming.health"
+                        },
+                        new
+                        {
+                            Id = new Guid("f1b4bf65-8930-879b-f2f1-298b5bcd1f38"),
+                            Action = "edit",
+                            Description = "Edit farming health",
+                            ModuleId = "farming.health"
+                        },
+                        new
+                        {
+                            Id = new Guid("52fcae02-a5aa-56aa-c283-bbf0a8d198a0"),
+                            Action = "delete",
+                            Description = "Delete farming health",
+                            ModuleId = "farming.health"
+                        },
+                        new
+                        {
+                            Id = new Guid("ac54894f-f71e-c6a9-e660-e22d09f80d51"),
+                            Action = "view",
+                            Description = "View farming sales",
+                            ModuleId = "farming.sales"
+                        },
+                        new
+                        {
+                            Id = new Guid("259b44ec-6ad3-f959-7d58-9721140e0b78"),
+                            Action = "create",
+                            Description = "Create farming sales",
+                            ModuleId = "farming.sales"
+                        },
+                        new
+                        {
+                            Id = new Guid("5a50b76b-f2c8-4d32-feef-4f2bd51b6680"),
+                            Action = "edit",
+                            Description = "Edit farming sales",
+                            ModuleId = "farming.sales"
+                        },
+                        new
+                        {
+                            Id = new Guid("c6984670-be3c-a321-b7ea-a4ff746594fa"),
+                            Action = "delete",
+                            Description = "Delete farming sales",
+                            ModuleId = "farming.sales"
+                        },
+                        new
+                        {
+                            Id = new Guid("1762eca5-27f3-ca6f-ecb7-4b1c7ba858cc"),
+                            Action = "view",
+                            Description = "View farming reports",
+                            ModuleId = "farming.reports"
                         },
                         new
                         {

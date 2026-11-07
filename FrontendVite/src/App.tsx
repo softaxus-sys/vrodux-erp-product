@@ -168,6 +168,12 @@ const FitnessFacilityPage = lazyWithRetry(() => import("@/pages/fitness/facility
 const FitnessLeadsPage = lazyWithRetry(() => import("@/pages/fitness/leads"));
 const FitnessPaymentsPage = lazyWithRetry(() => import("@/pages/fitness/payments"));
 const FitnessSetupPage = lazyWithRetry(() => import("@/pages/fitness/setup"));
+const FarmDashboardPage = lazyWithRetry(() => import("@/pages/farming/dashboard"));
+const FarmLivestockPage = lazyWithRetry(() => import("@/pages/farming/livestock"));
+const FarmProductionPage = lazyWithRetry(() => import("@/pages/farming/production"));
+const FarmHealthPage = lazyWithRetry(() => import("@/pages/farming/health"));
+const FarmSalesPage = lazyWithRetry(() => import("@/pages/farming/sales"));
+const FarmSetupPage = lazyWithRetry(() => import("@/pages/farming/setup"));
 const LibraryDashboardPage   = lazyWithRetry(() => import("@/pages/library/dashboard"));
 const LibraryCirculationPage = lazyWithRetry(() => import("@/pages/library/circulation"));
 const LibraryCataloguePage   = lazyWithRetry(() => import("@/pages/library/catalogue"));
@@ -640,6 +646,16 @@ export function App() {
             <Route path="/library/members"     element={<LibraryMembersPage />} />
             <Route path="/library/fines"       element={<LibraryFinesPage />} />
             <Route path="/library/setup"       element={<LibrarySetupPage />} />
+          </Route>
+
+          {/* ── Farming ──────────────────────────────────────────────────── */}
+          <Route element={<ModuleGuard module="farming" />}>
+            <Route path="/farming/dashboard" element={<FarmDashboardPage />} />
+            <Route path="/farming/livestock" element={<FarmLivestockPage />} />
+            <Route path="/farming/production" element={<FarmProductionPage />} />
+            <Route path="/farming/health" element={<FarmHealthPage />} />
+            <Route path="/farming/sales" element={<FarmSalesPage />} />
+            <Route path="/farming/setup" element={<FarmSetupPage />} />
           </Route>
 
           {/* ── Fitness & Gym ─────────────────────────────────────────────── */}

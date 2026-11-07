@@ -513,6 +513,21 @@ export const navigationConfig: NavGroup[] = [
         ],
       },
       {
+        id: "farming",
+        label: "Farming",
+        labelAr: "المزرعة",
+        icon: "Tractor",
+        module: "farming",
+        children: [
+          { id: "farming-dashboard",  label: "Dashboard",  labelAr: "لوحة التحكم", href: "/farming/dashboard",  icon: "BarChart3", requiresPermission: "farming.reports.view" },
+          { id: "farming-livestock",  label: "Animals & batches", labelAr: "الحيوانات والدفعات", href: "/farming/livestock", icon: "Beef", requiresPermission: "farming.livestock.view" },
+          { id: "farming-production", label: "Production & feed", labelAr: "الإنتاج والأعلاف", href: "/farming/production", icon: "Milk", requiresPermission: "farming.production.view" },
+          { id: "farming-health",     label: "Health",     labelAr: "الصحة",       href: "/farming/health",     icon: "Syringe", requiresPermission: "farming.health.view" },
+          { id: "farming-sales",      label: "Sales & expenses", labelAr: "المبيعات والمصروفات", href: "/farming/sales", icon: "Wallet", requiresPermission: "farming.sales.view" },
+          { id: "farming-setup",      label: "Farms & setup", labelAr: "المزارع والإعداد", href: "/farming/setup", icon: "Settings2", requiresPermission: "farming.setup.view" },
+        ],
+      },
+      {
         id: "fitness",
         label: "Fitness & Gym",
         labelAr: "اللياقة والنادي",

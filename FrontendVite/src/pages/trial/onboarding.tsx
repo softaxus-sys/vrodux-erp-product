@@ -48,7 +48,7 @@ function getInitialMode(): "light" | "dark" {
 const MAX_BUSINESS_TYPES = 3;
 
 const INDUSTRY_MODULES: Record<string, ModuleId[]> = {
-  "All Industries":           ["pos","inventory","sales","purchase","finance","hr","crm","restaurant","hospitality","real-estate","construction","healthcare","education","visa","library","manufacturing","trade"],
+  "All Industries":           ["pos","inventory","sales","purchase","finance","hr","crm","restaurant","hospitality","real-estate","construction","healthcare","education","visa","library","manufacturing","trade","farming"],
   "Retail & E-Commerce":      ["pos","inventory","sales","crm","finance"],
   "Real Estate":              ["real-estate","crm","finance"],
   "Construction":             ["construction","purchase","hr","finance"],
@@ -65,7 +65,7 @@ const INDUSTRY_MODULES: Record<string, ModuleId[]> = {
   "Technology & IT":          ["crm","sales","hr","finance"],
   "Wholesale & Distribution": ["inventory","purchase","sales","finance"],
   "Professional Services":    ["crm","sales","hr","finance"],
-  "Agriculture":              ["inventory","purchase","finance"],
+  "Agriculture & Farming":    ["farming","inventory","finance","hr"],
   "Other":                    [],
 };
 

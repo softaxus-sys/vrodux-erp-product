@@ -200,6 +200,16 @@ public static class PermissionSeedData
         ["fitness.setup"]       = ["view","edit"],
         ["fitness.reports"]     = ["view"],
 
+        // Farming — setup (farms, sheds/ponds/fields, farm types), livestock (animals, flocks / ponds /
+        // plantings, breeding, weigh-ins), production (milk, eggs, harvest + feed), health (vaccinations,
+        // treatments, deaths), sales + expenses, and the dashboard.
+        ["farming.setup"]      = ["view","edit"],
+        ["farming.livestock"]  = ["view","create","edit","delete"],
+        ["farming.production"] = ["view","create","edit","delete"],
+        ["farming.health"]     = ["view","create","edit","delete"],
+        ["farming.sales"]      = ["view","create","edit","delete"],
+        ["farming.reports"]    = ["view"],
+
         // Trade (import / export) — shipments (edit also moves the status), the parties they involve,
         // the paper that travels with them, landed costs and the money for the goods. Costs and payments
         // are separate keys: seeing where the cargo is does not mean seeing what it cost.

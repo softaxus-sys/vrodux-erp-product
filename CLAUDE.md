@@ -9346,3 +9346,35 @@ Same design as the Library portal (Module 72g). A public page per gym, `/gym-por
 - **Verified:** 45 scripted checks against a local gateway and a throwaway LocalDB database (closed by default, staff 403, no PIN, wrong then right PIN, lockout and desk reset, account figures, booking, double booking 409, credit used and returned, someone else's booking 404, booking switch, PIN change ending the old session, removal ending a session, a second gym cannot be reached, switched-off portal 404). Test database dropped. `tsc` 0 errors, gateway build 0 errors.
 - **Not verified:** the public page and the staff PIN dialog in a browser, a phone, Arabic (English only). Not built: PIN reset by email, member self-registration, paying online, freezing a membership from the portal.
 - **Test gotcha:** a super-admin test token bypasses the tenant filter, so settings and plan-name checks cross workspaces; use a normal tenant token with explicit permissions.
+
+---
+
+## Module 100 - Farming (new module, "Agriculture & Farming" industry)
+
+New service `Softaxis.Farming` (schema `farming`, clean CQRS, same shape as Fitness/Library). Module code `farming`; stands alone (Inventory / Finance / HR suggested at signup, never required). One module covers **every kind of farm**: each shed, pond or field has a farm type, so a dairy, a poultry house and a fish pond live in one workspace.
+
+### Industry attach
+- Signup industry **"Agriculture & Farming"** (`agriculture_farming`; the old "Agriculture" label and `agriculture` / `farming` map to it too) -> module `farming` on every plan, no CRM pulled in (`Tenant.IndustryPackModule`). Onboarding pre-selects farming, inventory, finance, hr. Also in the module picker (Tractor icon), industry packs, super-admin module selector (with an `agriculture_farming` default set) and the roles matrix ("Farming").
+- Farm types: dairy, poultry, fish, goat_sheep, cattle, crops, beekeeping, other. **All are on for a new workspace**; Farms & setup lets the owner switch off the ones they do not run (`FarmSettings.EnabledTypes`, created on first read, never at startup).
+- `ModuleCodes.Farming`, in `PlanDefinitions.AllModules`, `/api/farming/` in `ModuleEnforcementMiddleware`, AI agent label, Farm Manager / Farm Staff roles from `ModuleRoleCatalogue`.
+
+### Model (`Softaxis.Farming.Domain`)
+`Farm`, `FarmUnit` (barn/shed/pen/pond/tank/cage/field/greenhouse/apiary), `Animal` (individually tagged: dairy, goat/sheep, cattle; dam/sire links), `Batch` (flock, pond stocking, planting, hives), `BreedingRecord` (expected birth date defaults by species: cattle 283 days, goat 150, sheep 147), `WeightRecord`, `ProductionRecord` (milk/eggs/fish/meat/wool/honey/crop...), `FeedRecord`, `HealthRecord` (next-due date = follow-up list; withdrawal days block milk/meat sales), `MortalityRecord`, `FarmSale`, `FarmExpense`, `FarmSettings`. Dates are `yyyy-MM-dd` strings; the client sends its own `today`.
+- **A batch's head count is never stored**: started with - deaths - sold, worked out on read. Mortality cannot exceed what is left; a sale cannot take more head than are left.
+- Selling an animal (product `animals`/`meat`) marks it sold; deleting that sale brings it back. Recording a death marks the animal dead; deleting the record restores it.
+- Milking sheet (`POST production/bulk`): re-saving the same date + session replaces, never doubles.
+- FCR = feed kg / (latest sample weight x head now), shown only when both a weigh-in and feed exist.
+- Delete is refused while it would strand history (animal/batch with production or sales, unit with live stock, farm with units, last farm).
+
+### API (`api/farming`)
+`settings`, `farms`, `units`, `dashboard`, `animals` (+`{id}`, `{id}/status`), `batches` (+`{id}/close`), `breeding` (+`{id}/outcome`), `weights`, `production` (+`bulk`), `feed`, `health` (+`{id}/done`), `mortality`, `sales`, `expenses`. Permissions `farming.setup` (view/edit), `farming.livestock` / `production` / `health` / `sales` (view/create/edit/delete), `farming.reports` (view = dashboard). Settings, farms, units and the animal/batch lists feed forms across the module, so any Farming view key may read them.
+- Migrations: `InitialFarming` (13 tables) and Identity `AddFarmingPermissions` (19 rows). Both auto-apply on startup; admins gain the permissions via `SyncAdministratorPermissionsAsync`, other roles need a grant and a re-login.
+
+### Frontend
+`lib/farming/farming.api.ts`, `hooks/farming/use-farming.ts` (`useAct` refreshes the whole module), `modules/farming/{shared,dashboard,livestock,production,health,sales,setup}`, pages `/farming/{dashboard,livestock,production,health,sales,setup}` in `ModuleGuard module="farming"`, nav group "Farming". English only (labelAr on menu items only).
+
+### Verified / not verified
+- Gateway and frontend build with 0 errors; `tsc -p tsconfig.app.json` clean for every touched file.
+- Gateway started on a **scratch LocalDB database** (whole migration chain applied, 13 farming tables) and 27 scripted API checks passed with a super-admin test token: settings, auto first farm, units, duplicate tag 409, milking sheet replace, breeding + expected date, second pending service 409, batch counts after deaths and sales, over-sell and over-death 409, animal sale / delete round trip, health follow-up overdue + withdrawal flag, dashboard figures, delete guards. Scratch DB dropped.
+- **Not verified:** the screens in a browser; per-permission 403s and tenant isolation with a real tenant (the test token bypassed both); signup with the new industry end to end; Arabic.
+- **Not built:** Finance posting of sales/expenses, Inventory feed stock, Reports-hub entries, AI-assistant tools, per-animal milk-yield charts, spoilage of withdrawal dates on sales, member/buyer ledger, Arabic strings, CSV import of an existing herd.

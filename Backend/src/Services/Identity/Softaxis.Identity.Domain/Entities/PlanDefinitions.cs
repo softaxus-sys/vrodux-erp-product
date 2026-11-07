@@ -57,7 +57,7 @@ public static class PlanDefinitions
         "notifications", "file-manager", "project-management", "ai-assistant",
         "pos", "restaurant", "recipe", "hospitality",
         "real-estate", "construction", "healthcare", "education", "insurance", "b2b", "visa",
-        "manufacturing", "library", "trade", "fitness", "leadgen", "ecommerce", "seo",
+        "manufacturing", "library", "trade", "fitness", "farming", "leadgen", "ecommerce", "seo",
     ];
 
     public static readonly IReadOnlyDictionary<PlanType, PlanLimits> All =

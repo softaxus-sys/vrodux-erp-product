@@ -47,6 +47,9 @@ public static class ModuleCodes
     // ── Fitness & Gym ────────────────────────────────────────────────────────
     public const string Fitness = "fitness";
 
+    // ── Farming (dairy, poultry, fish, goat/sheep, cattle, crops, beekeeping) ─
+    public const string Farming = "farming";
+
     // ── Import / Export (trade) ──────────────────────────────────────────────
     public const string Trade = "trade";
 

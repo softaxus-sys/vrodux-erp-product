@@ -198,7 +198,7 @@ export const INDUSTRIES = [
   "Technology & IT",
   "Wholesale & Distribution",
   "Professional Services",
-  "Agriculture",
+  "Agriculture & Farming",
   "Other",
 ];
 
