@@ -235,7 +235,7 @@ export const INDUSTRY_PACKS: IndustryPack[] = [
 
 /** Industries offered in the Create-Tenant picker (value + label). */
 export const INDUSTRY_OPTIONS = [
-  { value: "", label: "Generic (CRM only — no industry pack)" },
+  { value: "", label: "Not set (all modules available)" },
   ...INDUSTRY_PACKS.map(p => ({ value: p.industry, label: p.label })),
   // Not a real Industry Pack (no moduleKey, no PackModuleFor mapping on the backend) — picking this
   // just starts the super admin's Module Access picker empty instead of pre-checking a bundle, for a

@@ -542,6 +542,8 @@ export function TenantDetailPage() {
   }
 
   const limits        = planLimits(tenant.plan);
+  // A workspace on its free trial has no user limit (the seat guard skips trials); the plan's cap starts when it pays.
+  const onTrial       = tenant.status === "Trial";
   const industryLabel = tenant.industry ? (INDUSTRY_OPTIONS.find(o => o.value === tenant.industry)?.label ?? tenant.industry) : null;
 
   // Typed rather than `as const`: the union of literal shapes it produced had `show` on only some
@@ -623,7 +625,7 @@ export function TenantDetailPage() {
                       { label: "Contact Email", value: tenant.contactEmail },
                       { label: "Contact Phone", value: tenant.contactPhone },
                       { label: "Country",       value: tenant.country },
-                      { label: "Industry",      value: industryLabel ?? "Generic (CRM only)" },
+                      { label: "Industry",      value: industryLabel ?? "Not set (all modules available)" },
                       { label: "Created",       value: parseApiDate(tenant.createdAt).toLocaleDateString() },
                       { label: "Trial Ends",    value: tenant.trialEndsAt ? parseApiDate(tenant.trialEndsAt).toLocaleDateString() : null },
                     ].filter(f => f.value).map(f => (
@@ -752,8 +754,8 @@ export function TenantDetailPage() {
                     {tenant.industry === "custom"
                       ? "Custom — module access is managed entirely by hand below."
                       : tenant.industry
-                        ? `Activates the ${industryLabel} pack (+ core CRM) for this tenant.`
-                        : "Generic tenant — core CRM only, no industry pack."}
+                        ? `${industryLabel} adds its own screens and menu. Every other module stays available — nothing is restricted by industry.`
+                        : "No industry set. All modules are available; nothing is restricted."}
                   </p>
                 </div>
 
@@ -761,12 +763,14 @@ export function TenantDetailPage() {
                   <div className="bg-muted rounded-lg p-3 flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
                     <div><p className="text-xs text-muted-foreground">Max Users</p>
-                      <p className="text-sm font-semibold text-foreground">{limits.maxUsers < 0 ? "Unlimited" : limits.maxUsers}</p></div>
+                      <p className="text-sm font-semibold text-foreground">{onTrial || limits.maxUsers < 0 ? "Unlimited" : limits.maxUsers}</p>
+                      {onTrial && <p className="text-[10px] text-muted-foreground">During trial · {limits.maxUsers < 0 ? "no limit" : `${limits.maxUsers} on ${tenant.plan}`} after</p>}</div>
                   </div>
                   <div className="bg-muted rounded-lg p-3 flex items-center gap-2">
                     <Warehouse className="h-4 w-4 text-muted-foreground" />
                     <div><p className="text-xs text-muted-foreground">Max Warehouses</p>
-                      <p className="text-sm font-semibold text-foreground">{limits.maxWarehouses < 0 ? "Unlimited" : limits.maxWarehouses}</p></div>
+                      <p className="text-sm font-semibold text-foreground">{onTrial || limits.maxWarehouses < 0 ? "Unlimited" : limits.maxWarehouses}</p>
+                      <p className="text-[10px] text-muted-foreground">Guide only · not enforced</p></div>
                   </div>
                 </div>
               </Card>

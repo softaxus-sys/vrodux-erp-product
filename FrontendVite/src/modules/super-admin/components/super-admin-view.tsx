@@ -178,7 +178,7 @@ function TenantCard({ tenant, onClick, onEnter, entering }: {
         <div className="flex items-center gap-1">
           <Users className="h-3 w-3" />
           <span>
-            {limits.maxUsers < 0 ? "Unlimited users" : `${limits.maxUsers} users max`}
+            {tenant.status === "Trial" || limits.maxUsers < 0 ? "Unlimited users" : `${limits.maxUsers} users max`}
           </span>
         </div>
         {tenant.deploymentType === "OnPremises" && (
