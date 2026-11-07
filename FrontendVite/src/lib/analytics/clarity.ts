@@ -4,8 +4,8 @@
  * payroll and customer data, so recording is restricted to the pages where a new visitor decides
  * whether to sign up. Same scoping rule as meta-pixel.ts.
  *
- * It also loads only after the visitor accepts the analytics notice (see ClarityConsent), and does
- * nothing at all until a project id is set. Mask settings (Strict) are chosen in the Clarity
+ * It records every visitor to the page (disclosed in the privacy policy), except anyone who earlier chose
+ * "No thanks" on the old notice - that choice is still honoured. It does nothing until a project id is set. Mask settings (Strict) are chosen in the Clarity
  * dashboard under Settings > Masking; password fields are always masked by Clarity itself.
  *
  * Nothing personal is ever sent as a tag: no name, email, phone or company.
@@ -44,7 +44,7 @@ export function setAnalyticsConsent(value: "granted" | "denied"): void {
 /** Idempotent; does nothing without a project id or without consent. Never throws. */
 export function loadClarity(): void {
   if (loaded || typeof window === "undefined" || !CLARITY_PROJECT_ID) return;
-  if (getAnalyticsConsent() !== "granted") return;
+  if (getAnalyticsConsent() === "denied") return;
   try {
     // Clarity's own bootstrap snippet, with the project id filled in.
     (function (c: any, l: Document, a: string, r: string, i: string) {

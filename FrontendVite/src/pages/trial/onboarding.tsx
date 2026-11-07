@@ -18,8 +18,7 @@ import i18n from "@/i18n";
 import { MODULES, BUSINESS_TYPES, MODULE_CATEGORIES, resolveModules, needsBusinessType, moduleLabel, moduleDesc, moduleCategoryLabel, businessTypeLabel, type ModuleId, type ModuleDef } from "@/lib/onboarding/module-data";
 import { registerTrial, type TrialRegistrationRequest } from "@/lib/onboarding/trial.api";
 import { useSignupAttribution, clearSignupAttribution } from "@/hooks/use-signup-attribution";
-import { ClarityConsent } from "@/components/analytics/clarity-consent";
-import { clarityEvent, clarityTag } from "@/lib/analytics/clarity";
+import { clarityEvent, clarityTag, loadClarity } from "@/lib/analytics/clarity";
 import { loadMetaPixel, trackPixelEvent, getMetaIdentifiers, newEventId } from "@/lib/analytics/meta-pixel";
 import { getPlan, amountFor, formatUsd, TRIAL_DAYS } from "@/lib/billing/plans";
 import { authApi } from "@/lib/identity/auth.api";
@@ -511,9 +510,10 @@ export default function OnboardingPage() {
   // See lib/analytics/meta-pixel.ts for why.
   React.useEffect(() => { loadMetaPixel(); trackPixelEvent("PageView"); }, []);
 
-  // Clarity session replay (only after the visitor allows it - see ClarityConsent). Tags are
-  // non-personal: they let recordings be filtered by plan and traffic source.
+  // Clarity session replay, for every visitor to this page (disclosed in the privacy policy; masking is
+  // Strict in the Clarity dashboard). Tags are non-personal: they filter recordings by plan and source.
   React.useEffect(() => {
+    loadClarity();
     clarityTag("plan", signup.plan ?? undefined);
     clarityTag("billing", signup.billing ?? undefined);
     clarityTag("utm_source", signup.utmSource ?? undefined);
@@ -692,7 +692,6 @@ export default function OnboardingPage() {
 
   return(
     <div className="h-screen flex overflow-hidden" style={{ background:D.bg }}>
-      <ClarityConsent/>
       <Sidebar D={D} step={step} showBT={showBT} darkMode={darkMode} toggleDarkMode={toggleDarkMode}/>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
