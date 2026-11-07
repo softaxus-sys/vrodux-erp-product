@@ -7,7 +7,8 @@ import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useDeleteListing, useSetPropertyWebsiteListing, useListing } from "@/hooks/real-estate/use-re";
 import type { ListingDto } from "@/lib/real-estate/re.api";
-import { PropertyImg } from "@/modules/real-estate/properties/components/property-photos";
+import { PropertyImg, PropertyPhotoSlider } from "@/modules/real-estate/properties/components/property-photos";
+import { useProperty } from "@/hooks/real-estate/use-re";
 import { RestrictedBadge } from "./confidential-field";
 
 interface Props {
@@ -34,6 +35,10 @@ export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }
 
   // Reset on close, or reopening another listing would show the confirmation still armed.
   React.useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
+
+  // The building's full photo list, for the slider. Loaded only when it has photos.
+  const { data: building } = useProperty(
+    open && listing && (fresh ?? listing).imageCount > 0 ? listing.propertyId : undefined);
 
   if (!listing) return null;
   // The row handed in is a snapshot from the list. Anything changed while the drawer is open —
@@ -80,8 +85,10 @@ export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Cover photo, when the building has one. */}
-              {l.primaryImageId && (
+              {/* Every photo of the building, with downloads. */}
+              {building?.images && building.images.length > 0 ? (
+                <PropertyPhotoSlider propertyId={l.propertyId} images={building.images} name={l.propertyName} />
+              ) : l.primaryImageId && (
                 <PropertyImg
                   propertyId={l.propertyId}
                   imageId={l.primaryImageId}
@@ -89,6 +96,7 @@ export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }
                   className="w-full h-44 object-cover rounded-xl border border-border"
                 />
               )}
+
 
               {/* Headline */}
               <div className="rounded-xl border border-border p-4">
@@ -201,13 +209,9 @@ export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }
                 Open building — photos, website, reports
               </Button>
 
-              {l.imageCount > 1 && (
-                <p className="text-xs text-muted-foreground text-center">
-                  {l.imageCount} photos on this building.
-                </p>
-              )}
             </div>
 
+            {l.canManageConfidential ? (
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Can permission="real-estate.units.delete">
                 <Button variant="outline" size="sm" className="text-destructive gap-1.5"
@@ -221,6 +225,11 @@ export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }
                 </Button>
               </Can>
             </div>
+            ) : (
+              <div className="px-6 py-3 border-t border-border text-xs text-muted-foreground flex items-center gap-2 shrink-0">
+                <Lock className="w-3.5 h-3.5" /> Only the owner of this listing can edit or delete it.
+              </div>
+            )}
 
             {/* State-based confirmation, never window.confirm. */}
             <AnimatePresence>

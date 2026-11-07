@@ -20,7 +20,9 @@ public sealed class RequirePermissionAttribute(string permission) : Attribute, I
         var user = context.HttpContext.User;
 
         if (user.FindFirstValue("is_super_admin") == "true") return;
-        if (user.HasClaim("permission", permission)) return;
+        // Comma-separated keys mean "any of these".
+        foreach (var key in permission.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            if (user.HasClaim("permission", key)) return;
 
         context.Result = new ObjectResult(new { Code = "Permission.Denied", Description = $"Missing permission: {permission}" })
         {

@@ -6,6 +6,7 @@ using Softaxis.RealEstate.Application.Units.Commands;
 using Softaxis.RealEstate.Application.Units.Dtos;
 using Softaxis.RealEstate.Domain.Entities;
 using Softaxis.RealEstate.Infrastructure.Persistence;
+using Softaxis.RealEstate.Infrastructure.Services;
 
 namespace Softaxis.RealEstate.Infrastructure.Handlers.Units;
 
@@ -77,12 +78,17 @@ internal sealed class CreateUnitHandler(RealEstateDbContext db, ICurrentUser use
     }
 }
 
-internal sealed class UpdateUnitHandler(RealEstateDbContext db) : ICommandHandler<UpdateUnitCommand>
+internal sealed class UpdateUnitHandler(RealEstateDbContext db, ICurrentUser user) : ICommandHandler<UpdateUnitCommand>
 {
     public async Task<Result> Handle(UpdateUnitCommand cmd, CancellationToken ct)
     {
         var unit = await db.PropertyUnits.FirstOrDefaultAsync(u => u.Id == cmd.Id && !u.IsDeleted, ct);
         if (unit is null) return Result.Failure(Error.NotFoundById("Unit", cmd.Id));
+
+        // Only the person who added the listing, or an admin, may edit it.
+        if (!ListingConfidentiality.CanManage(user, unit.AgentUserId))
+            return Result.Failure(Error.Custom("Listing.Forbidden",
+                "Only the person who added this listing can edit it."));
 
         var number = cmd.UnitNumber.Trim();
         var duplicate = await db.PropertyUnits.AsNoTracking()
@@ -100,12 +106,17 @@ internal sealed class UpdateUnitHandler(RealEstateDbContext db) : ICommandHandle
     }
 }
 
-internal sealed class DeleteUnitHandler(RealEstateDbContext db) : ICommandHandler<DeleteUnitCommand>
+internal sealed class DeleteUnitHandler(RealEstateDbContext db, ICurrentUser user) : ICommandHandler<DeleteUnitCommand>
 {
     public async Task<Result> Handle(DeleteUnitCommand cmd, CancellationToken ct)
     {
         var unit = await db.PropertyUnits.FirstOrDefaultAsync(u => u.Id == cmd.Id && !u.IsDeleted, ct);
         if (unit is null) return Result.Failure(Error.NotFoundById("Unit", cmd.Id));
+
+        // Only the listing's owner (assigned agent) or an admin may delete it.
+        if (!ListingConfidentiality.CanManage(user, unit.AgentUserId))
+            return Result.Failure(Error.Custom("Listing.Forbidden",
+                "Only the owner of this listing can delete it."));
 
         // A let unit has a lease, a rent schedule and reminders hanging off it. Deleting it would
         // orphan all three and leave a tenant being chased for a unit that no longer exists.

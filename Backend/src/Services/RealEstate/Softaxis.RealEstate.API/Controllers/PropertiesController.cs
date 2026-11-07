@@ -34,7 +34,8 @@ public sealed class PropertiesController(ISender sender) : RealEstateControllerB
     }
 
     [HttpGet("{id:guid}")]
-    [RequirePermission("real-estate.properties.view")]
+    // Listing viewers need the building's photo list; confidential unit data is masked in the handler.
+    [RequirePermission("real-estate.properties.view, real-estate.units.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetPropertyByIdQuery(id), ct);
@@ -83,7 +84,7 @@ public sealed class PropertiesController(ISender sender) : RealEstateControllerB
     /// however many images are actually on screen.
     /// </summary>
     [HttpGet("{id:guid}/images/{imageId:guid}")]
-    [RequirePermission("real-estate.properties.view")]
+    [RequirePermission("real-estate.properties.view, real-estate.units.view")]
     public async Task<IActionResult> GetImage(Guid id, Guid imageId, CancellationToken ct)
     {
         var result = await sender.Send(new GetPropertyImageQuery(id, imageId), ct);

@@ -25,8 +25,10 @@ internal static class ListingConfidentiality
     /// else — an unrestricted listing is open to anyone who could load it at all, admin, agent or
     /// otherwise, because someone explicitly decided this one owner's details are not sensitive.
     /// </param>
+    /// Confidential details are shown only to the listing's owner (its assigned agent) and admins.
+    /// The per-listing <c>restricted</c> flag no longer opens them to other staff.
     public static bool CanView(ICurrentUser user, Guid? agentUserId, bool restricted) =>
-        !restricted || CanManage(user, agentUserId);
+        CanManage(user, agentUserId);
 
     /// <summary>
     /// True when the caller can see every listing's confidential columns, independent of which one
