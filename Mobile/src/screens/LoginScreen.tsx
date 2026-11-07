@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import {
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -19,6 +20,9 @@ import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } fr
 import type { AuthStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
+
+/** Sign-up happens on the web (workspace setup, module choice, plan); the source tag lets us see mobile-driven signups. */
+const SIGNUP_URL = "https://erp.vrodux.com/trial?utm_source=mobile_app";
 
 export default function LoginScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
@@ -118,6 +122,17 @@ export default function LoginScreen({ navigation }: Props) {
             fullWidth
             style={styles.submitButton}
           />
+
+          <View style={styles.signupRow}>
+            <Text style={styles.signupText}>New to Vrodux?</Text>
+            <Text
+              style={styles.signupLink}
+              accessibilityRole="link"
+              onPress={() => Linking.openURL(SIGNUP_URL).catch(() => setError("Could not open the browser. Visit erp.vrodux.com/trial to sign up."))}
+            >
+              Start your free trial
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -134,6 +149,9 @@ function createStyles(colors: AppColors) {
     subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
 
     form: { gap: spacing.lg },
+    signupRow: { flexDirection: "row", justifyContent: "center", gap: spacing.xs + 2, flexWrap: "wrap" },
+    signupText: { fontSize: fontSize.base, color: colors.mutedForeground },
+    signupLink: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.primary },
     field: { gap: spacing.xs + 2 },
     label: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foregroundSecondary },
     inputWrap: {

@@ -1,6 +1,7 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Identity.Application.DTOs;
+using Softaxis.Identity.Domain.Enums;
 using Softaxis.Identity.Domain.Repositories;
 
 namespace Softaxis.Identity.Application.TenantsAdmin.Queries.GetTenantUserCount;
@@ -18,12 +19,14 @@ public sealed class GetTenantUserCountQueryHandler(
 
         var count  = await userRepo.CountByTenantAsync(query.Id, ct);
         var limits = tenant.Limits;
+        // A free trial has no user limit (PlanSeatGuard skips it), so report it that way instead of the plan's cap.
+        var unlimited = tenant.Status == TenantStatus.Trial || limits.MaxUsers < 0;
 
         return Result.Success(new TenantUserCountDto(
             TenantId:  query.Id,
             Count:     count,
-            MaxUsers:  limits.MaxUsers,
-            Remaining: limits.MaxUsers < 0 ? -1 : Math.Max(0, limits.MaxUsers - count),
-            AtLimit:   limits.MaxUsers >= 0 && count >= limits.MaxUsers));
+            MaxUsers:  unlimited ? -1 : limits.MaxUsers,
+            Remaining: unlimited ? -1 : Math.Max(0, limits.MaxUsers - count),
+            AtLimit:   !unlimited && count >= limits.MaxUsers));
     }
 }

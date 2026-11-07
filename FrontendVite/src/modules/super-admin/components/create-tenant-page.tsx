@@ -280,7 +280,7 @@ export function CreateTenantPage() {
               </div>
             </Section>
 
-            <Section step={3} icon={Factory} title="Industry Pack" desc="Sets the Module Access starting point below — pick a vertical or go fully custom.">
+            <Section step={3} icon={Factory} title="Industry Pack" desc="Only sets which modules start ticked below. Every industry can use every module — nothing is restricted.">
               <select value={industry} onChange={e => setIndustry(e.target.value)}
                 className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
                 {INDUSTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -289,8 +289,8 @@ export function CreateTenantPage() {
                 {industry === "custom"
                   ? "Module Access below starts empty — pick exactly what this tenant gets."
                   : industry
-                    ? `Activates the ${industryLbl} pack — adds industry entities, dashboards and menu on top of CRM.`
-                    : "Generic tenant — core CRM only, no industry pack."}
+                    ? `${industryLbl} adds its own screens and menu. Every other module stays available.`
+                    : "No industry set. All modules are available."}
               </p>
             </Section>
 
@@ -372,7 +372,7 @@ export function CreateTenantPage() {
                   <Row label="Slug"     value={slug ? <code className="text-xs">{slug}</code> : "—"} />
                   <Row label="Plan"     value={plan} />
                   <Row label="Deploy"   value={deployment} />
-                  <Row label="Industry" value={industry ? (industryLbl ?? industry) : "Generic (CRM only)"} />
+                  <Row label="Industry" value={industry ? (industryLbl ?? industry) : "Not set"} />
                   <Row label="Modules"  value={`${selectedModules.length}${isCustom ? " (customized)" : ` (${industry === "" ? "Generic" : industryLbl} defaults)`}`} />
                   <Row label="Admin"    value={wantAdmin ? (adminEmail || "set") : "None"} />
                 </div>
@@ -386,7 +386,7 @@ export function CreateTenantPage() {
                   <div className="flex items-start gap-2 rounded-lg bg-primary/5 border border-primary/20 p-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                     <p className="text-[11px] text-muted-foreground">
-                      <span className="font-medium text-foreground">{industryLbl}</span> pack + core CRM will be enabled for this tenant.
+                      <span className="font-medium text-foreground">{industryLbl}</span> screens and menu will be enabled for this tenant, along with the modules ticked below.
                     </p>
                   </div>
                 )}
