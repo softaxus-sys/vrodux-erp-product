@@ -48,7 +48,7 @@ internal sealed class VacancyAlertNotifier(
         var offsets = settings.ExpiryOffsets.Append(0).Distinct().ToList();
 
         // No IsDeleted filter, on purpose — see the class comment.
-        var units = await db.PropertyUnits.Where(u => u.Status == "rented").ToListAsync(ct);
+        var units = await db.PropertyUnits.Where(u => u.Status == "rented" && u.ParkedAt == null).ToListAsync(ct);
         if (units.Count == 0) return 0;
 
         // A lease on file is the authority for when the tenancy ends; the unit's own date is the

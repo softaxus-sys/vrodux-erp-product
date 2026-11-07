@@ -45,6 +45,9 @@ public static class PermissionSeedData
         // Integration Center. `approve` is the key that writes other modules' documents into the
         // ledger (post, retry, reverse); `edit` changes modes and account mappings only.
         ["finance.integrations"] = ["view","edit","approve","submit","approve-high"],
+        // UAE e-invoicing. `send` queues a document for the accredited provider; `edit` changes the
+        // provider and registration details; `view` reads readiness, status and the XML.
+        ["finance.einvoicing"]   = ["view","edit","send"],
 
         // HR
         // "create-login" lets HR give an employee portal access without holding
@@ -183,6 +186,20 @@ public static class PermissionSeedData
         ["library.fines"]       = ["view","create","edit","approve"],
         ["library.setup"]       = ["view","edit"],
 
+        // Fitness & Gym — members, memberships (selling, freezing, cancelling), payments (approve =
+        // void a receipt), the front-desk check-in, classes + bookings, trainers + personal training,
+        // equipment and lockers, leads, setup (branches, plans, rules) and reports.
+        ["fitness.members"]     = ["view","create","edit","delete"],
+        ["fitness.memberships"] = ["view","create","edit"],
+        ["fitness.payments"]    = ["view","create","approve"],
+        ["fitness.checkin"]     = ["view","create","edit"],
+        ["fitness.classes"]     = ["view","create","edit","delete"],
+        ["fitness.training"]    = ["view","create","edit","delete"],
+        ["fitness.facility"]    = ["view","create","edit","delete"],
+        ["fitness.leads"]       = ["view","create","edit","delete"],
+        ["fitness.setup"]       = ["view","edit"],
+        ["fitness.reports"]     = ["view"],
+
         // Trade (import / export) — shipments (edit also moves the status), the parties they involve,
         // the paper that travels with them, landed costs and the money for the goods. Costs and payments
         // are separate keys: seeing where the cargo is does not mean seeing what it cost.
@@ -191,6 +208,16 @@ public static class PermissionSeedData
         ["trade.documents"] = ["view","create","edit","delete"],
         ["trade.costs"]     = ["view","create","edit","delete"],
         ["trade.payments"]  = ["view","create","edit"],
+
+        // E-commerce (connected online stores). Connecting a store hands us its credentials, so channels are their own
+        // key; listings are what is published to a store (edit also re-syncs); orders are what the stores sold.
+        ["ecommerce.channels"] = ["view","create","edit","delete"],
+        ["ecommerce.listings"] = ["view","create","edit","delete"],
+        ["ecommerce.orders"]   = ["view","edit","refund"],
+        // The workspace's own online store: its settings, pages, delivery and look; promo codes; and who has signed up.
+        ["ecommerce.store"]     = ["view","edit"],
+        ["ecommerce.discounts"] = ["view","create","edit","delete"],
+        ["ecommerce.customers"] = ["view"],
 
         // Lead Generation. Every key is a separate decision so an administrator can hand out exactly
         // what a role needs:

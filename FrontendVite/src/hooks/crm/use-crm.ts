@@ -225,8 +225,8 @@ export function useActivitiesPaged(params: ActivityPageParams) {
   });
 }
 
-export function useActivitiesSummary() {
-  return useQuery({ queryKey: [QK, "activities-summary"], queryFn: crmApi.getActivitiesSummary });
+export function useActivitiesSummary(mine = false) {
+  return useQuery({ queryKey: [QK, "activities-summary", mine], queryFn: () => crmApi.getActivitiesSummary(mine) });
 }
 // Keyed under "activities" so any activity mutation (create/complete/delete) invalidates it too.
 export function useCustomerTimeline(customerId: string | null, enabled = true) {

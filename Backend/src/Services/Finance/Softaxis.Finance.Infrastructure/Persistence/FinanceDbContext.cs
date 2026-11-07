@@ -40,6 +40,10 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
     public DbSet<IntegrationSetting>   IntegrationSettings   => Set<IntegrationSetting>();
     public DbSet<AccountMapping>       AccountMappings       => Set<AccountMapping>();
     public DbSet<PostingItem>          PostingItems          => Set<PostingItem>();
+    public DbSet<CreditNote>           CreditNotes           => Set<CreditNote>();
+    public DbSet<CreditNoteItem>       CreditNoteItems       => Set<CreditNoteItem>();
+    public DbSet<EInvoiceSettings>     EInvoiceSettings      => Set<EInvoiceSettings>();
+    public DbSet<EInvoiceSubmission>   EInvoiceSubmissions   => Set<EInvoiceSubmission>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -84,6 +88,12 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
         TenantIsolation.TenantUniqueIndex<IntegrationSetting>(modelBuilder, [nameof(IntegrationSetting.IntegrationKey)], excludeSoftDeleted: false);
         TenantIsolation.TenantUniqueIndex<AccountMapping>(modelBuilder, [nameof(AccountMapping.IntegrationKey), nameof(AccountMapping.Role)], excludeSoftDeleted: false);
         TenantIsolation.TenantUniqueIndex<PostingItem>(modelBuilder, [nameof(PostingItem.IntegrationKey), nameof(PostingItem.SourceId)], excludeSoftDeleted: false);
+
+        // E-invoicing: a credit note number is unique per workspace, one settings row per workspace,
+        // and a document can own only one submission (the duplicate-send guard).
+        TenantIsolation.TenantUniqueIndex<CreditNote>(modelBuilder, [nameof(CreditNote.CreditNoteNumber)]);
+        modelBuilder.Entity<EInvoiceSettings>().HasIndex(TenantIsolation.Column).IsUnique().HasFilter($"[{TenantIsolation.Column}] IS NOT NULL");
+        TenantIsolation.TenantUniqueIndex<EInvoiceSubmission>(modelBuilder, [nameof(EInvoiceSubmission.DocumentType), nameof(EInvoiceSubmission.DocumentId)], excludeSoftDeleted: false);
 
         base.OnModelCreating(modelBuilder);
     }

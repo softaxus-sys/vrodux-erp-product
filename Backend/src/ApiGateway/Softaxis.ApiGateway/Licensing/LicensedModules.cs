@@ -62,6 +62,9 @@ public static class LicensedModules
             // Manufacturing keeps no stock of its own: products, warehouses and every movement
             // are Inventory's, reached in-process through IManufacturingStock.
             ["manufacturing"] = ["inventory"],
+            // E-commerce publishes and sells what Inventory holds; channels, variants and stock
+            // levels all live there.
+            ["ecommerce"] = ["inventory"],
         };
 
     /// <summary>

@@ -5,6 +5,7 @@ using Softaxis.Restaurant.Application.Abstractions;
 using Softaxis.Restaurant.Application.Orders.Commands;
 using Softaxis.Restaurant.Domain.Entities;
 using Softaxis.Restaurant.Infrastructure.Persistence;
+using Softaxis.BuildingBlocks.Infrastructure.Email;
 using System.Text;
 
 namespace Softaxis.Restaurant.Infrastructure.Handlers.Orders;
@@ -44,21 +45,22 @@ internal sealed class SendReceiptHandler(RestaurantDbContext db, IReceiptEmailSe
 
     private static string BuildReceiptHtml(Order order)
     {
-        var sb = new StringBuilder();
-        sb.Append($"<html><body style=\"font-family:sans-serif;color:#1e293b\">");
-        sb.Append($"<h2>Receipt — {order.OrderNumber}</h2>");
-        sb.Append("<table style=\"width:100%;border-collapse:collapse\">");
+        var lines = new List<EmailDetail>();
         foreach (var item in order.Items.Where(i => !i.IsDeleted))
-            sb.Append($"<tr><td>{item.Quantity}× {item.ItemName}</td><td style=\"text-align:right\">{item.LineTotal:0.00}</td></tr>");
-        sb.Append($"<tr><td>Subtotal</td><td style=\"text-align:right\">{order.SubTotal:0.00}</td></tr>");
-        if (order.DiscountAmount > 0) sb.Append($"<tr><td>Discount</td><td style=\"text-align:right\">-{order.DiscountAmount:0.00}</td></tr>");
-        sb.Append($"<tr><td>Tax</td><td style=\"text-align:right\">{order.TaxAmount:0.00}</td></tr>");
-        if (order.TipAmount > 0) sb.Append($"<tr><td>Tip</td><td style=\"text-align:right\">{order.TipAmount:0.00}</td></tr>");
-        sb.Append($"<tr><td><strong>Total</strong></td><td style=\"text-align:right\"><strong>{(order.Total + order.TipAmount):0.00}</strong></td></tr>");
-        sb.Append("</table>");
-        sb.Append("<p style=\"color:#64748b;font-size:12px\">Thank you for dining with us!</p>");
-        sb.Append("</body></html>");
-        return sb.ToString();
+            lines.Add(new EmailDetail($"{item.Quantity}× {item.ItemName}", item.LineTotal.ToString("0.00")));
+        lines.Add(new EmailDetail("Subtotal", order.SubTotal.ToString("0.00")));
+        if (order.DiscountAmount > 0) lines.Add(new EmailDetail("Discount", "-" + order.DiscountAmount.ToString("0.00")));
+        lines.Add(new EmailDetail("Tax", order.TaxAmount.ToString("0.00")));
+        if (order.TipAmount > 0) lines.Add(new EmailDetail("Tip", order.TipAmount.ToString("0.00")));
+        lines.Add(new EmailDetail("Total", (order.Total + order.TipAmount).ToString("0.00")));
+
+        return BrandedEmail.Render(
+            title: $"Your receipt — {order.OrderNumber}",
+            preheader: $"Total {(order.Total + order.TipAmount):0.00}. Thank you for dining with us.",
+            bodyHtml: BrandedEmail.P("Thank you for dining with us. Here is a copy of your receipt."),
+            details: lines,
+            tone: EmailTone.Success,
+            footerNote: "This is a copy of your receipt for your records.");
     }
 
     private static string BuildReceiptText(Order order)

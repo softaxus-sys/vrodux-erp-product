@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.Identity.Application.Billing;
 using Softaxis.Identity.Application.Billing.Commands;
+using Softaxis.Identity.Application.Billing.Credits;
 
 namespace Softaxis.Identity.API.Controllers;
 
@@ -28,6 +29,15 @@ public sealed class BillingAdminController(ISender sender) : BaseApiController(s
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken ct)
         => HandleResult(await Sender.Send(new GetBillingConfigQuery(), ct));
+
+    // GET /api/admin/billing-config/credit-pricing — what each module's credit costs, bulk discounts, order limits, swap rules.
+    [HttpGet("credit-pricing")]
+    public async Task<IActionResult> CreditPricing(CancellationToken ct)
+        => HandleResult(await Sender.Send(new GetCreditPricingQuery(), ct));
+
+    [HttpPut("credit-pricing")]
+    public async Task<IActionResult> UpdateCreditPricing([FromBody] UpdateCreditPricingRequest req, CancellationToken ct)
+        => HandleResult(await Sender.Send(new UpdateCreditPricingCommand(req), ct));
 
     // PUT /api/admin/billing-config
     [HttpPut]

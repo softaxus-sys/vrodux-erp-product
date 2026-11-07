@@ -63,6 +63,8 @@ public static class TenantStorageQuota
                     (SELECT ISNULL(SUM(SizeBytes),0) FROM [real_estate].[PropertyImages]
                      WHERE OwnerTenantId = {0} AND ObjectKey IS NOT NULL AND IsDeleted = 0) +
                     (SELECT ISNULL(SUM(SizeBytes),0) FROM [restaurant].[MenuItemImages]
+                     WHERE TenantId = {0} AND ObjectKey IS NOT NULL AND IsDeleted = 0) +
+                    (SELECT ISNULL(SUM(SizeBytes),0) FROM [inventory].[product_images]
                      WHERE TenantId = {0} AND ObjectKey IS NOT NULL AND IsDeleted = 0)
                 ) AS UsedBytes,
                 (SELECT [Plan] FROM [identity].[tenants] WHERE [Id] = {0}) AS [Plan]

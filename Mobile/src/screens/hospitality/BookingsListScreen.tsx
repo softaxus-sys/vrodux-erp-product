@@ -42,6 +42,7 @@ export default function BookingsListScreen() {
           busy={checkIn.isPending || checkOut.isPending}
           onCheckIn={() => checkIn.mutate(b.id)}
           onCheckOut={() => checkOut.mutate(b.id)}
+          onOpen={() => navigation.navigate("BookingDetail", { bookingId: b.id, bookingNumber: b.bookingNumber })}
         />
       )}
       isLoading={list.isLoading}
@@ -70,17 +71,19 @@ function BookingRow({
   busy,
   onCheckIn,
   onCheckOut,
+  onOpen,
 }: {
   booking: BookingDto;
   currency: string;
   busy: boolean;
   onCheckIn: () => void;
   onCheckOut: () => void;
+  onOpen: () => void;
 }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
-    <ListItemCard>
+    <ListItemCard onPress={onOpen}>
       <View style={styles.rowTop}>
         <Text style={styles.name} numberOfLines={1}>
           {booking.guestName}

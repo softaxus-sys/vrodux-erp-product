@@ -8,6 +8,7 @@ import CloseShiftScreen from "@/screens/pos/CloseShiftScreen";
 import NewSaleScreen from "@/screens/pos/NewSaleScreen";
 import TransactionActionScreen from "@/screens/pos/TransactionActionScreen";
 import CashMovementScreen from "@/screens/pos/CashMovementScreen";
+import BranchStockScreen from "@/screens/pos/BranchStockScreen";
 import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { POSStackParamList } from "@/navigation/types";
 
@@ -26,6 +27,7 @@ export default function POSStack() {
       <Stack.Screen name="CloseShift" component={CloseShiftScreen} options={{ headerTitle: "Close Shift" }} />
       <Stack.Screen name="TransactionAction" component={TransactionActionScreen} options={{ headerTitle: "Void / refund" }} />
       <Stack.Screen name="CashMovement" component={CashMovementScreen} options={{ headerTitle: "Cash in / out" }} />
+      <Stack.Screen name="BranchStock" component={BranchStockScreen} options={{ headerTitle: "Stock by branch" }} />
       <Stack.Screen
         name="NewSale"
         component={NewSaleScreen}

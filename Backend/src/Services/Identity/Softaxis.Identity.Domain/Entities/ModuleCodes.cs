@@ -44,8 +44,14 @@ public static class ModuleCodes
     // ── Library Management ───────────────────────────────────────────────────
     public const string Library = "library";
 
+    // ── Fitness & Gym ────────────────────────────────────────────────────────
+    public const string Fitness = "fitness";
+
     // ── Import / Export (trade) ──────────────────────────────────────────────
     public const string Trade = "trade";
+
+    // ── E-commerce (online stores: Shopify, later WooCommerce) ───────────────
+    public const string Ecommerce = "ecommerce";
 
     // ── Lead Generation (prospect search, credits, cold outreach) ────────────
     public const string LeadGen = "leadgen";

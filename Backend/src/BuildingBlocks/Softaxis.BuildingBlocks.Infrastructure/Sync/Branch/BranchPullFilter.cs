@@ -53,11 +53,22 @@ public sealed class BranchPullFilter(IConfiguration configuration)
             return AsGuid(b) == branchId;
         });
 
+        // Stock rows are keyed by warehouse, not branch: send only those of this branch's own warehouses.
+        if (BranchSyncCatalog.WarehouseOwned.TryGetValue(table.Name, out var warehouseColumn))
+        {
+            var mine = await BranchWarehouses.LoadAsync(configuration.GetConnectionString("IdentityDb"), tenantId, branchId, ct);
+            result = result.Where(r => r.Data is not null && AsGuid(r.Data.GetValueOrDefault(warehouseColumn)) is { } w && mine.Contains(w));
+        }
+
         if (!BranchSyncCatalog.Redactions.TryGetValue(table.Name, out var hidden))
             return result.ToList();
 
         return result.Select(r => r.Data is null ? r : r with { Data = Redact(r.Data, hidden) }).ToList();
     }
+
+    /// <summary>The warehouses that belong to a branch (cloud side: checks a push; branch side: picks what to push).</summary>
+    public Task<HashSet<Guid>> WarehousesOfAsync(Guid tenantId, Guid branchId, CancellationToken ct) =>
+        BranchWarehouses.LoadAsync(configuration.GetConnectionString("IdentityDb"), tenantId, branchId, ct);
 
     private static Dictionary<string, object?> Redact(IReadOnlyDictionary<string, object?> data, string[] hidden) =>
         data.Where(kv => !hidden.Contains(kv.Key, StringComparer.OrdinalIgnoreCase))

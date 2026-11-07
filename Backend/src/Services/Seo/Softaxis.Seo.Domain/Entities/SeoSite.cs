@@ -35,6 +35,9 @@ public sealed class SeoSite
     public DateTime?  LastSeenAt         { get; private set; }
     public DateTime?  LastScanAt         { get; private set; }
     public string     Status             { get; private set; } = "active"; // active | paused
+    /// <summary>Health score of the latest completed audit (0–100). Null until one completes.</summary>
+    public int?       LastScore          { get; private set; }
+    public int        LastPagesCrawled   { get; private set; }
 
     public bool      IsDeleted { get; private set; }
     public DateTime  CreatedAt { get; private set; }
@@ -76,7 +79,11 @@ public sealed class SeoSite
     }
 
     public void ScheduleNextScan(DateTime nextRunAt)         { NextScanAt = nextRunAt; Touch(); }
-    public void RecordScanCompleted(DateTime completedAt)    { LastScanAt = completedAt; Touch(); }
+    public void RecordScanCompleted(DateTime completedAt, int? score = null, int pagesCrawled = 0)
+    {
+        LastScanAt = completedAt; Touch();
+        if (score is not null) { LastScore = score; LastPagesCrawled = pagesCrawled; }
+    }
 
     public void Pause()  { Status = "paused"; Touch(); }
     public void Resume() { Status = "active"; Touch(); }

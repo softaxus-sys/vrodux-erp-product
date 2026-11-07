@@ -11,10 +11,14 @@ namespace Softaxis.CRM.Domain.Entities.Integrations;
 /// </summary>
 public static class MetaConversionDefaults
 {
-    /// <summary>Lead status → event. A status with no entry (or a blank one) sends nothing.</summary>
+    /// <summary>
+    /// Lead status → event. A status with no entry (or a blank one) sends nothing.
+    /// "new" is blank on purpose: Meta already counted the lead when the form was submitted, and sending
+    /// it back as a "Lead" event makes the campaign's Leads column count every lead twice.
+    /// </summary>
     public static readonly IReadOnlyDictionary<string, string> LeadEvents = new Dictionary<string, string>
     {
-        ["new"]         = "Lead",
+        ["new"]         = "",
         ["contacted"]   = "Contacted",
         ["qualified"]   = "Qualified",
         ["converted"]   = "Opportunity",

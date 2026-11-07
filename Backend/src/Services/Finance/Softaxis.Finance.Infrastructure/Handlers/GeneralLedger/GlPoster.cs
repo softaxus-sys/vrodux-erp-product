@@ -157,7 +157,7 @@ internal static class GlPoster
     /// Base-currency units per one unit of <paramref name="code"/> — the most recent stored rate on
     /// or before <paramref name="date"/>, else the most recent overall. Null when none is recorded.
     /// </summary>
-    private static async Task<decimal?> BasePerUnitAsync(
+    internal static async Task<decimal?> BasePerUnitAsync(
         FinanceDbContext db, string code, string baseCode, string date, CancellationToken ct)
     {
         if (code == baseCode)

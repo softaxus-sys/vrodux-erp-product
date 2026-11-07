@@ -28,7 +28,8 @@ internal static class ListingMappings
         u.HasMedia, u.IsListed, u.ListedBy, u.AgentName,
         u.AgentUserId, HasConfidentialAccess: true, u.RestrictConfidentialDetails,
         CanManageConfidential: true,
-        u.OwnerName, u.OwnerPhone, u.OwnerPhoneAlt, u.RentedUntil);
+        u.OwnerName, u.OwnerPhone, u.OwnerPhoneAlt, u.RentedUntil,
+        u.ParkedAt, u.ParkedReason, u.ParkedByName);
 
     /// <summary>
     /// Nulls out Unit Number and the owner fields when <paramref name="canView"/> is false, and
@@ -46,7 +47,9 @@ internal static class ListingMappings
                 OwnerPhone = null,
                 OwnerPhoneAlt = null,
             })
-        with { CanManageConfidential = canManage };
+        // Editing/parking/deleting is the same authority as managing the confidential fields:
+        // the listing's own agent or an administrator.
+        with { CanManageConfidential = canManage, CanModify = canManage };
 
     /// <summary>
     /// Gallery facts for a whole page of listings in ONE query, keyed by property.

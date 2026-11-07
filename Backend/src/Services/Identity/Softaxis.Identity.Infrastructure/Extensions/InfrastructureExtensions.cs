@@ -76,6 +76,9 @@ public static class InfrastructureExtensions
         // page only advertises processors that actually have credentials configured.
         services.AddScoped<IBillingProvider, StripeBillingProvider>();
         services.AddScoped<IBillingProvider, PayPalBillingProvider>();
+        // Credits: one-off payments with an inline price (no Stripe product / PayPal plan needed).
+        services.AddScoped<CreditCheckoutGateway>();
+        services.AddScoped<CreditFulfiller>();
         services.AddHttpClient(PayPalBillingProvider.HttpClientName);
 
         // Lets billing drop the 60s access decision SubscriptionEnforcementMiddleware caches,

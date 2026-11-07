@@ -31,7 +31,10 @@ using Softaxis.ProjectManagement.Infrastructure.Extensions;
 using Softaxis.AiAssistant.Infrastructure.Extensions;
 using Softaxis.Manufacturing.Infrastructure.Extensions;
 using Softaxis.Library.Infrastructure.Extensions;
+using Softaxis.Fitness.Infrastructure.Extensions;
+using Softaxis.Fitness.Infrastructure.Extensions;
 using Softaxis.Trade.Infrastructure.Extensions;
+using Softaxis.Ecommerce.Infrastructure.Extensions;
 using Softaxis.VisaServices.Infrastructure.Extensions;
 using Softaxis.Support.Infrastructure.Extensions;
 using Softaxis.Seo.Infrastructure.Extensions;
@@ -112,7 +115,10 @@ try
             // SDK, which has no business being referenced from the Application layer.
             typeof(Softaxis.Identity.Infrastructure.Persistence.IdentityDbContext).Assembly,
             typeof(Softaxis.POS.Application.Products.Commands.CreateProduct.CreateProductCommand).Assembly,
-            typeof(Softaxis.Inventory.Application.Categories.Queries.GetCategories.GetCategoriesQuery).Assembly);
+            typeof(Softaxis.Inventory.Application.Categories.Queries.GetCategories.GetCategoriesQuery).Assembly,
+            // Inventory.Infrastructure carries the product-listing handlers (they use the DbContext and
+            // object storage, which the Application layer must not reference).
+            typeof(Softaxis.Inventory.Infrastructure.Persistence.InventoryDbContext).Assembly);
         cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
         cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
     });
@@ -121,6 +127,7 @@ try
     builder.Services.AddValidatorsFromAssemblies([
         typeof(Softaxis.Identity.Application.Auth.Commands.Login.LoginCommandValidator).Assembly,
         typeof(Softaxis.POS.Application.Products.Commands.CreateProduct.CreateProductCommand).Assembly,
+        typeof(Softaxis.Inventory.Application.ProductTemplates.CreateProductTemplateCommand).Assembly,
     ]);
 
     // ── Infrastructure — all 5 services ──────────────────────────────────────
@@ -158,8 +165,12 @@ try
     builder.Services.AddManufacturingInfrastructure(builder.Configuration);
     // Library: catalogue, members, lending across branches. Stands alone — no other module needed.
     builder.Services.AddLibraryInfrastructure(builder.Configuration);
+    // Fitness & Gym: members, memberships, check-in, classes, personal training. Stands alone.
+    builder.Services.AddFitnessInfrastructure(builder.Configuration);
     // Trade: import / export shipments, trade documents, landed cost. Stands alone.
     builder.Services.AddTradeInfrastructure(builder.Configuration);
+    // E-commerce: connected online stores (Shopify), publishing Inventory listings, stock + order sync. Builds on Inventory.
+    builder.Services.AddEcommerceInfrastructure(builder.Configuration);
     builder.Services.AddSupportInfrastructure(builder.Configuration);
     builder.Services.AddSeoInfrastructure(builder.Configuration);
     builder.Services.AddCalendarInfrastructure(builder.Configuration);
@@ -225,10 +236,17 @@ try
         Softaxis.HR.Application.Abstractions.ICurrentUser,
         Softaxis.HR.API.Middleware.CurrentUserService>();
 
+    // Ecommerce: who is signed in for the order timeline, and whether the owner may preview a store that is not open yet.
+    builder.Services.AddScoped<Softaxis.Ecommerce.Application.Abstractions.ICurrentStaff, Softaxis.Ecommerce.API.Middleware.CurrentStaffService>();
+    builder.Services.AddScoped<Softaxis.Ecommerce.Application.Abstractions.IShopPreview, Softaxis.Ecommerce.API.Middleware.ShopPreviewService>();
+
     // Library.Application.Abstractions.ICurrentUser  →  Library CurrentUserService (branch-restricted staff)
     builder.Services.AddScoped<
         Softaxis.Library.Application.Abstractions.ICurrentUser,
         Softaxis.Library.API.Middleware.CurrentUserService>();
+    builder.Services.AddScoped<
+        Softaxis.Fitness.Application.Abstractions.ICurrentUser,
+        Softaxis.Fitness.API.Middleware.CurrentUserService>();
 
     // Trade.Application.Abstractions.ICurrentUser  →  Trade CurrentUserService (cost / payment visibility)
     builder.Services.AddScoped<
@@ -322,7 +340,9 @@ try
         .AddApplicationPart(typeof(Softaxis.VisaServices.API.Controllers.VisaCasesController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Manufacturing.API.Controllers.BomsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Library.API.Controllers.CatalogueController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.Fitness.API.Controllers.SetupController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Trade.API.Controllers.ShipmentsController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.Ecommerce.API.Controllers.ChannelsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Support.API.Controllers.SupportTicketsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Seo.API.Controllers.SeoSitesController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Calendar.API.Controllers.CalendarController).Assembly)
@@ -362,6 +382,10 @@ try
     // The Library member portal's [EnableRateLimiting] attributes name policies that nothing had
     // registered, so its public endpoints threw on the first request. Registered here, like the others.
     Softaxis.Library.API.Extensions.LibraryRateLimitPolicies.AddLibraryPortalRateLimiting(builder.Services);
+    // The gym member portal, same reason.
+    Softaxis.Fitness.API.Extensions.FitnessRateLimitPolicies.AddFitnessPortalRateLimiting(builder.Services);
+    // Same for the public storefront (browse / checkout / shopper sign-in).
+    Softaxis.Ecommerce.API.Extensions.EcommerceRateLimitPolicies.AddEcommerceRateLimiting(builder.Services, builder.Configuration);
 
     // ── CORS ──────────────────────────────────────────────────────────────────
     builder.Services.AddCors(opts =>
@@ -490,7 +514,9 @@ try
         await ForModule("visa",               app.Services.MigrateAndSeedVisaServicesAsync);
         await ForModule("manufacturing",      app.Services.MigrateAndSeedManufacturingAsync);
         await ForModule("library",            app.Services.MigrateAndSeedLibraryAsync);
+        await ForModule("fitness",            app.Services.MigrateAndSeedFitnessAsync);
         await ForModule("trade",              app.Services.MigrateAndSeedTradeAsync);
+        await ForModule("ecommerce",          app.Services.MigrateAndSeedEcommerceAsync);
 
         // Cross-cutting, licensed to nobody in particular. The notifications backfill checks for
         // the CRM tables before reading them, so it is safe on a box with no CRM schema.
@@ -509,6 +535,22 @@ try
     }
 
     // ── Middleware pipeline ───────────────────────────────────────────────────
+    // Behind nginx every request arrives from the proxy's address, so the per-address rate limits (sign-in, checkout)
+    // would count the whole world as one visitor. When the gateway sits behind a proxy that overwrites X-Forwarded-For
+    // (the Docker deployment does), set Gateway__TrustForwardedHeaders=true. It is off by default: a gateway exposed
+    // directly (the on-premises install) must not believe a header the caller wrote.
+    if (app.Configuration.GetValue<bool>("Gateway:TrustForwardedHeaders"))
+    {
+        var forwarded = new Microsoft.AspNetCore.Builder.ForwardedHeadersOptions
+        {
+            ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto,
+            ForwardLimit = 1,
+        };
+        forwarded.KnownNetworks.Clear();
+        forwarded.KnownProxies.Clear();
+        app.UseForwardedHeaders(forwarded);
+    }
+
     app.UseSerilogRequestLogging();
     app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -559,7 +601,7 @@ try
         Status  = "Healthy",
         Service = "Softaxis.ERP.Gateway",
         Time    = DateTime.UtcNow,
-        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Trade", "Support", "Seo", "Calendar", "LeadGen" }
+        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Fitness", "Trade", "Support", "Seo", "Calendar", "LeadGen" }
     })).AllowAnonymous();
 
     Log.Information("Vrodux ERP Gateway started on {Env}", app.Environment.EnvironmentName);

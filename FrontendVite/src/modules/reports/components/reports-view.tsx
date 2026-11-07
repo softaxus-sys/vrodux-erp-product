@@ -8,7 +8,7 @@ import {
   ArrowLeftRight, Minus, TrendingDown, Shield, Calculator, FileCheck,
   Trash2, Banknote, ClipboardList, Percent, FileSearch, FileCode2,
   FileSpreadsheet, Globe2, Handshake, ExternalLink, UtensilsCrossed,
-  Factory, Library, Ship,
+  Factory, Library, Ship, Dumbbell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ import {
   CRM_REPORTS,
   MANUFACTURING_REPORTS,
   LIBRARY_REPORTS,
+  FITNESS_REPORTS,
   TRADE_REPORTS,
   RESTAURANT_REPORTS,
   CATEGORY_MODULE,
@@ -142,6 +143,7 @@ const CATEGORY_CONFIG: Record<ReportCategory, { icon: React.ElementType; color: 
   Construction:  { icon: HardHat,      color: "text-warning",    bg: "bg-warning/10" },
   Manufacturing: { icon: Factory,      color: "text-primary",    bg: "bg-primary/10" },
   Library:       { icon: Library,      color: "text-primary",    bg: "bg-primary/10" },
+  Fitness:       { icon: Dumbbell,     color: "text-primary",    bg: "bg-primary/10" },
   "Import / Export": { icon: Ship, color: "text-primary", bg: "bg-primary/10" },
 };
 
@@ -224,7 +226,7 @@ export function ReportsView() {
   // Reports with no backend are no longer listed at all (see Module 23b) — the hub now contains only
   // reports that actually run.
   const allReports = React.useMemo(() => {
-    const candidates = [...getReportsForCountry(countryCode), ...CRM_REPORTS, ...RESTAURANT_REPORTS, ...MANUFACTURING_REPORTS, ...LIBRARY_REPORTS, ...TRADE_REPORTS];
+    const candidates = [...getReportsForCountry(countryCode), ...CRM_REPORTS, ...RESTAURANT_REPORTS, ...MANUFACTURING_REPORTS, ...LIBRARY_REPORTS, ...FITNESS_REPORTS, ...TRADE_REPORTS];
 
     return candidates.filter(r => {
       const module = r.requiresModule ?? CATEGORY_MODULE[r.category];

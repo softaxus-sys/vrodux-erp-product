@@ -7,11 +7,13 @@ internal static class AiSystemPrompt
 {
     public static string Build(string? agent, ICurrentUser user, bool hasTools)
     {
-        var who = string.IsNullOrWhiteSpace(agent) ? "Vrodux Assistant" : $"Vrodux {agent.ToUpperInvariant()} agent";
+        var who = string.IsNullOrWhiteSpace(agent)
+            ? "Vrodux AI"
+            : $"Vrodux {Softaxis.AiAssistant.Application.Abstractions.AiAgents.Label(agent)}";
         var name = user.Username ?? user.Email ?? "the user";
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"You are {who}, an AI assistant embedded in the Vrodux ERP system.");
+        sb.AppendLine($"You are {who}, the AI built into the Vrodux ERP system. Each module has a specialist the user can call by name (Vrodux CRM, Vrodux Finance and so on); you are one assistant that can act as any of them.");
         sb.AppendLine($"You are helping {name}. Answer questions about their company's business data clearly and concisely.");
         sb.AppendLine();
         sb.AppendLine("Rules:");

@@ -59,6 +59,10 @@ import InsuranceStack from "@/navigation/InsuranceStack";
 import ConstructionStack from "@/navigation/ConstructionStack";
 import HospitalityStack from "@/navigation/HospitalityStack";
 import ReportsStack from "@/navigation/ReportsStack";
+import MasterDataStack from "@/navigation/MasterDataStack";
+import LeadGenStack from "@/navigation/LeadGenStack";
+import { visibleMasters } from "@/hooks/use-master-data";
+import { LEADGEN_ANY_VIEW } from "@/lib/leadgen.api";
 import { LibraryStack, ManufacturingStack, TradeStack, RecipeStack, CalendarStack, SupportStack } from "@/navigation/ExtraModuleStack";
 import type { AppTabParamList } from "@/navigation/types";
 
@@ -111,6 +115,8 @@ const MODULE_TAB_ORDER: ModuleTabDef[] = [
   { key: "Recipe", label: "Recipes", subtitle: "Recipes and cost per serving", icon: "book-open", component: RecipeStack, isStack: true },
   { key: "Calendar", label: "Calendar", subtitle: "Upcoming events", icon: "calendar", component: CalendarStack, isStack: true },
   { key: "Reports", label: "Reports", subtitle: "POS and Inventory tabular reports", icon: "bar-chart-2", component: ReportsStack, isStack: true },
+  { key: "LeadGen", label: "Lead Generation", subtitle: "Find businesses, reach out, track replies", icon: "target", component: LeadGenStack, isStack: true },
+  { key: "MasterData", label: "Master Data", subtitle: "Categories, taxes, currencies, vendors…", icon: "database", component: MasterDataStack, isStack: true },
   { key: "FileManager", label: "File Manager", subtitle: "Browse CRM document library", icon: "folder", component: FileManagerScreen, isStack: false },
   // Last on purpose -- ungated (every session qualifies, see isTabAvailable below), so it should
   // never crowd out an actual module tab; it only surfaces directly for a session with nothing
@@ -207,6 +213,10 @@ function isTabAvailable(key: ModuleTabKey): boolean {
       return hasModuleAccess("trade") && hasPermission("trade.shipments.view", "trade.parties.view");
     case "Recipe":
       return hasModuleAccess("recipe");
+    case "LeadGen":
+      return hasModuleAccess("leadgen") && hasPermission(...LEADGEN_ANY_VIEW);
+    case "MasterData":
+      return visibleMasters().length > 0;
     case "Calendar":
     case "Support":
       // Core features open to every signed-in user -- no module subscription or permission gates them.

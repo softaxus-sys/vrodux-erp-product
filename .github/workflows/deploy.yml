@@ -171,6 +171,7 @@ jobs:
           build-args: |
             VITE_API_URL=${{ secrets.VITE_API_URL }}
             VITE_APP_VERSION=${{ steps.meta.outputs.version }}
+            VITE_CLARITY_PROJECT_ID=${{ vars.CLARITY_PROJECT_ID }}
           cache-from: type=gha,scope=web
           cache-to: type=gha,scope=web,mode=min,ignore-error=true
           labels: |

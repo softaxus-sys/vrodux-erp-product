@@ -211,6 +211,28 @@ internal static class PostingSources
             CancelledFrom: "FROM [hospitality].[BookingPayments] p JOIN [hospitality].[Bookings] b ON b.[Id] = p.[BookingId]",
             CancelledWhere: "(b.[IsDeleted] = 1 OR b.[Status] = 'cancelled')"),
 
+        // Gym: money received from a member.
+        new("fitness.payment",
+            IdExpr: "p.[Id]",
+            Select: $"""
+                p.[Id], p.[ReceiptNumber] AS [Number], CAST(LEFT(p.[PaidOn], 10) AS varchar(10)) AS [Date],
+                CAST(LEFT(m.[FirstName] + CASE WHEN m.[LastName] IS NULL OR m.[LastName] = '' THEN N'' ELSE N' ' + m.[LastName] END + N' — ' + m.[MemberNumber], 200) AS nvarchar(200)) AS [Description],
+                p.[Amount] AS A1,
+                {Kind("LOWER(p.[Method]) = 'cash'", "LOWER(p.[Method]) IN ('card', 'bank_transfer', 'cheque', 'online')")} AS A2,
+                {Zero("A3", "A4", "A5", "A6", "A7")}
+                """,
+            FromWhere: """
+                FROM [fitness].[Payments] p
+                JOIN [fitness].[Members] m ON m.[Id] = p.[MemberId]
+                WHERE p.[TenantId] = {0} AND p.[IsVoided] = 0 AND p.[Amount] > 0
+                  AND LEFT(p.[PaidOn], 10) >= {1}
+                """,
+            OrderBy: "p.[CreatedAt]",
+            Amounts: r => new() { [r.A2 == 1 ? "cash" : "bank"] = r.A1, ["revenue"] = r.A1 },
+            Check: r => r.A2 == 0 ? "How the member paid was not recorded as cash or a bank method, so it is not known where the money went." : null,
+            CancelledFrom: "FROM [fitness].[Payments] p",
+            CancelledWhere: "p.[IsVoided] = 1"),
+
         // Travel agency: money received from the customer.
         new("tours.payment",
             IdExpr: "p.[Id]",

@@ -28,13 +28,16 @@ internal sealed class GetListingsHandler(RealEstateDbContext db, ICurrentUser us
         // Counted before paging so the caller knows how many pages exist.
         var total = await q.CountAsync(ct);
 
-        var rows = await q
-            // Newest listings first: an agency works the top of the sheet. Undated rows sort last
-            // rather than first — SQL Server would otherwise lead the page with them — and fall
-            // back to the building so they still group sensibly.
-            .OrderBy(x => x.Unit.ListedOn == null)
-            .ThenByDescending(x => x.Unit.ListedOn)
-            .ThenBy(x => x.Property.Name).ThenBy(x => x.Unit.UnitNumber)
+        // Parked view: most recently parked first. Active list: newest listings first — an agency
+        // works the top of the sheet. Undated rows sort last rather than first (SQL Server would
+        // otherwise lead the page with them) and fall back to the building so they still group.
+        var ordered = query.Parked
+            ? q.OrderByDescending(x => x.Unit.ParkedAt).ThenBy(x => x.Property.Name)
+            : q.OrderBy(x => x.Unit.ListedOn == null).ThenByDescending(x => x.Unit.ListedOn)
+                .ThenBy(x => x.Property.Name);
+
+        var rows = await ordered
+            .ThenBy(x => x.Unit.UnitNumber)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);
@@ -76,6 +79,12 @@ internal sealed class GetListingsHandler(RealEstateDbContext db, ICurrentUser us
                 join p in db.Properties.AsNoTracking().Where(x => !x.IsDeleted)
                     on u.PropertyId equals p.Id
                 select new UnitWithProperty { Unit = u, Property = p };
+
+        // Parked listings live in their own view; the active list, the tiles and the filter choices
+        // (which all share this join) must never include them.
+        q = query.Parked
+            ? q.Where(x => x.Unit.ParkedAt != null)
+            : q.Where(x => x.Unit.ParkedAt == null);
 
         if (!string.IsNullOrWhiteSpace(query.Purpose))
             q = q.Where(x => x.Unit.Purpose == query.Purpose);

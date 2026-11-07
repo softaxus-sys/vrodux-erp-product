@@ -18,6 +18,8 @@ import i18n from "@/i18n";
 import { MODULES, BUSINESS_TYPES, MODULE_CATEGORIES, resolveModules, needsBusinessType, moduleLabel, moduleDesc, moduleCategoryLabel, businessTypeLabel, type ModuleId, type ModuleDef } from "@/lib/onboarding/module-data";
 import { registerTrial, type TrialRegistrationRequest } from "@/lib/onboarding/trial.api";
 import { useSignupAttribution, clearSignupAttribution } from "@/hooks/use-signup-attribution";
+import { ClarityConsent } from "@/components/analytics/clarity-consent";
+import { clarityEvent, clarityTag } from "@/lib/analytics/clarity";
 import { loadMetaPixel, trackPixelEvent, getMetaIdentifiers, newEventId } from "@/lib/analytics/meta-pixel";
 import { getPlan, amountFor, formatUsd, TRIAL_DAYS } from "@/lib/billing/plans";
 import { authApi } from "@/lib/identity/auth.api";
@@ -43,8 +45,11 @@ function getInitialMode(): "light" | "dark" {
 
 // ── Industry → modules ────────────────────────────────────────────────────────
 
+/** How many business categories a signup may pick. */
+const MAX_BUSINESS_TYPES = 3;
+
 const INDUSTRY_MODULES: Record<string, ModuleId[]> = {
-  "All Industries":           ["pos","inventory","sales","purchase","finance","hr","crm","hospitality","real-estate","construction","healthcare","education","visa","library","manufacturing","trade"],
+  "All Industries":           ["pos","inventory","sales","purchase","finance","hr","crm","restaurant","hospitality","real-estate","construction","healthcare","education","visa","library","manufacturing","trade"],
   "Retail & E-Commerce":      ["pos","inventory","sales","crm","finance"],
   "Real Estate":              ["real-estate","crm","finance"],
   "Construction":             ["construction","purchase","hr","finance"],
@@ -57,7 +62,7 @@ const INDUSTRY_MODULES: Record<string, ModuleId[]> = {
   "Visa Services":            ["visa","crm","finance","hr"],
   "Finance & Banking":        ["finance","hr","crm"],
   "Logistics & Supply Chain": ["inventory","purchase","hr"],
-  "Food & Beverage":          ["pos","inventory","purchase","hr"],
+  "Food & Beverage":          ["restaurant","pos","inventory","purchase","hr"],
   "Technology & IT":          ["crm","sales","hr","finance"],
   "Wholesale & Distribution": ["inventory","purchase","sales","finance"],
   "Professional Services":    ["crm","sales","hr","finance"],
@@ -71,6 +76,10 @@ const s1Schema = z.object({
   fullName:    z.string().min(2,"validation.min2"),
   companyName: z.string().min(2,"validation.companyRequired"),
   workEmail:   z.string().email("validation.validEmail"),
+  // Phone or WhatsApp — required so we can reach out to a trial that has gone quiet. 7–15 digits, with
+  // the usual separators allowed; the country code is welcome but not forced (people type it every way).
+  phone:       z.string().trim().min(1,"validation.phoneRequired")
+                 .refine(v=>/^[+\d\s().-]+$/.test(v)&&v.replace(/\D/g,"").length>=7&&v.replace(/\D/g,"").length<=15,"validation.phoneInvalid"),
   password:    z.string().min(8,"validation.min8").regex(/[A-Z]/,"validation.needsUpper").regex(/[0-9]/,"validation.needsNumber"),
   confirm:     z.string(),
   agree:       z.literal(true,{ errorMap:()=>({ message:"validation.acceptTerms" }) }),
@@ -348,6 +357,23 @@ function ModCard({ D,mod,selected,auto,recommended,onToggle }: { D:P;mod:ModuleD
   );
 }
 
+/** The add-ons every workspace gets whatever modules it picks: no checkbox, nothing to buy. */
+function IncludedNote({ D,className }: { D:P;className?:string }) {
+  const { t }=useTranslation("onboarding");
+  const items=[t("included.ai"),t("included.seo"),t("included.leadgen")];
+  return(
+    <div className={cn("flex flex-wrap items-center gap-1.5",className)}>
+      <span className="text-[11px] font-medium" style={{ color:D.muted }}>{t("included.title")}:</span>
+      {items.map(x=>(
+        <span key={x} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border"
+          style={{ color:D.accent,borderColor:D.accent+"40",background:D.accentDim }}>
+          <Check className="h-3 w-3" strokeWidth={3}/>{x}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function BizCard({ D,bt,selected,onToggle }: { D:P;bt:typeof BUSINESS_TYPES[number];selected:boolean;onToggle:()=>void }) {
   return(
     <button type="button" onClick={onToggle}
@@ -442,6 +468,12 @@ function NavBar({ D,onBack,onNext,nextLabel,loading,formId }: { D:P;onBack?:()=>
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
+/** Marks the end of the funnel in the recording; renders nothing. */
+function ClarityDone() {
+  React.useEffect(() => { clarityEvent("signup_complete"); }, []);
+  return null;
+}
+
 export default function OnboardingPage() {
   const { t } = useTranslation("onboarding");
   const navigate=useNavigate();
@@ -463,7 +495,7 @@ export default function OnboardingPage() {
   const [autoModules,setAutoModules]=React.useState<Set<ModuleId>>(new Set());
   const [recommendedMods,setRecommendedMods]=React.useState<Set<ModuleId>>(new Set());
   const [moduleError,setModuleError]=React.useState("");
-  const [businessType,setBusinessType]=React.useState<string|null>(null);
+  const [businessTypes,setBusinessTypes]=React.useState<string[]>([]);
   const [bizError,setBizError]=React.useState("");
   const [submitting,setSubmitting]=React.useState(false);
 
@@ -479,12 +511,21 @@ export default function OnboardingPage() {
   // See lib/analytics/meta-pixel.ts for why.
   React.useEffect(() => { loadMetaPixel(); trackPixelEvent("PageView"); }, []);
 
+  // Clarity session replay (only after the visitor allows it - see ClarityConsent). Tags are
+  // non-personal: they let recordings be filtered by plan and traffic source.
+  React.useEffect(() => {
+    clarityTag("plan", signup.plan ?? undefined);
+    clarityTag("billing", signup.billing ?? undefined);
+    clarityTag("utm_source", signup.utmSource ?? undefined);
+  }, [signup]);
+  React.useEffect(() => { clarityEvent(`signup_step_${step+1}`); }, [step]);
+
   const showBT=needsBusinessType(selectedModules);
   const totalSteps=showBT?4:3;
   const allResolved=resolveModules(selectedModules);
 
   // Forms
-  const f1=useForm<S1>({ resolver:zodResolver(s1Schema), defaultValues:{ fullName:"",companyName:"",workEmail:"",password:"",confirm:"",agree:undefined as any } });
+  const f1=useForm<S1>({ resolver:zodResolver(s1Schema), defaultValues:{ fullName:"",companyName:"",workEmail:"",phone:"",password:"",confirm:"",agree:undefined as any } });
   const [showPw,setShowPw]=React.useState(false);
   const [showCf,setShowCf]=React.useState(false);
   const pw=f1.watch("password");
@@ -508,7 +549,7 @@ export default function OnboardingPage() {
     const ex=new Set<ModuleId>(ids); const res=resolveModules(ex);
     const au=new Set<ModuleId>(); for(const r of res)if(!ex.has(r))au.add(r);
     const rc=new Set<ModuleId>(); for(const s of res){ const d=MODULES.find(m=>m.id===s); if(d)for(const r of d.recommends)if(!res.has(r))rc.add(r); }
-    setSelectedModules(ex);setAutoModules(au);setRecommendedMods(rc);setBusinessType(null);
+    setSelectedModules(ex);setAutoModules(au);setRecommendedMods(rc);setBusinessTypes([]);
   },[]);
 
   const onS2=f2.handleSubmit(d=>{ applyIndustry(d.industry); setStep(2); });
@@ -521,14 +562,14 @@ export default function OnboardingPage() {
       const rc=new Set<ModuleId>(); for(const s of res){ const d=MODULES.find(m=>m.id===s); if(d)for(const r of d.recommends)if(!res.has(r))rc.add(r); }
       setAutoModules(au); setRecommendedMods(rc);
       // Clear business type if the new selection no longer requires it
-      if(!needsBusinessType(n)) setBusinessType(null);
+      if(!needsBusinessType(n)) setBusinessTypes([]);
       return n;
     });
   },[]);
 
   const [apiError,setApiError]=React.useState<{ code:string|null; message:string }|null>(null);
   const onS3=()=>{ if(selectedModules.size===0){setModuleError(t("step3.selectOne"));return;} setModuleError(""); showBT?setStep(3):submitAll(); };
-  const onS4=()=>{ if(!businessType){setBizError(t("step4.selectType"));return;} setBizError(""); submitAll(); };
+  const onS4=()=>{ if(businessTypes.length===0){setBizError(t("step4.selectType"));return;} setBizError(""); submitAll(); };
   const submitAll=async()=>{
     if(!s1Data)return;
     setSubmitting(true); setApiError(null);
@@ -539,10 +580,11 @@ export default function OnboardingPage() {
         fullName:    s1Data.fullName,
         email:       s1Data.workEmail,
         password:    s1Data.password,
+        phone:       s1Data.phone.trim(),
         orgName:     s2.orgName||s1Data.companyName,
         industry:    s2.industry||undefined,
         country:     s2.country||undefined,
-        businessType:businessType||undefined,
+        businessType:businessTypes.length?businessTypes.join(","):undefined,
         fiscalYear:  s2.fiscalYear||undefined,
         language:    s2.language||undefined,
         // Submit the 3-letter ISO code (picker shows "PKR - Pakistani Rupee"); backend also normalises.
@@ -605,6 +647,7 @@ export default function OnboardingPage() {
 
   if(done) return(
     <div className="h-screen flex items-center justify-center" style={{ background:D.bg }}>
+      <ClarityDone/>
       <motion.div initial={{ opacity:0,y:20 }} animate={{ opacity:1,y:0 }} className="text-center max-w-md w-full px-6">
         <motion.div initial={{ scale:0 }} animate={{ scale:1 }} transition={{ type:"spring",stiffness:260,damping:20,delay:.15 }}
           className="inline-flex h-24 w-24 rounded-full items-center justify-center mb-6"
@@ -624,6 +667,7 @@ export default function OnboardingPage() {
           {[...allResolved].map(id=>{ const m=MODULES.find(x=>x.id===id)!; const Icon=m.icon;
             return<span key={id} className={cn("inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border",m.color,m.iconColor)}><Icon className="h-3 w-3"/>{moduleLabel(m)}</span>; })}
         </div>
+        <IncludedNote D={D} className="justify-center mb-7 -mt-4"/>
         {/* "Buy Now" signups: say plainly that checkout comes after sign-in, so the jump to a
             payment page isn't a surprise. Your free trial runs either way. */}
         {checkoutPending && selectedPlan && (
@@ -648,6 +692,7 @@ export default function OnboardingPage() {
 
   return(
     <div className="h-screen flex overflow-hidden" style={{ background:D.bg }}>
+      <ClarityConsent/>
       <Sidebar D={D} step={step} showBT={showBT} darkMode={darkMode} toggleDarkMode={toggleDarkMode}/>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
@@ -767,6 +812,12 @@ export default function OnboardingPage() {
                           <div className="space-y-1.5">
                             <Lbl D={D} req err={f1.formState.errors.workEmail?.message}>{t("step1.workEmail")}</Lbl>
                             <input {...f1.register("workEmail")} {...fo("em")} id="field-email" type="email" placeholder="john@acme.com" autoComplete="email" className={INPUT_CLS} style={iStyle(D,foc==="em",!!f1.formState.errors.workEmail)}/>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Lbl D={D} req err={f1.formState.errors.phone?.message}>{t("step1.phone")}</Lbl>
+                            <input {...f1.register("phone")} {...fo("ph")} id="field-phone" type="tel" inputMode="tel" placeholder={t("step1.phonePlaceholder")} autoComplete="tel" className={INPUT_CLS} style={iStyle(D,foc==="ph",!!f1.formState.errors.phone)}/>
+                            <p className="text-[11px]" style={{ color: D.muted }}>{t("step1.phoneHint")}</p>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1019,6 +1070,8 @@ export default function OnboardingPage() {
                         :t("step3.subtitle")}
                     </p>
 
+                    <IncludedNote D={D} className="mb-4"/>
+
                     <AnimatePresence>
                       {autoModules.size>0&&(
                         <motion.div initial={{ opacity:0,height:0 }} animate={{ opacity:1,height:"auto" }} exit={{ opacity:0,height:0 }}
@@ -1090,7 +1143,11 @@ export default function OnboardingPage() {
                     <div className="rounded-xl border p-5" style={{ background:D.card,borderColor:D.border }}>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                         {BUSINESS_TYPES.map(bt=>(
-                          <BizCard key={bt.id} D={D} bt={bt} selected={businessType===bt.id} onToggle={()=>{ setBusinessType(bt.id); setBizError(""); }}/>
+                          <BizCard key={bt.id} D={D} bt={bt} selected={businessTypes.includes(bt.id)} onToggle={()=>{
+                            if(businessTypes.includes(bt.id)){ setBusinessTypes(businessTypes.filter(x=>x!==bt.id)); setBizError(""); return; }
+                            if(businessTypes.length>=MAX_BUSINESS_TYPES){ setBizError(t("step4.maxTypes",{count:MAX_BUSINESS_TYPES})); return; }
+                            setBusinessTypes([...businessTypes,bt.id]); setBizError("");
+                          }}/>
                         ))}
                       </div>
                     </div>
@@ -1098,14 +1155,14 @@ export default function OnboardingPage() {
                     {bizError&&<p className="mt-3 text-xs text-red-400 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5"/>{bizError}</p>}
 
                     <AnimatePresence>
-                      {businessType&&(()=>{ const bt=BUSINESS_TYPES.find(b=>b.id===businessType)!; const missing=bt.suggests.filter(id=>!allResolved.has(id)); if(!missing.length)return null;
+                      {businessTypes.length>0&&(()=>{ const picked=BUSINESS_TYPES.filter(b=>businessTypes.includes(b.id)); const missing=[...new Set(picked.flatMap(b=>b.suggests))].filter(id=>!allResolved.has(id)); if(!missing.length)return null;
                         return(
                           <motion.div initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }}
                             className="mt-4 flex items-start gap-2.5 rounded-xl border p-4"
                             style={{ background:D.accentDim,borderColor:D.accent+"40" }}>
                             <Sparkles className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color:D.accent }}/>
                             <div>
-                              <p className="text-[11px] font-semibold mb-2" style={{ color:D.white }}>{t("step4.alsoRecommended",{label:businessTypeLabel(bt)})}</p>
+                              <p className="text-[11px] font-semibold mb-2" style={{ color:D.white }}>{t("step4.alsoRecommended",{label:picked.map(businessTypeLabel).join(" + ")})}</p>
                               <div className="flex flex-wrap gap-1.5">
                                 {missing.map(id=>{ const m=MODULES.find(x=>x.id===id)!; const Icon=m.icon;
                                   return<button key={id} type="button" onClick={()=>{ toggleModule(id); setStep(2); }}

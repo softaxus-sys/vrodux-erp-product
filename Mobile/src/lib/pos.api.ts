@@ -1,5 +1,6 @@
 import { apiClient, type PagedResult } from "@/lib/api-client";
 import type {
+  BranchStockRowDto,
   CashMovementDto,
   CloseSessionRequest,
   CreateSaleRequest,
@@ -31,6 +32,8 @@ export const POS_SESSIONS_CREATE = "pos.sessions.create";
 export const POS_TRANSACTIONS_CREATE = "pos.transactions.create";
 export const POS_TRANSACTIONS_VOID = "pos.transactions.void";
 export const POS_TRANSACTIONS_REFUND = "pos.transactions.refund";
+/** Stock by branch is open to either of these (the server accepts any of them). */
+export const POS_BRANCH_STOCK_VIEW = ["pos.reports.view", "pos.products.view"] as const;
 
 /** Cash drawer in/out. Category must fit the direction (the server refuses a mismatch). */
 export const CASH_CATEGORIES = {
@@ -100,6 +103,15 @@ export const posApi = {
 
   recordCashMovement: (sessionId: string, payload: { type: "payin" | "payout"; amount: number; reason: string; category: string }) =>
     apiClient.post(`${SESSIONS_BASE}/${sessionId}/cash-movement`, payload),
+
+  /** What each branch server last reported holding of each product (read-only at head office). */
+  getBranchStock: (search?: string, branchId?: string): Promise<BranchStockRowDto[]> => {
+    const q = new URLSearchParams();
+    if (search?.trim()) q.set("search", search.trim());
+    if (branchId) q.set("branchId", branchId);
+    const qs = q.toString();
+    return apiClient.get(`/api/pos-dashboard/branch-stock${qs ? `?${qs}` : ""}`);
+  },
 
   getPaymentMethods: (): Promise<PaymentMethodDto[]> => apiClient.get(PAYMENT_METHODS_BASE),
 };

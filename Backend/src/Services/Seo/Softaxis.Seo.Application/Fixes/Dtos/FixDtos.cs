@@ -6,4 +6,5 @@ public sealed record FixDto(
     // Denormalized issue context so the review table needs one call, not a per-row join.
     string IssueTitle, string IssueSeverity, string IssueCategory);
 
-public sealed record RunScanNowResultDto(Guid AuditId, int IssuesFound, int FixesProposed);
+public sealed record RunScanNowResultDto(
+    Guid AuditId, int IssuesFound, int FixesProposed, int Score = 0, int PagesCrawled = 0, int NewIssues = 0, int ResolvedIssues = 0, int CreditsCharged = 0, long CreditBalance = 0);

@@ -218,7 +218,7 @@ internal static class InvoicePdfBuilder
                 if (invoice.AmountPaid > 0)
                 {
                     Line("Paid", $"-{Money(invoice.AmountPaid, currency)}");
-                    Line("Balance Due", Money(invoice.Total - invoice.AmountPaid, currency), bold: true);
+                    Line("Balance Due", Money(invoice.AmountDue, currency), bold: true);
                 }
             });
 

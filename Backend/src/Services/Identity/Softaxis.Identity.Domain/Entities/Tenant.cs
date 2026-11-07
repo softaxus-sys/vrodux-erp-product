@@ -135,11 +135,17 @@ public sealed class Tenant : AuditableEntity<Guid>
         ["manufacturing"]= "manufacturing",
         // Public, school, university and corporate libraries.
         ["library"]      = "library",
+        // Gyms, fitness studios and health clubs. "Fitness & Gym" signs up as fitness_gym.
+        ["fitness_gym"]  = "fitness",
+        ["fitness"]      = "fitness",
         // Importers, exporters and trading companies. "Import & Export" signs up as import_export.
         ["import_export"]= "trade",
         // Hotels, tour operators and travel agencies. "Hospitality & Tourism" signs up as hospitality_tourism.
         ["hospitality_tourism"] = "hospitality",
         ["travel_tourism"]      = "hospitality",
+        // Restaurants, cafes and food businesses. "Food & Beverage" signs up as food_beverage.
+        ["food_beverage"]       = "restaurant",
+        ["restaurant"]          = "restaurant",
     };
 
     /// <summary>The Industry-Pack module code for a given industry, or null.</summary>
@@ -203,11 +209,12 @@ public sealed class Tenant : AuditableEntity<Guid>
     /// </summary>
     /// <summary>Modules every tenant always has, regardless of plan or onboarding choices.</summary>
     /// <summary>
-    /// <c>leadgen</c> is on for every workspace: it is available to all customers, and who may actually use it is
-    /// decided entirely by the <c>leadgen.*</c> permissions an administrator grants to roles. Nothing is exposed
+    /// <c>leadgen</c> and <c>seo</c> are on for every workspace, whatever industry or modules were picked at signup:
+    /// they are included with the product, and who may actually use them is
+    /// decided entirely by the <c>leadgen.*</c> / <c>seo.*</c> permissions an administrator grants to roles. Nothing is exposed
     /// to a user who holds none of them.
     /// </summary>
-    public static readonly IReadOnlyList<string> AlwaysOnModules = ["settings", "users", "leadgen"];
+    public static readonly IReadOnlyList<string> AlwaysOnModules = ["settings", "users", "leadgen", "seo"];
 
     public IReadOnlyList<string> ResolvedModules
     {
@@ -232,17 +239,16 @@ public sealed class Tenant : AuditableEntity<Guid>
                 {
                     // The CRM verticals build on CRM. Manufacturing does not — it builds on
                     // Inventory, which is added below. Library and Trade build on nothing.
-                    if (pack is not ("manufacturing" or "library" or "trade") && !list.Contains("crm")) list.Add("crm");
+                    if (pack is not ("manufacturing" or "library" or "trade" or "restaurant" or "fitness") && !list.Contains("crm")) list.Add("crm");
                     if (!list.Contains(pack))   list.Add(pack);
                 }
             }
 
-            // Manufacturing keeps no stock of its own — components and finished goods are
-            // Inventory products. A tenant sold Manufacturing alone would have nowhere to create
-            // them, so Inventory comes with it, manual grant included.
-            if (list.Contains("manufacturing", StringComparer.OrdinalIgnoreCase)
-                && !list.Contains("inventory", StringComparer.OrdinalIgnoreCase))
-                list.Add("inventory");
+            // Inventory is the single source of truth for products and stock. POS, Restaurant POS
+            // (which sells through the POS), Manufacturing and E-commerce all work on what Inventory
+            // holds, so each brings it - and whatever it sits on - along, manual grant included. See
+            // ModuleDependencies for the rules and the frontend copies that must match.
+            ModuleDependencies.Close(list);
 
             // Settings and Users are how a tenant administers itself — invite colleagues, set roles,
             // manage billing. Locking them behind a plan, an onboarding checkbox, or even a manual

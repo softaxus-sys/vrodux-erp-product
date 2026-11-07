@@ -86,16 +86,16 @@ public static class InfrastructureExtensions
         // Tools/Generic/ModuleToolCatalog.cs. Module gating (AiToolRegistry.IsModuleEnabled) keys
         // off each spec's Agent, so a tenant without e.g. "restaurant" enabled never even sees
         // restaurant_* tools, let alone can call them.
-        foreach (var spec in ModuleToolCatalog.Lists)
+        foreach (var spec in ModuleToolCatalog.Lists.Concat(ModuleToolCatalogMore.Lists))
             services.AddScoped<IAiTool>(sp => new GenericListTool(spec, sp.GetRequiredService<GatewayToolClient>()));
-        foreach (var spec in ModuleToolCatalog.GetByIds)
+        foreach (var spec in ModuleToolCatalog.GetByIds.Concat(ModuleToolCatalogMore.GetByIds))
             services.AddScoped<IAiTool>(sp => new GenericGetByIdTool(spec, sp.GetRequiredService<GatewayToolClient>()));
-        foreach (var spec in ModuleToolCatalog.Creates)
+        foreach (var spec in ModuleToolCatalog.Creates.Concat(ModuleToolCatalogMore.Creates))
             services.AddScoped<IAiTool>(sp => new GenericCreateTool(spec,
                 sp.GetRequiredService<GatewayToolClient>(), sp.GetRequiredService<ICurrentUser>()));
-        foreach (var spec in ModuleToolCatalog.Updates)
+        foreach (var spec in ModuleToolCatalog.Updates.Concat(ModuleToolCatalogMore.Updates))
             services.AddScoped<IAiTool>(sp => new GenericUpdateTool(spec, sp.GetRequiredService<GatewayToolClient>()));
-        foreach (var spec in ModuleToolCatalog.Actions)
+        foreach (var spec in ModuleToolCatalog.Actions.Concat(ModuleToolCatalogMore.Actions))
             services.AddScoped<IAiTool>(sp => new GenericActionTool(spec,
                 sp.GetRequiredService<GatewayToolClient>(), sp.GetRequiredService<ICurrentUser>()));
         // Other module agents (read-only)
@@ -115,6 +115,9 @@ public static class InfrastructureExtensions
         // constructs it instead (see there).
         services.AddScoped<IAiToolRegistry, AiToolRegistry>();
 
+        services.AddScoped<IAiKeyResolver, AiKeyResolver>();
+        services.AddScoped<VoiceChat.VoiceAccessResolver>();
+        services.AddScoped<VoiceChat.OpenRouterSpeechClient>();
         services.AddScoped<IAiOrchestrator, AiOrchestrator>();
         // Straight-line completion (no tools/conversation) for other modules' batch AI work —
         // e.g. the SEO module's bulk issue analysis — reusing the tenant's configured provider/key.

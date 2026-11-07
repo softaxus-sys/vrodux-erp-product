@@ -200,6 +200,19 @@ export interface OrderDto {
   splits: OrderSplitSummaryDto[];
   /** The linked POS customer, if any -- what SetCustomer/RedeemLoyalty act on. */
   customerId: string | null;
+  /** Tax profile the order was priced under (percent, label such as "VAT"/"GST") and any service
+   *  fee. Optional: orders from before tax profiles carry none. */
+  taxRate?: number;
+  taxLabel?: string;
+  serviceFee?: number;
+  /** Pakistan FBR e-invoicing state: null when the branch does not report to FBR. */
+  fbrStatus?: string | null;
+  fbrInvoiceNumber?: string | null;
+  fbrError?: string | null;
+  /** Set for an order received from a delivery platform (Foodpanda, etc.). */
+  externalSource?: string | null;
+  externalOrderCode?: string | null;
+  externalStatus?: string | null;
 }
 
 /** "dine_in" | "takeaway" | "delivery" -- OrderType. */

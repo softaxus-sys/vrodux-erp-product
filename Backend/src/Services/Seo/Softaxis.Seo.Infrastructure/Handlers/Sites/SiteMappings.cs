@@ -20,5 +20,7 @@ internal static class SiteMappings
         GoogleConnected:    googleConnected,
         CreatedAt:          s.CreatedAt,
         SelectedGscProperty: selectedGscProperty,
-        SelectedGa4Property: selectedGa4Property);
+        SelectedGa4Property: selectedGa4Property,
+        LastScore:          s.LastScore,
+        LastPagesCrawled:   s.LastPagesCrawled);
 }

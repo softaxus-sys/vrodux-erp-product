@@ -10,6 +10,31 @@ export type LeadsStackParamList = {
   LeadReassign: { leadId: string; leadName: string };
   AccountsList: undefined;
   AccountForm: { accountId?: string };
+  AccountDetail: { accountId: string; accountName: string };
+  ContactForm: { accountId: string; contactId?: string };
+  Activities: undefined;
+  CrmReports: undefined;
+  CrmReport: { reportId: string; title: string };
+};
+
+export type MasterDataStackParamList = {
+  MasterHome: undefined;
+  MasterList: { masterId: string; title: string };
+  MasterForm: { masterId: string; recordId?: string };
+};
+
+export type LeadGenStackParamList = {
+  LgHome: undefined;
+  LgProspects: { searchId?: string; searchName?: string } | undefined;
+  LgProspect: { id: string; name: string };
+  LgSearches: undefined;
+  LgNewSearch: undefined;
+  LgCampaigns: undefined;
+  LgCampaign: { id: string; name: string };
+  LgInbox: undefined;
+  LgThread: { id: string; subject: string };
+  LgCredits: undefined;
+  LgMailboxes: undefined;
 };
 
 export type DealsStackParamList = {
@@ -109,6 +134,7 @@ export type POSStackParamList = {
   NewSale: { sessionId: string };
   TransactionAction: { transactionId: string; mode: "void" | "refund" };
   CashMovement: { sessionId: string };
+  BranchStock: undefined;
 };
 
 export type RestaurantStackParamList = {
@@ -208,8 +234,14 @@ export type HospitalityStackParamList = {
   HospitalityHome: undefined;
   RoomsList: undefined;
   BookingsList: undefined;
+  FrontDesk: undefined;
+  BookingDetail: { bookingId: string; bookingNumber: string };
   HousekeepingList: undefined;
   NewBooking: undefined;
+  ToursHome: undefined;
+  TourBookingsList: undefined;
+  TourBookingDetail: { bookingId: string; bookingNumber: string };
+  TourPackages: undefined;
 };
 
 export type ExtraStackParamList = {
@@ -255,6 +287,8 @@ export type AppTabParamList = {
   /** Also a single screen -- the signed-in user's own account (profile/password/2FA), gated on
    *  nothing at all, so every session sees it regardless of module subscriptions. */
   Settings: undefined;
+  MasterData: undefined;
+  LeadGen: undefined;
   /** Only registered when a session has more module tabs than fit in the bar -- see
    *  `navigation/tab-config.ts`. Houses whatever didn't fit as its own MenuCard list. */
   More: undefined;

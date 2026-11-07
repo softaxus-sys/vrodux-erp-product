@@ -18,7 +18,7 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("identity")
-                .HasAnnotation("ProductVersion", "9.0.21")
+                .HasAnnotation("ProductVersion", "9.0.22")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -332,6 +332,209 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("branches", "identity");
+                });
+
+            modelBuilder.Entity("Softaxis.Identity.Domain.Entities.CreditPricingSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("MaxOrderUsd")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("MinCredits")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("MinOrderUsd")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("MinSwapCredits")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PricePerCredit")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("SwapEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("SwapFeePercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("Tiers")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("VatPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("credit_pricing_settings", "identity");
+                });
+
+            modelBuilder.Entity("Softaxis.Identity.Domain.Entities.CreditPurchase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CreditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Credits")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ModuleKey")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("NetAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProviderPaymentId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ProviderRef")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("VatAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Provider", "ProviderRef")
+                        .IsUnique()
+                        .HasFilter("[ProviderRef] IS NOT NULL");
+
+                    b.HasIndex("TenantId", "CreatedAt");
+
+                    b.ToTable("credit_purchases", "identity");
+                });
+
+            modelBuilder.Entity("Softaxis.Identity.Domain.Entities.CreditSwap", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("FeePercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("FromCredits")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FromModule")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("FromPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("ToCredits")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ToModule")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("ToPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "CreatedAt");
+
+                    b.ToTable("credit_swaps", "identity");
                 });
 
             modelBuilder.Entity("Softaxis.Identity.Domain.Entities.Permission", b =>
@@ -991,6 +1194,27 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "approve-high",
                             Description = "Approve-high finance integrations",
                             ModuleId = "finance.integrations"
+                        },
+                        new
+                        {
+                            Id = new Guid("187eb55e-deef-eb28-5aa9-88b7c6feb3aa"),
+                            Action = "view",
+                            Description = "View finance einvoicing",
+                            ModuleId = "finance.einvoicing"
+                        },
+                        new
+                        {
+                            Id = new Guid("fe34317e-033e-e2b5-29d5-4547c674b87b"),
+                            Action = "edit",
+                            Description = "Edit finance einvoicing",
+                            ModuleId = "finance.einvoicing"
+                        },
+                        new
+                        {
+                            Id = new Guid("53ad24ee-22c1-4f77-6bc8-958f3cbb641b"),
+                            Action = "send",
+                            Description = "Send finance einvoicing",
+                            ModuleId = "finance.einvoicing"
                         },
                         new
                         {
@@ -2772,6 +2996,230 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("65187528-c722-94c3-817a-588d34e94ae6"),
+                            Action = "view",
+                            Description = "View fitness members",
+                            ModuleId = "fitness.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("6ff210dc-69ca-d19f-fbc6-da6168e790bc"),
+                            Action = "create",
+                            Description = "Create fitness members",
+                            ModuleId = "fitness.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("1c83aecf-2e7a-149c-44b3-48e365bb9793"),
+                            Action = "edit",
+                            Description = "Edit fitness members",
+                            ModuleId = "fitness.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("f1ff5c80-198e-9f8c-8b75-b0e1f117666a"),
+                            Action = "delete",
+                            Description = "Delete fitness members",
+                            ModuleId = "fitness.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("c751d2d0-d129-6ced-5f96-649507139077"),
+                            Action = "view",
+                            Description = "View fitness memberships",
+                            ModuleId = "fitness.memberships"
+                        },
+                        new
+                        {
+                            Id = new Guid("762af34b-f540-4039-c71f-b94db42f859c"),
+                            Action = "create",
+                            Description = "Create fitness memberships",
+                            ModuleId = "fitness.memberships"
+                        },
+                        new
+                        {
+                            Id = new Guid("253f94ff-b1aa-b10b-8616-575c871d2422"),
+                            Action = "edit",
+                            Description = "Edit fitness memberships",
+                            ModuleId = "fitness.memberships"
+                        },
+                        new
+                        {
+                            Id = new Guid("327e426a-ad41-73bf-0970-43e4bcd44a4b"),
+                            Action = "view",
+                            Description = "View fitness payments",
+                            ModuleId = "fitness.payments"
+                        },
+                        new
+                        {
+                            Id = new Guid("91af8731-2d13-713d-42c3-9dd9ae30f52c"),
+                            Action = "create",
+                            Description = "Create fitness payments",
+                            ModuleId = "fitness.payments"
+                        },
+                        new
+                        {
+                            Id = new Guid("6215cf60-8294-f3e1-85d4-d1f75558101c"),
+                            Action = "approve",
+                            Description = "Approve fitness payments",
+                            ModuleId = "fitness.payments"
+                        },
+                        new
+                        {
+                            Id = new Guid("419cabf8-85ed-91fa-361e-4751f3f65c03"),
+                            Action = "view",
+                            Description = "View fitness checkin",
+                            ModuleId = "fitness.checkin"
+                        },
+                        new
+                        {
+                            Id = new Guid("724ea2ea-8bca-57dc-b98e-85e9042fed5f"),
+                            Action = "create",
+                            Description = "Create fitness checkin",
+                            ModuleId = "fitness.checkin"
+                        },
+                        new
+                        {
+                            Id = new Guid("0f5a9880-6f4b-03a4-7474-f7ed3257440a"),
+                            Action = "edit",
+                            Description = "Edit fitness checkin",
+                            ModuleId = "fitness.checkin"
+                        },
+                        new
+                        {
+                            Id = new Guid("243688b5-0560-72ac-1b71-3e474e67a562"),
+                            Action = "view",
+                            Description = "View fitness classes",
+                            ModuleId = "fitness.classes"
+                        },
+                        new
+                        {
+                            Id = new Guid("3f010403-077c-d12d-946e-5cf81aafc733"),
+                            Action = "create",
+                            Description = "Create fitness classes",
+                            ModuleId = "fitness.classes"
+                        },
+                        new
+                        {
+                            Id = new Guid("2b5f1fbf-1242-967b-00a5-5b38f033dc25"),
+                            Action = "edit",
+                            Description = "Edit fitness classes",
+                            ModuleId = "fitness.classes"
+                        },
+                        new
+                        {
+                            Id = new Guid("4085eff2-0198-686b-7197-c5ffd50a0655"),
+                            Action = "delete",
+                            Description = "Delete fitness classes",
+                            ModuleId = "fitness.classes"
+                        },
+                        new
+                        {
+                            Id = new Guid("3840bc02-8703-5fdf-1a85-0eb95837f6e1"),
+                            Action = "view",
+                            Description = "View fitness training",
+                            ModuleId = "fitness.training"
+                        },
+                        new
+                        {
+                            Id = new Guid("4c417fe8-f9e7-77a8-0865-b5dba562dd56"),
+                            Action = "create",
+                            Description = "Create fitness training",
+                            ModuleId = "fitness.training"
+                        },
+                        new
+                        {
+                            Id = new Guid("8f5eb88d-6878-211d-8a9c-a2b381ea9380"),
+                            Action = "edit",
+                            Description = "Edit fitness training",
+                            ModuleId = "fitness.training"
+                        },
+                        new
+                        {
+                            Id = new Guid("2166bc0d-484f-c56c-c97c-e4724be5c995"),
+                            Action = "delete",
+                            Description = "Delete fitness training",
+                            ModuleId = "fitness.training"
+                        },
+                        new
+                        {
+                            Id = new Guid("d387fb92-6db1-c6f2-1a6d-704d3b181c4e"),
+                            Action = "view",
+                            Description = "View fitness facility",
+                            ModuleId = "fitness.facility"
+                        },
+                        new
+                        {
+                            Id = new Guid("94931e4c-f145-ecf6-f0fd-51c33a97a268"),
+                            Action = "create",
+                            Description = "Create fitness facility",
+                            ModuleId = "fitness.facility"
+                        },
+                        new
+                        {
+                            Id = new Guid("b905cdaa-b641-a849-4119-c143d89a32b1"),
+                            Action = "edit",
+                            Description = "Edit fitness facility",
+                            ModuleId = "fitness.facility"
+                        },
+                        new
+                        {
+                            Id = new Guid("1c9c070f-af8a-bc56-3722-1a52a5b23216"),
+                            Action = "delete",
+                            Description = "Delete fitness facility",
+                            ModuleId = "fitness.facility"
+                        },
+                        new
+                        {
+                            Id = new Guid("bb0c6ac1-9574-650a-a1c1-a21d9de52f12"),
+                            Action = "view",
+                            Description = "View fitness leads",
+                            ModuleId = "fitness.leads"
+                        },
+                        new
+                        {
+                            Id = new Guid("f9228fc3-d2b1-060e-0729-0b1b4eab7b20"),
+                            Action = "create",
+                            Description = "Create fitness leads",
+                            ModuleId = "fitness.leads"
+                        },
+                        new
+                        {
+                            Id = new Guid("34ae5841-254c-ca2d-62a9-75a5d3ae23c5"),
+                            Action = "edit",
+                            Description = "Edit fitness leads",
+                            ModuleId = "fitness.leads"
+                        },
+                        new
+                        {
+                            Id = new Guid("5c6f4784-d3f0-fc7e-d227-6d0f8bd890c5"),
+                            Action = "delete",
+                            Description = "Delete fitness leads",
+                            ModuleId = "fitness.leads"
+                        },
+                        new
+                        {
+                            Id = new Guid("2619ce54-a6b5-3208-c27c-43c66b9fd0de"),
+                            Action = "view",
+                            Description = "View fitness setup",
+                            ModuleId = "fitness.setup"
+                        },
+                        new
+                        {
+                            Id = new Guid("3132dec3-0a0f-2fe8-53b7-3ba65136ca0c"),
+                            Action = "edit",
+                            Description = "Edit fitness setup",
+                            ModuleId = "fitness.setup"
+                        },
+                        new
+                        {
+                            Id = new Guid("1ea51cc0-b8ee-192f-660b-b532d68b95f4"),
+                            Action = "view",
+                            Description = "View fitness reports",
+                            ModuleId = "fitness.reports"
+                        },
+                        new
+                        {
                             Id = new Guid("22db9567-d7df-dacf-e95a-5d231bb67bdc"),
                             Action = "view",
                             Description = "View trade shipments",
@@ -2902,6 +3350,132 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "edit",
                             Description = "Edit trade payments",
                             ModuleId = "trade.payments"
+                        },
+                        new
+                        {
+                            Id = new Guid("b366272c-5bb4-19ad-c5cb-3a50284117f0"),
+                            Action = "view",
+                            Description = "View ecommerce channels",
+                            ModuleId = "ecommerce.channels"
+                        },
+                        new
+                        {
+                            Id = new Guid("09ada7ad-1fc4-3722-b5d1-0e87628b8604"),
+                            Action = "create",
+                            Description = "Create ecommerce channels",
+                            ModuleId = "ecommerce.channels"
+                        },
+                        new
+                        {
+                            Id = new Guid("831ddd15-8126-8d75-49e3-3b5ff5d56619"),
+                            Action = "edit",
+                            Description = "Edit ecommerce channels",
+                            ModuleId = "ecommerce.channels"
+                        },
+                        new
+                        {
+                            Id = new Guid("067a383e-25ab-8eed-484f-63ffb53c25b9"),
+                            Action = "delete",
+                            Description = "Delete ecommerce channels",
+                            ModuleId = "ecommerce.channels"
+                        },
+                        new
+                        {
+                            Id = new Guid("93f9e367-0202-104f-6fd1-e97410c89dac"),
+                            Action = "view",
+                            Description = "View ecommerce listings",
+                            ModuleId = "ecommerce.listings"
+                        },
+                        new
+                        {
+                            Id = new Guid("55c33077-d1dd-d6d8-69b7-4ca1715ca4b4"),
+                            Action = "create",
+                            Description = "Create ecommerce listings",
+                            ModuleId = "ecommerce.listings"
+                        },
+                        new
+                        {
+                            Id = new Guid("991aefbe-28a1-5809-aea6-f743436632bd"),
+                            Action = "edit",
+                            Description = "Edit ecommerce listings",
+                            ModuleId = "ecommerce.listings"
+                        },
+                        new
+                        {
+                            Id = new Guid("0fb21706-01a9-7b95-74c4-eb65c2712501"),
+                            Action = "delete",
+                            Description = "Delete ecommerce listings",
+                            ModuleId = "ecommerce.listings"
+                        },
+                        new
+                        {
+                            Id = new Guid("9b0601d7-8537-99a4-4000-b89918b3a156"),
+                            Action = "view",
+                            Description = "View ecommerce orders",
+                            ModuleId = "ecommerce.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("c33b07d4-a2dd-8221-02dc-d482bd73c195"),
+                            Action = "edit",
+                            Description = "Edit ecommerce orders",
+                            ModuleId = "ecommerce.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("c347f5b2-6817-798c-d24a-d234779def4c"),
+                            Action = "refund",
+                            Description = "Refund ecommerce orders",
+                            ModuleId = "ecommerce.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("dd524030-e1de-f782-666c-170b853c4b3f"),
+                            Action = "view",
+                            Description = "View ecommerce store",
+                            ModuleId = "ecommerce.store"
+                        },
+                        new
+                        {
+                            Id = new Guid("c7ab99a7-6291-1cda-e766-bab2aaa0c6f6"),
+                            Action = "edit",
+                            Description = "Edit ecommerce store",
+                            ModuleId = "ecommerce.store"
+                        },
+                        new
+                        {
+                            Id = new Guid("27bd7f51-8dd3-7897-5ec3-0b828b89aa7c"),
+                            Action = "view",
+                            Description = "View ecommerce discounts",
+                            ModuleId = "ecommerce.discounts"
+                        },
+                        new
+                        {
+                            Id = new Guid("b64f0a1e-e831-78e0-b67c-dbe05b55d8c1"),
+                            Action = "create",
+                            Description = "Create ecommerce discounts",
+                            ModuleId = "ecommerce.discounts"
+                        },
+                        new
+                        {
+                            Id = new Guid("7b9d4da8-6f3d-472e-d375-a3b4bc78b87d"),
+                            Action = "edit",
+                            Description = "Edit ecommerce discounts",
+                            ModuleId = "ecommerce.discounts"
+                        },
+                        new
+                        {
+                            Id = new Guid("7b973349-8937-e6b0-5880-5ec57cf010e4"),
+                            Action = "delete",
+                            Description = "Delete ecommerce discounts",
+                            ModuleId = "ecommerce.discounts"
+                        },
+                        new
+                        {
+                            Id = new Guid("eb42d0f3-9e02-93bb-a56b-9ab7eab056b0"),
+                            Action = "view",
+                            Description = "View ecommerce customers",
+                            ModuleId = "ecommerce.customers"
                         },
                         new
                         {

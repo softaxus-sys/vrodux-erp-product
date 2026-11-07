@@ -39,7 +39,7 @@ public static class EmailStatus
 public static class LedgerType
 {
     public const string Grant = "grant", Purchase = "purchase", Spend = "spend", Refund = "refund",
-        Adjustment = "adjustment";
+        Adjustment = "adjustment", SwapIn = "swap_in", SwapOut = "swap_out";
 }
 
 public static class SuppressionKind

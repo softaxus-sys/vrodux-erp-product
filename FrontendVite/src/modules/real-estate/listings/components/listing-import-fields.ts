@@ -22,7 +22,7 @@ export type ListingImportField =
   | "unitNumber" | "building" | "location"
   | "beds" | "price" | "area"
   | "pictures" | "furnishing" | "listing" | "listedBy"
-  | "agent" | "ownerName" | "ownerPhone" | "ownerPhoneAlt";
+  | "agent" | "ownerName" | "ownerPhone" | "ownerPhoneAlt" | "imageUrls";
 
 export const LISTING_IMPORT_FIELDS: ImportField<ListingImportField>[] = [
   { key: "listedOn", label: "Date listed", templateHeader: "Month",
@@ -105,4 +105,10 @@ export const LISTING_IMPORT_FIELDS: ImportField<ListingImportField>[] = [
   { key: "ownerPhoneAlt", label: "Owner contact (second number)", templateHeader: "Numbers 2",
     sample: "509040075",
     synonyms: ["numbers2", "number2", "altnumber", "alternatenumber", "secondnumber", "mobile2", "phone2"] },
+
+  // Not stored on the unit: photos belong to the building, so the importer adds each building's
+  // distinct photos to its gallery after the rows are in (see listing-import-photos.ts).
+  { key: "imageUrls", label: "Photo links (added to the building's gallery)", templateHeader: "Image URLs",
+    sample: "https://example.com/photo1.jpg | https://example.com/photo2.jpg",
+    synonyms: ["imageurls", "imageurl", "imagelinks", "photourls", "photolinks", "photos1", "images", "imagelink"] },
 ];

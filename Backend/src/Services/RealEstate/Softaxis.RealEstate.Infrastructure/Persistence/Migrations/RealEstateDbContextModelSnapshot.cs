@@ -18,7 +18,7 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("real_estate")
-                .HasAnnotation("ProductVersion", "9.0.20")
+                .HasAnnotation("ProductVersion", "9.0.22")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -648,6 +648,20 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("OwnerTenantId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ParkedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ParkedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("ParkedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ParkedReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("Parking")
                         .HasColumnType("int");

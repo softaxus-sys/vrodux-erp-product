@@ -1,4 +1,6 @@
 import { apiClient, type PagedResult } from "@/lib/api-client";
+import { withBranch } from "@/lib/branches.api";
+import { currentBranchId } from "@/store/branch.store";
 import type {
   BranchDashboardDto,
   CustomerLiteDto,
@@ -25,6 +27,9 @@ import type {
 } from "@/types/restaurant";
 
 const BASE = "/api/restaurant";
+
+/** Every restaurant read is scoped to the branch this phone is working at (none = the whole workspace). */
+const inBranch = (url: string) => withBranch(url, currentBranchId());
 
 // Full order-taking + delivery + loyalty keys -- see types/restaurant.ts's top-of-file note for
 // exactly what is and isn't built here. `restaurant.tables.create/edit`'s layout/merge/QR actions
@@ -76,29 +81,35 @@ export interface OrderLineBody {
 export const restaurantApi = {
   // ── Dashboards ─────────────────────────────────────────────────────────────────────────────
   getOwnerDashboard: (branchId?: string): Promise<OwnerDashboardDto> =>
-    apiClient.get(`${BASE}/dashboard/owner${branchId ? `?branchId=${branchId}` : ""}`),
+    apiClient.get(withBranch(`${BASE}/dashboard/owner`, branchId ?? currentBranchId())),
   getBranchDashboard: (branchId?: string): Promise<BranchDashboardDto> =>
-    apiClient.get(`${BASE}/dashboard/branch${branchId ? `?branchId=${branchId}` : ""}`),
+    apiClient.get(withBranch(`${BASE}/dashboard/branch`, branchId ?? currentBranchId())),
   getKitchenDashboard: (branchId?: string): Promise<KitchenDashboardDto> =>
-    apiClient.get(`${BASE}/dashboard/kitchen${branchId ? `?branchId=${branchId}` : ""}`),
+    apiClient.get(withBranch(`${BASE}/dashboard/kitchen`, branchId ?? currentBranchId())),
 
   // ── Tables ─────────────────────────────────────────────────────────────────────────────────
-  getTablesSummary: (): Promise<TablesSummaryDto> => apiClient.get(`${BASE}/tables/summary`),
-  getTables: (): Promise<TableDto[]> => apiClient.get(`${BASE}/tables`),
+  getTablesSummary: (): Promise<TablesSummaryDto> => apiClient.get(inBranch(`${BASE}/tables/summary`)),
+  getTables: (): Promise<TableDto[]> => apiClient.get(inBranch(`${BASE}/tables`)),
   updateTableStatus: (id: string, status: string): Promise<TableDto> =>
     apiClient.patch(`${BASE}/tables/${id}/status`, { status }),
 
   // ── Menu (read-only) ───────────────────────────────────────────────────────────────────────
-  getMenu: (): Promise<MenuCategoryDto[]> => apiClient.get(`${BASE}/menu`),
+  getMenu: (): Promise<MenuCategoryDto[]> => apiClient.get(inBranch(`${BASE}/menu`)),
   getMenuSummary: (): Promise<MenuSummaryDto> => apiClient.get(`${BASE}/menu/summary`),
 
   // ── Orders ─────────────────────────────────────────────────────────────────────────────────
-  getOrdersSummary: (): Promise<OrdersSummaryDto> => apiClient.get(`${BASE}/orders/summary`),
-  getOpenShift: (): Promise<OpenShiftDto> => apiClient.get(`${BASE}/orders/open-shift`),
-  getOrders: (status?: string): Promise<OrderDto[]> =>
-    apiClient.get(`${BASE}/orders${status && status !== "all" ? `?status=${status}` : ""}`),
+  getOrdersSummary: (): Promise<OrdersSummaryDto> => apiClient.get(inBranch(`${BASE}/orders/summary`)),
+  getOpenShift: (): Promise<OpenShiftDto> => apiClient.get(inBranch(`${BASE}/orders/open-shift`)),
+  // The server pages this list ({ items, ... }); the screens want the rows. One page of 100 covers a
+  // live-orders board -- history is the web's job.
+  getOrders: async (status?: string): Promise<OrderDto[]> => {
+    const qs = status && status !== "all" ? `status=${status}&` : "";
+    const page = await apiClient.get<PagedResult<OrderDto> | OrderDto[]>(inBranch(`${BASE}/orders?${qs}page=1&pageSize=100`));
+    return Array.isArray(page) ? page : (page.items ?? []);
+  },
   getOrder: (id: string): Promise<OrderDto> => apiClient.get(`${BASE}/orders/${id}`),
-  createOrder: (body: CreateOrderBody): Promise<OrderDto> => apiClient.post(`${BASE}/orders`, body),
+  // A table fixes its own branch server-side; takeaway and delivery orders carry the chosen one.
+  createOrder: (body: CreateOrderBody): Promise<OrderDto> => apiClient.post(`${BASE}/orders`, { ...body, branchId: body.branchId ?? currentBranchId() }),
   addItems: (id: string, items: OrderLineBody[]): Promise<OrderDto> =>
     apiClient.post(`${BASE}/orders/${id}/items`, { items }),
   fireNextCourse: (id: string): Promise<OrderDto> => apiClient.patch(`${BASE}/orders/${id}/fire-next-course`, {}),
@@ -131,25 +142,25 @@ export const restaurantApi = {
     apiClient.post(`${BASE}/orders/${id}/split`, { groups }),
 
   // ── Kitchen (KDS) ──────────────────────────────────────────────────────────────────────────
-  getKitchenSummary: (): Promise<KitchenSummaryDto> => apiClient.get(`${BASE}/kitchen/summary`),
+  getKitchenSummary: (): Promise<KitchenSummaryDto> => apiClient.get(inBranch(`${BASE}/kitchen/summary`)),
   getKitchenTickets: (stationId?: string): Promise<KitchenTicketDto[]> =>
-    apiClient.get(`${BASE}/kitchen/tickets${stationId ? `?stationId=${stationId}` : ""}`),
+    apiClient.get(inBranch(`${BASE}/kitchen/tickets${stationId ? `?stationId=${stationId}` : ""}`)),
   updateItemStatus: (itemId: string, status: string): Promise<{ id: string; status: string }> =>
     apiClient.patch(`${BASE}/kitchen/items/${itemId}/status`, { status }),
   markOrderReady: (orderId: string): Promise<{ id: string; status: string }> =>
     apiClient.patch(`${BASE}/kitchen/orders/${orderId}/ready`, {}),
 
   // ── Reservations ───────────────────────────────────────────────────────────────────────────
-  getReservationsSummary: (): Promise<ReservationsSummaryDto> => apiClient.get(`${BASE}/reservations/summary`),
+  getReservationsSummary: (): Promise<ReservationsSummaryDto> => apiClient.get(inBranch(`${BASE}/reservations/summary`)),
   getReservations: (date?: string): Promise<ReservationDto[]> =>
-    apiClient.get(`${BASE}/reservations${date ? `?date=${date}` : ""}`),
+    apiClient.get(inBranch(`${BASE}/reservations${date ? `?date=${date}` : ""}`)),
   seatReservation: (id: string): Promise<ReservationStatusDto> => apiClient.patch(`${BASE}/reservations/${id}/seat`, {}),
   cancelReservation: (id: string): Promise<ReservationStatusDto> => apiClient.patch(`${BASE}/reservations/${id}/cancel`, {}),
 
   // ── Waitlist ───────────────────────────────────────────────────────────────────────────────
-  getWaitlistSummary: (): Promise<WaitlistSummaryDto> => apiClient.get(`${BASE}/waitlist/summary`),
+  getWaitlistSummary: (): Promise<WaitlistSummaryDto> => apiClient.get(inBranch(`${BASE}/waitlist/summary`)),
   getWaitlist: (status?: string): Promise<WaitlistEntryDto[]> =>
-    apiClient.get(`${BASE}/waitlist${status && status !== "all" ? `?status=${status}` : ""}`),
+    apiClient.get(inBranch(`${BASE}/waitlist${status && status !== "all" ? `?status=${status}` : ""}`)),
   seatWaitlist: (id: string, tableId: string): Promise<WaitlistEntryDto> =>
     apiClient.patch(`${BASE}/waitlist/${id}/seat`, { tableId }),
   cancelWaitlist: (id: string): Promise<WaitlistEntryDto> => apiClient.patch(`${BASE}/waitlist/${id}/cancel`, {}),
@@ -175,7 +186,7 @@ export const restaurantApi = {
 
   // ── Drivers (read-only picker -- CRUD stays desktop) ──────────────────────────────────────
   getDrivers: (activeOnly = false): Promise<DriverDto[]> =>
-    apiClient.get(`${BASE}/drivers${activeOnly ? "?activeOnly=true" : ""}`),
+    apiClient.get(inBranch(`${BASE}/drivers${activeOnly ? "?activeOnly=true" : ""}`)),
 
   // ── Customer lookup (link-to-order + loyalty) ─────────────────────────────────────────────
   // Not under /api/restaurant -- POS's own customer register, shared with retail. The Cashier

@@ -61,9 +61,14 @@ export interface ActivityDto {
   description?: string | null;
   relatedToType: "lead" | "deal" | "customer";
   relatedToId: string;
+  relatedToName?: string | null;
+  dueDate?: string | null;
+  /** "HH:mm" for a scheduled meeting or call; null when only a date was set. */
+  dueTime?: string | null;
   completed: boolean;
   completedAt?: string | null;
   assignedTo: string;
+  assignedToUserId?: string | null;
   createdAt: string;
 }
 
@@ -75,7 +80,9 @@ export interface CreateActivityRequest {
   relatedToId: string;
   relatedToName?: string | null;
   dueDate?: string | null;
+  dueTime?: string | null;
   assignedTo: string;
+  assignedToUserId?: string | null;
 }
 
 export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {

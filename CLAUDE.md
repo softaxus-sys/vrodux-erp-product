@@ -8815,3 +8815,534 @@ most restaurant entities) but which only tagged new records and scoped four list
 - Existing self-signup tenants stay verified (they were pre-verified) — not shown as awaiting.
 - ⚠️ When SMTP is unconfigured the email service only logs the link, so Re-invite reports "sent".
 - Build: Identity.API 0 errors · frontend `tsc` 0 errors. **Not runtime-tested.** No migration.
+
+---
+
+## Module 89 — One product catalogue: Inventory is the source of truth (steps 0–1 built)
+
+Plan and reasoning: `docs/product-catalogue-unification.md` (read it first). Goal: POS, Restaurant POS and
+E-commerce all sell what Inventory holds; the POS screens stay exactly as they are but will read/write
+Inventory; live tenants move one at a time later (steps 2–4 not built yet).
+
+### Step 0 — Inventory is mandatory (done)
+`Identity.Domain/Entities/ModuleDependencies.cs` is the one rule table (`pos→inventory`,
+`restaurant→pos`, `manufacturing→inventory`, `ecommerce→inventory`); `Tenant.ResolvedModules` closes the
+list over it, so the JWT `modules` claim always carries Inventory for those tenants (signup, super-admin
+grant, industry pack, manual grant). Gateway `LicensedModules.Requires` has `ecommerce→inventory`. The
+super-admin `module-selector.tsx` adds dependencies when a module is switched on and locks a module another
+selected module needs. `ecommerce` is in the rules but in no picker until the module has pages.
+
+### Step 1 — online listings on Inventory (done, additive only)
+- **Model:** `ProductTemplate` = what a customer sees (name, description, SEO, slug, tags, options JSON, published
+  flag, photo gallery). Each variant is an **ordinary `inventory.products` row** (`TemplateId`,
+  `VariantOptionsJson`, `SellOnline`, weight/dimensions) with its own SKU/barcode/price/stock, so POS,
+  Purchase, Sales, Finance and every stock path are unchanged. `ProductImage` belongs to the template, optionally
+  tied to one variant; bytes go to object storage (`IObjectStorage`) when configured, else the `Data` column.
+  Migration `AddProductTemplatesAndImages` (additive; existing products keep working).
+- **API** `api/inventory/product-templates` (gated `inventory.stock.*` until E-commerce has its own keys): list /
+  get / create / update / publish / delete, variants add/update/remove, photos add/get/reorder/cover/alt/delete,
+  `publish-check`. Handlers live in `Inventory.Infrastructure/Handlers/ProductTemplates` (gateway MediatR registers
+  that assembly; validators from `Inventory.Application` are registered too).
+- **Rules worth knowing:** max 3 options, 250 variants, 60 photos; choices are validated against the options and
+  stored spelled like the options; a product can be in one listing only; deleting a listing keeps its products;
+  a rename never changes the slug (links/SEO) — only an explicit slug does; the update command takes
+  `variantChoices` so option changes and variant choices are one atomic change; photos count toward the
+  storage quota (`TenantStorageQuota` now sums `inventory.product_images`).
+- **UI:** Inventory → **Online Listings** (`/inventory/listings`): list with tiles/filters, and an editor drawer
+  (basics, photos, options, variants incl. "create missing combinations" and "use an existing product", SEO with
+  Google preview, publishing with readiness check). en + ar strings under `inventory:listings`.
+- **Verified:** 61 scripted API checks against a local gateway + LocalDB (access control, validation, option/variant
+  rules, photos incl. cover promotion, publish rules, deletion keeps products, 0 NULL-tenant rows), and the list +
+  editor + create-with-generated-variants flow in a browser. Test data/tenant removed afterwards.
+- **Not verified:** photo upload/drag-drop and the Publish button through the browser, Arabic/RTL, object-storage
+  (bucket) path, the mirror sync of the new tables.
+- **Not built (next):** step 2 POS facade over Inventory, step 3 per-tenant move + dry-run report, step 4 retire the
+  UNION queries, then channels/Shopify/storefront/builder (see the roadmap in the doc).
+
+### Step 2 — the till's product screens served from Inventory (done; legacy workspaces untouched)
+- **Rule:** a workspace is "on Inventory" when it has **no live product of its own in the POS schema**
+  (`InventoryCatalogueGateway.UsesInventoryAsync`, one EXISTS per request). So a new workspace starts on
+  Inventory with no setup, and a workspace that still has `pos.products` rows behaves exactly as before until it
+  is moved (step 3). The POS UI, routes (`/api/products`, `/api/catalogue/import`), DTOs and permissions are unchanged.
+- **Where:** `POS.Application/Abstractions/ICatalogueGateway` — seven POS handlers (create, update, delete, get by
+  id, get by barcode, list, adjust stock) and the catalogue-pack import call it first. `POS.Infrastructure`
+  implements it over Inventory (project reference to `Inventory.Application`). The rules live in Inventory as
+  `TillCatalogue` commands (`Inventory.Infrastructure/Handlers/TillCatalogue`): barcode/SKU uniqueness with the
+  till's error codes (`Product.BarcodeTaken`/`SKUTaken`), 50-char barcode, brand/unit-of-measure preserved on a
+  till edit, stock never negative at head office, branch adjustments go to the branch's own warehouse, bulk
+  pack import in slices of 500 with categories created by name.
+- **POS read paths fixed for Inventory-only catalogues:** `ReportService` looked up category and cost in
+  `pos.products` only (category/product/tax reports showed "Uncategorised" and zero cost for Inventory products) —
+  now `ProductInfoLookup` reads both schemas; `BranchStockReadService` now also lists per-branch warehouse stock
+  (`inventory.product_stock`). `LowStockReadService` already read both.
+- **Verified:** 56 scripted API checks against a local gateway + LocalDB with one workspace with no POS products and
+  one legacy workspace: create/duplicates/validation, list/get/barcode, update keeps brand, adjust stock (types,
+  negative refused, branch warehouse), a sale then category + product reports, delete, pack import (idempotent),
+  branch-stock screen, and the legacy workspace's creates/adjustments still landing in `pos.products`. Existing
+  POS unit tests (14) pass. Test tenants/data removed afterwards.
+- **Known limits (step 4 work):** the till list ignores `SortBy` (always by name; no screen sends it); POS purchase
+  orders/vendors and POS stock-movement history screens still read POS tables; Inventory's own update/delete/activate
+  still fall through to `pos.products` rows by raw SQL (removed with the move); an Inventory screen can still create a
+  duplicate barcode (only the till path enforces uniqueness); the stock-adjustment history lives in
+  `inventory.stock_movements` for these workspaces, not `pos.stock_movements`.
+
+### Step 3 — moving a workspace's catalogue into Inventory (done; operator-run, one workspace at a time)
+- **Where:** Super-admin → tenant → **Products** tab (`catalogue-move-panel.tsx`), API `api/admin/catalogue-move/{tenantId}`
+  (`SuperAdminOnly`): `GET` status, `GET …/preview` (dry run, changes nothing), `POST …/run`. Code in
+  `Inventory.Infrastructure/Handlers/CatalogueMove` (raw SQL with explicit tenant ids — the caller has no tenant context
+  and the move spans two schemas). New table `inventory.catalogue_moves` (migration `AddCatalogueMoves`): one record per
+  move with the dry-run report as it stood.
+- **What the move does, in ONE transaction** (per-workspace `sp_getapplock`, `XACT_ABORT`): maps each POS category to the
+  Inventory category with the same id, else the same name, else creates it under its own id; copies every live
+  `pos.products` row into `inventory.products` **with the same id** (sale lines, offline queues and sync refs only store ids);
+  head-office stock goes into the workspace's head-office warehouse (created as "Main Warehouse" if none), each branch's
+  `pos.branch_stock` into that branch's warehouse (created, named after the branch, if none); product total = head office +
+  branches so it equals the sum of buckets; then marks the POS rows `IsDeleted` with `DeletedBy='moved-to-inventory'`
+  (kept, not dropped). A product already in Inventory under the same id is left untouched. After this the step-2 rule
+  (no live POS products) puts the workspace on Inventory automatically.
+- **Blocks the move** (dry run lists each reason): workspace is a cloud mirror of an on-prem install; **runs branch servers**
+  (their sync does not carry Inventory yet — see below); no POS products / already moved; a POS product's SKU or barcode is
+  used by a *different* Inventory product (listed pair by pair); a POS id that exists soft-deleted in Inventory. The run
+  re-checks everything at the moment it executes, and two simultaneous runs → one wins, one gets 409.
+- **Verified:** 51 scripted API checks (4 throwaway workspaces on LocalDB): access control, dry-run figures, clash /
+  branch-server / empty blockers, refused runs change nothing, concurrent runs, category matching (same id / same name /
+  created), stock totals and per-warehouse buckets, flags kept, POS rows marked, record written, no NULL-tenant rows, then the
+  till on the moved workspace (list, barcode, a sale, a new product, branch stock). Panel checked in a browser on a blocked
+  workspace. Test data removed.
+- **Not built / still to do:** (1) **no automatic move-back** — the POS rows are kept, but stock changes made after the move
+  live in Inventory; reversing means copying stock back by hand; (2) the move does not rewrite `pos.stock_movements`
+  history; (3) on-prem single-store installs should run it on the box itself, after a backup. (Branch-server workspaces
+  can now be moved — see step 3b.)
+
+### Step 3b — the branch-server sync carries Inventory (done; verified with a real cloud + branch pair)
+- **Catalogue:** `inventory` is a classified schema in `BranchSyncCatalog` (the live-table test covers it). **Down (cloud-owned):**
+  `products`, `product_categories`, `brands`, `units_of_measure`, `warehouses`, `product_templates`. **Up (branch-owned):**
+  `product_stock`, `stock_movements`. **Not synced:** `product_batches`, `stock_transfers`(+items), `product_images`,
+  `catalogue_moves`.
+- **Stock is owned by warehouse, not by branch** (the tables have no BranchId): `BranchSyncCatalog.WarehouseOwned`. A branch
+  pushes only rows of warehouses whose `BranchId` is its own (`BranchWarehouses`, local query) and never deletes; the cloud
+  re-checks every row and answers 403 for another branch's or the head-office warehouse, or a movement with no warehouse.
+  Head-office warehouse rows therefore never go up, and the branch only ever receives its own warehouse (`BranchPullFilter`).
+- **Opening balance:** `BranchSyncCatalog.OpeningBalances` (`product_stock`) is ALSO sent down, once, insert-only
+  (`ApplyOptions.InsertOnly`): a row the branch already holds — by id or by (product, warehouse) — is never overwritten and
+  deletes are ignored, because from then on the branch changes it. So a catalogue move's per-branch quantities reach the
+  branch, and a later head-office edit of a branch warehouse's quantity does NOT (change branch stock at the branch).
+- **Product total on the cloud:** `inventory.products.StockQuantity` moves by the CHANGE in the pushed row
+  (`StockTotals`, `ApplyOptions.AdjustProductTotals`, branch pushes only — the on-prem→cloud mirror is untouched), so a re-sent
+  row adds nothing. A branch row for a (product, warehouse) the cloud holds under another id updates that row instead of
+  inserting a second one (the unique index would refuse it and stop the branch syncing).
+- **Catalogue move:** the "runs branch servers" blocker is replaced by: every `ServerMode='local'` branch must have uploaded
+  in the last 15 minutes with no failures (`sync.branch_status`), else the move is refused and names the branch. A warning
+  says to move when tills are closed — a sale not yet uploaded is not in the opening balance.
+- **Known limits:** a branch that sells before its first pull starts that product from 0 (not the opening figure) — sync once
+  before trading; opening rows echo back up once after arriving (harmless, delta 0); stock transfers and batches are not carried.
+- **Verified (cloud on :5301 + branch on :5302, two LocalDB databases, real sync, then dropped):** first sync delivers exactly the
+  branch's slice (no other branch's warehouse or stock, no head-office stock, no move record); a branch sale moves the branch row
+  28 and the cloud total 100→98 while the head-office row stays 60; a stray head-office row/movement written at the branch is not
+  pushed; a head-office edit of the opening row (999) is not applied at the branch while a price change is; 12 attack/edge
+  pushes behave (403s, new-id natural-key update, re-send adds nothing, delete ignored); the move preview names a silent branch,
+  then with it settled the move ran, totals = head office + branches, the branch got the new products + its own opening stock,
+  its POS rows disappeared, and its product list and barcode lookup were served from Inventory.
+- **Not verified:** a real till sale on the branch after the move (the SQL equivalent was exercised), the two-branch case with both
+  branches running, the cloud-mirror (on-prem→cloud) path after these changes beyond unit tests.
+
+### Step 4 — retiring the old POS-table paths (gated; only the gate is built)
+- **Why nothing was removed:** every remaining reference to `[pos].[products]` exists to serve a workspace that has not been moved yet
+  (Inventory's product list UNION and its update/delete/activate/stock raw SQL, `CrossSchemaProductService`, the POS reports/low-stock/
+  branch-stock reads, POS purchase orders/vendors) and the gateway's `Requires["inventory"] = ["pos"]` schema rule exists because of
+  those. Removing any of it while a live workspace still has POS products would break its till, so it waits for the moves.
+- **The gate:** `GET api/admin/catalogue-move` (SuperAdminOnly) lists every workspace with live POS products (name, product counts,
+  whether it runs branch servers or is a cloud mirror). **When it is empty on every deployment (cloud and each on-prem box), the
+  cleanup can be done in one change:** drop the UNION halves and POS fall-throughs, make `CrossSchemaProductService` Inventory-only,
+  remove `Requires["inventory"] = ["pos"]`, and move POS vendors/purchase orders onto Inventory/Purchase. Also needed first: a
+  decision on those POS purchase orders and vendors, which still read POS tables with no Inventory equivalent wired.
+- Verified: builds; the overview SQL runs against the dev schema (returns no rows there). Not run through the API or shown in the UI.
+
+---
+
+## Module 90 — E-commerce: sales-channel framework + Shopify (first channel)
+
+New service `Softaxis.Ecommerce` (schema `ecommerce`, clean CQRS, module code `ecommerce`, needs Inventory). Inventory stays the
+single source of truth: a store is a *channel* that Inventory listings (Module 89 step 1) are pushed to, and its orders come back.
+
+### Model
+`SalesChannel` (kind, shop domain, encrypted token, location, switches for content / stock / order import, status, cursors),
+`ChannelListing` (one Inventory product template published to one store; content / image / failed hashes), `ChannelListingVariant`
+(Inventory product ↔ store variant, `LastPushedQuantity`), `ChannelOrder` + `ChannelOrderLine`. Migration `InitialEcommerce`.
+
+### Shopify (custom-app Admin API token, REST, version `Ecommerce:ShopifyApiVersion`, default `2025-10`)
+- Shop address must match `*.myshopify.com` (SSRF guard); token encrypted with Data Protection, never returned.
+- First stock push = set; later changes = `inventory_levels/adjust` deltas, so a sale in either place is not overwritten.
+- Order import takes the stock from Inventory and shifts `LastPushedQuantity` so it is not echoed back; a cancelled order returns the stock.
+  The order cursor starts at connect time (no history import).
+- Content the store refuses is not retried until it changes (`FailedHash`); manual sync always retries. Failures are classified
+  transient / permanent / item-rejected; transient ones back off 2^n minutes (cap 60).
+- `ChannelSyncWorker`: 5-min startup delay, 2-min cycle, orders before content and stock.
+
+### API (`api/ecommerce`)
+`channels` (providers, list, get, locations, connect, update, replace token, disconnect, sync, orders/import), `listings`
+(list, publish, sync, unpublish, remove ± delete in store), `orders`, `lookups/templates`. Permissions `ecommerce.channels|listings`
+(view/create/edit/delete), `ecommerce.orders` (view/edit); migration `AddEcommercePermissions` (Identity).
+
+### Frontend
+`lib/ecommerce`, `hooks/ecommerce`, `modules/ecommerce/{shared,channels,listings,orders}`, routes `/ecommerce/channels|listings|orders`
+(`ModuleGuard module="ecommerce"`), nav group "E-commerce", module chip in the super-admin selector, `ecommerce` i18n namespace
+(en + ar, every used key present in both).
+
+### Verified
+- Backend gateway build 0 errors; 35 unit tests; 89 + 9 scripted checks against a local gateway + LocalDB with a fake Shopify
+  (token encrypted at rest, isolation, backoff, idempotent order import, delta stock sync, refused products, deleted-in-store recovery).
+- Frontend `tsc -p tsconfig.app.json` 0 errors, `vite build` ✅.
+- **Not verified:** a real Shopify store; the three screens in a browser; Arabic layout.
+
+### Not built
+WooCommerce (shown as coming soon), Shopify webhooks (polling only), public Shopify apps (would need GraphQL), creating Sales
+orders from channel orders, storefront, payments, page builder, customer accounts.
+
+---
+
+## Module 91 — E-commerce: the workspace's own online store (storefront, page builder, payments, accounts)
+
+Runbook: `docs/storefront-go-live.md` (server setup, owner setup, known limits). Builds on Module 90 (channels) and Module 89 (Inventory listings).
+
+- **Model** (`ecommerce` schema): `Store` (one per workspace; slug + custom domain are platform-unique, so the store reads with `IgnoreQueryFilters`
+  and takes its tenant from the row), `StorePage` (page-builder sections as JSON), `StoreAsset`, `StoreCollection`, `ShippingZone`, `DiscountCode`,
+  `StoreCustomer` + addresses (own login, NOT Identity users), `StoreOrder` + lines + events. All ids are `ValueGeneratedNever` — without it a child added to a
+  loaded order is treated as existing and the save throws a concurrency error. Migrations `AddStorefront` (Ecommerce) + `AddStorefrontPermissions` (Identity).
+- **Products are read from Inventory** through `Inventory.Application/Storefront` queries (public-safe shape: no cost price). A listing is on sale only when
+  published + active + it has a variant that is active and `SellOnline`.
+- **Public API** `api/ecommerce/shop/{slug}/*` (anonymous, rate limited: policies `shop_browse|shop_checkout|shop_auth`, tunable via `Ecommerce:RateLimits:*`).
+  `ShopGate.OpenAsync` resolves slug → tenant; **handlers must call `door.Enter()` (a plain method) before touching a store table** — ambient set inside an
+  awaited helper is lost on return. An unpublished store is visible only to staff of that workspace with `ecommerce.store.view` (`IShopPreview`).
+- **Pricing is server-side only** (`StorePricing`): the browser sends product id + quantity; prices, stock, discounts, delivery, tax come from the server.
+  Stock is taken at order creation under `StockGuard` (per-product lock; single gateway process) and released on cancel/expiry (`StoreOrderExpiryWorker`,
+  asks Stripe first). Discount-code use is an atomic `UPDATE … WHERE UsedCount < MaxUses`.
+- **Payments** (`PaymentGateways.cs`, plain HttpClient, the owner's own keys, encrypted via `ISecretProtector`): Stripe hosted Checkout + signed webhook
+  (fails closed without a signing secret) + reconcile-on-view; PayPal Orders v2 + server-side capture; COD; bank transfer. A paid amount/currency that differs
+  from the order is never accepted (flagged). `Ecommerce:StripeApiBase` / `PayPalApiBase` exist only so tests can use stand-ins.
+- **Return URLs** come from `ShopLinks`, which only honours the store's own hosts or the front-end origin — a request `Origin` is never trusted blindly.
+- **Accounts**: PBKDF2 passwords, HMAC session token (key derived from `Jwt:Secret`, own label) tied to the password hash (changing it ends sessions),
+  5 failures → 15-minute lock, reset by emailed single-use token (only its hash stored). Emails are sent in the background (a slow SMTP never slows checkout).
+- **Permissions**: `ecommerce.store` (view/edit), `ecommerce.discounts` (CRUD), `ecommerce.customers` (view), `ecommerce.orders` gained `refund`.
+- **Frontend**: storefront `modules/storefront/*` (en + ar RTL, own theme CSS vars, sanitised HTML, safe links only), mounted at `/shop/:slug/*` and — via
+  `lib/storefront/host.ts` — as the whole site when the browser address is a store's own domain (API calls then go same-origin). Admin screens in
+  `modules/ecommerce/store/*` (settings tabs, page builder with live preview using the same section renderer, collections, discounts, orders, customers) — **English only**.
+- **🔴 nginx**: `/api/ecommerce/shop/` must never be cached (the generic /api rule caches anonymous GETs 5 min and bypasses only on Authorization; shoppers use
+  `X-Shop-Token`). Added to `nginx/conf.d/vrodux.conf` and `nginx/snippets/store-locations.conf`. Also `Gateway__TrustForwardedHeaders=true` in prod compose so
+  per-address rate limits see real client addresses (the gateway had no forwarded-headers handling at all, so existing limits were counting nginx).
+- **Verified**: gateway + solution build 0 errors; 49 unit tests; **235 scripted API checks** (access control, preview rules, settings validation, secrets never
+  returned/encrypted, catalogue, builder validation, quote maths, discounts incl. races, tax, COD/bank/Stripe/PayPal flows against stand-ins, webhook signature/replay/
+  tampering, amount mismatch, expiry worker, refunds, 8-way oversell race, accounts/lockout/reset, cross-workspace isolation, rate limit, no NULL-tenant rows);
+  `tsc` 0 errors; browser: storefront home/list/product/cart/checkout (COD) and admin builder/orders/settings render and work.
+- **Not verified / not built**: real Stripe/PayPal accounts; real SMTP; Arabic storefront in a browser; mobile widths; custom-domain TLS/DNS; SSR (link previews);
+  sales orders / invoices / ledger postings from store orders; reviews, wishlists, abandoned carts, gift cards, courier rates; WooCommerce; Shopify webhooks.
+
+---
+
+## Module 92 — SEO Phase 1: real audits, credits, catalogue SEO (+ mandatory signup phone)
+
+For our own customers first (module `seo` is still manual-grant only). The old audit crawled 20 pages, had 8 rules, created
+duplicate issues every scan and fetched any address a tenant typed. Rebuilt in `Softaxis.Seo.*` (no new service).
+
+### 🔴 SSRF fix (`Net/SsrfGuard.cs`, `Net/SafeFetcher.cs`)
+The server fetches customer-typed domains (their site, competitors, WordPress). Now every fetch goes through `SafeFetcher` on a client whose
+`SocketsHttpHandler.ConnectCallback` resolves the name itself and refuses if **any** answer is loopback / private / link-local (incl. the
+169.254.169.254 cloud-metadata address) / CGNAT / multicast / IPv6 ULA / v4-mapped. Checking the URL text is not enough (a public name can point
+at 127.0.0.1). Also: http/https only, ports 80/443 only, redirects followed by hand (≤6, loops detected), body capped, hard timeouts, no
+cookies. Private addresses are allowed **only** when `ASPNETCORE_ENVIRONMENT=Development` AND `Seo:AllowPrivateAddresses=true` (used by the tests).
+`CreateSiteHandler` rejects IPs / localhost / internal names up front. Clients `seo-crawler` and `wordpress` both use the guarded handler.
+
+### Crawler + rules
+`SiteCrawler.CrawlSiteAsync`: robots.txt (our group, else `*`; longest-match, `$`, wildcards), sitemap + sitemap index, BFS over links (same host or
+www), query-variant cap, 4 at a time with a polite pause, redirect chains, mixed content, external link HEAD checks (social hosts skipped — they
+answer bots with 403). `SeoIssueDetector` has 30+ rule codes (titles, descriptions, canonical, schema, H1, alt, lang, viewport, OG, thin content,
+speed, noindex-in-sitemap, depth, 5xx, redirect chain/loop, broken internal/external links, duplicates, orphans, https, robots, sitemap).
+A URL that redirects is not judged as a second page (it would fake duplicate titles). `SeoScore`: penalty per rule × spread, 0–100.
+
+### Issues persist (`SeoIssue.Fingerprint`)
+Fingerprint = rule + page (or hash of the duplicated text). A scan updates the same row (`Observe`), closes it as `resolved` when it is gone,
+`Reopen`s it if it comes back. Dismissed/applied stay as they are. Pre-existing issues with no fingerprint are superseded (those with a fix awaiting
+review are left alone). **AI fixes are proposed only for NEW issues** (≤40 a scan) — otherwise every weekly scan re-proposed the same fix.
+`SeoPage` rows are kept for the last 5 audits; older audits keep score and counts only. Audits carry score, counts, new/resolved, credits, duration.
+
+### Credits (`Credits/SeoCreditService`, same guarded-spend pattern as Lead Gen)
+`UPDATE … WHERE Balance >= n` + ledger row under an idempotency key. 1 credit = 25 crawled pages (rounded up, minimum 1), max 500 pages per audit,
+20 welcome credits per workspace (`Seo:PagesPerCredit|MaxPagesPerAudit|WelcomeCredits|CrawlConcurrency|ExternalLinkCheckLimit`). The crawl is capped
+at what the balance can pay for; the charge is made **after** the crawl for the pages actually fetched, so a failed audit costs nothing. No credits →
+`Credits.Insufficient` → HTTP 402; the scheduled job skips, notifies (`seo.credits-out`) and retries tomorrow. `GET api/seo/credits`;
+super-admin `POST api/admin/seo/credits/grant {tenantId, amount, reason}`. **No purchase flow yet** — credits come from the welcome grant or a grant.
+
+### Catalogue SEO
+`GET api/seo/catalogue`, `POST …/{id}/suggest` (AI, nothing saved), `POST …/{id}/apply`. Reads/writes the Inventory listing through
+`GetCatalogueSeoQuery` / `SetTemplateSeoCommand` (Inventory.Application) — saved text reaches the storefront, Shopify and Google, unlike a script
+patch. Rules: missing/short/long title and meta, no photo, photos without alt, thin description, duplicate titles. Needs the Inventory module.
+
+### API / UI
+`GET sites/{id}/pages`, issues default to "needs attention" (`?status=all|resolved|…`). Drawer tabs: Health (score, trend, issues grouped by rule with
+affected URLs), Pages, Fixes, Product listings, Google, Content, History. "Run audit" shows the cost and balance before spending. English only.
+Migration `AddSeoAuditV2` (additive; backfills issue first/last seen).
+
+### Verified / not
+- Seo + Inventory + Identity build 0 errors; **57 tests** (`Backend/tests/Softaxis.Seo.Tests`: SSRF classification, robots rules, detector, score,
+  and a **real crawl of a local HTTP server** with known flaws incl. robots-blocked page, sitemap orphan, redirect chain, duplicate titles, broken link,
+  plus proof that private addresses are refused in production mode without the server ever seeing a request).
+- **Not run:** a full gateway audit with credits charged and the database migration applied; the UI in a browser; Arabic (screens are English only).
+- **Known limits:** approved fixes on EXTERNAL sites are still applied by the browser snippet (crawlers and social previews do not see them);
+  WordPress source-level apply is not built; no credit purchase; module not in any plan.
+
+### Signup now requires a phone / WhatsApp number
+`phone` on `POST /api/trial/register` (validator: 7–15 digits, `+ - ( ) .` and spaces allowed), a required field on onboarding step 1 (en + ar),
+saved on `Tenant.ContactPhone` and the owner's `User.PhoneNumber`, so the team can reach trials that go quiet. The only caller is the web onboarding
+page (grepped); any other client posting to that endpoint must now send `phone`. Existing tenants are unchanged (no backfill).
+
+---
+
+## Module 93 — Billing: add-on credits bought centrally, swappable between modules
+
+One place to buy credits for every add-on (SEO audits, Lead Generation, anything added later): **Settings → Billing → "Add-ons & credits"**
+(shown only to a workspace with a subscription). Balances stay separate per module and are shown as credits only, with "1 credit = $x".
+
+- **Wallet abstraction:** `ICreditWallet` (BuildingBlocks.Application/Credits). A module implements it (`SeoCreditWallet`, `LeadGenCreditWallet`) and registers one DI line;
+  Identity discovers every wallet through `IEnumerable<ICreditWallet>`. Members: balance, `AddPurchasedAsync`, `SwappableAsync`, `RemoveForSwapAsync`, `AddFromSwapAsync`, plus name/description/"how it works" text for the card.
+- **Pricing is server-side only** (`CreditPricing.Quote`, unit-tested): the browser sends module + credits, never an amount. Settings row `credit_pricing_settings` (super-admin → Platform → **Credit pricing**):
+  price per credit per module (no price = not for sale), bulk-discount tiers (default 0/100→5%/500→10%/2000→15%/10000→20%), min 20 credits, min order $5, max order $1000 (above = "contact us"), VAT % (0 now), swap on/off, swap fee %, min swap credits.
+- **Purchase flow:** `credit_purchases` row written BEFORE the redirect (pending) → Stripe Checkout (inline `price_data`, `mode=payment`, metadata `type=credits`) or PayPal Orders v2 (exact amount; we capture on return) → single `CreditFulfiller`
+  (amount + currency check, atomic `pending→paid` claim, wallet add idempotent on the purchase id, then `credited`). No Stripe product / PayPal plan is needed. The Stripe webhook branches on `type=credits` BEFORE the subscription logic
+  (otherwise a credit payment would activate a plan). A paid-but-not-credited purchase self-heals when the purchases list is read. **No refunds, no expiry, no auto top-up** (decided with the owner).
+- **Swapping** (`credit_swaps`, `CreditSwapPricing.Quote`): value moved = credits × price of the credit given (list price, before bulk discount); minus swap fee %; received = floor(value ÷ price of the credit received);
+  only as many credits as needed are taken. Only bought or swapped-in credits move: `Swappable = max(0, balance − max(0, free granted − used))`. Steps (pending → removed → done) are idempotent on the swap id; a failed add puts the credits back.
+  The rule is written on the swap dialog. Example: 20 SEO @ $0.05 = $1.00 → 10 Lead Gen credits @ $0.10.
+- Migration `AddCreditPurchasesAndSwaps` (Identity). Tests: `Backend/tests/Softaxis.Identity.Tests` (13: min/max/discount/VAT, swap formula, fee, no value created).
+- **Not set up / not verified:** no module has a price until the super admin enters one; the swap fee defaults to 0% (a small fee is recommended because cost-to-serve differs per module). Not run against real Stripe/PayPal or in a browser;
+  the Stripe webhook must be configured for the existing billing webhook URL (credits reuse it). **Lead Gen moved onto it:** the Lead Gen Credits page no longer sells fixed packs; it links to Billing (`StartCheckoutHandler` now refuses new checkouts; the PayPal confirm + Stripe webhook paths stay so a payment started before the move still completes). The super-admin Lead Gen console points at Credit pricing instead of pack editing (pack endpoints/tables are left in place, unused). A workspace with no subscription (e.g. a trial) cannot buy credits until it subscribes.
+- **Settings → API Keys & Connections** (`/settings/connections`): a directory of connected services with live status (AI key, lead sources, outreach mailboxes, Shopify channels) and links for the rest. Keys are NOT collected there — each stays in its module, encrypted, never shown again. Each row mounts its own query only when the module + permission are present.
+
+---
+
+## Module 94 — SEO: competitor analysis + 30-day content plan
+
+SEO drawer → **Competitors** tab. Add up to 5 competitor websites per site, pick a search market, run a comparison.
+
+- **Two views of the same question** ("what do they cover that we don't?"): *topic gaps* (from the pages competitors publish; needs no paid data) and *keyword gaps* (from search volumes; needs the keyword provider).
+  Pure code in `Competitors/CompetitorAnalysis` (unit-tested): bigram topics from titles/H1s with filler and the competitor's brand removed, ≥2 pages; keyword gaps = competitor top-20 terms with ≥20 searches/month that the site does not rank for at all,
+  scored by volume × agreeing competitors × ease. **30-day plan:** 15 slots, one every two days, search terms first then topics, no two slots on the same ground.
+- **Keyword data = DataForSEO, the platform's own account** (never a tenant's key): server env `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` → `DataForSeo__Login/Password` (mapped in `docker-compose.prod.yml`, documented in `.env.example`).
+  Uses Labs `ranked_keywords/live` (own site + each competitor, ≤300 items). Unset → the topic comparison and plan still run and the screen says so. Provider errors become safe messages (no credentials/internal text).
+  A bought list is **reused for 30 days** (`seo_keyword_snapshots`), so repeating a comparison soon costs less.
+- **Credits (same wallet as audits):** pages read (1 credit per 25, ≤50 pages per website) + 12 credits per competitor whose keyword list was freshly bought. The balance must cover the maximum up front (402 otherwise); the charge is the actual use,
+  taken after the work — a failed comparison costs nothing. Knobs: `Seo:CreditsPerCompetitorKeywords|CompetitorPagesPerDomain|KeywordCacheDays`.
+- **Runs in the background** (`CompetitorScanQueue` + `CompetitorScanBackgroundService`; queued/running scans are re-queued after a restart; one comparison per site at a time). All fetches use the SSRF-guarded fetcher; competitor addresses are validated like a site's.
+- **Drafts:** "Write draft" on a plan slot writes one article through the existing `IArticleWriter` (the tenant's own AI key) into the normal Content review queue (`pending_review`); nothing is published, and WordPress push stays a separate step.
+- API `api/seo/sites/{id}/competitors`, `…/competitor-scans`, `api/seo/competitor-scans/{id}`, `api/seo/plan-items/{id}/draft|skip`; permissions reuse `seo.sites.view|edit` and `seo.content.edit` (no migration in Identity).
+- Migration `AddCompetitorAnalysis` (Seo, 4 tables). Tests: 14 added to `Softaxis.Seo.Tests` (71 total, all pass), including parsing of the provider response and error mapping.
+- **Not verified:** a real DataForSEO call (credentials exist only on the server — check the first run there and watch the account balance), the screen in a browser, Arabic (English only by decision).
+- **Limits:** the DataForSEO location codes in `CompetitorLocations` are from its published list but unconfirmed against a live account; no scheduled/recurring comparison; the plan is not auto-regenerated.
+
+---
+
+## Module 95 — Mail (tenant business email) — DECISION + RESEARCH ONLY, NOTHING BUILT YET
+
+**Goal (owner's words):** tenants add their own domain (info@theirdomain.com) and use a Vrodux-branded mail service from inside Vrodux; they subscribe to a package of mailboxes and **we earn on top** (our retail price − wholesale). No code exists for this. This section records what was researched on 2026-10-30 so the work can resume without redoing it.
+
+### Where things stand (resume here)
+- **Chosen provider: Titan Email**, via Titan's own partner program. The owner **submitted Titan's "Partner With Us" form; no reply yet.**
+- **Fallback / parallel route: ResellerClub** (resells Titan). The owner **has signed up as a ResellerClub reseller.** ResellerClub's site and KB return HTTP 403 to our fetch tool, so its API pages have NOT been read in full — read them while logged in / with the owner's help before designing (KB nodes 3483 = Titan API, 3467 = getting started, 3469 = add/remove accounts).
+- **Do not start building until at least one route confirms the answers below.** Then build the Mail module around a **provider interface** (Titan-direct, ResellerClub-Titan, later Open-Xchange/Zoho as adapters) so the provider is swappable.
+
+### Why Titan (and what was rejected)
+- **Titan** is sold only through partners that resell it under their own brand (GoDaddy, Hostinger, Name.com). Partner API (https://apidocs.titan.email/, 48 endpoints, JSON over HTTPS, US `https://bll.titan.email` / EU `https://api-euc1.titan.email/bll`; no UAE/Saudi region): mail order create/modify/suspend/unsuspend/delete/transfer/reactivate, fetch/list orders, DNS verification, DKIM key generation, catch-all, **email account** create/modify/suspend/delete/password/aliases/storage/legal export, internal forwarding groups, **autologin to webmail and to the admin control panel, an embeddable iframe control panel, event notifications.** Partners "set their own pricing". NOT stated on the pages read: wholesale price, minimums, billing terms, data-centre choice, how much webmail/control-panel branding, the authentication scheme (separate Authentication page), rate limits.
+- **ResellerClub + Titan:** wholesale + "white-label platform", you set retail. Per search summaries (unverified, pages blocked): its Titan API works at **order / seat level** — add/renew/modify/suspend/unsuspend/delete orders, **add or remove seats (pro-rata)**, order details, **autologin URLs**; test/demo endpoint exists; auth = reseller id + API key. **It does not appear to create individual mailboxes** — mailboxes are created by the customer/reseller in Titan's admin panel ("Go to Admin Panel"). At least one seat must remain; deleting all seats deletes the order. Free Titan add-on only with a domain order under the same customer. Plans are regional (India Business 10 GB / Enterprise 50 GB; Global Business with a 90-day trial on new domains). **If we go via ResellerClub, the Vrodux flow is: order + seats by API → show DNS records → tenant admin creates mailboxes inside Titan's panel via autologin/iframe (less integrated than Titan-direct).** Confirm all of this.
+- **Zoho Mail partner program** (researched in depth): Partner Admin API creates child orgs (`POST /api/organization`, scope `ZohoMail.partner.organization.*`, plans only trial/free in the call), domains API (add, verify by TXT/CNAME/HTML, enable hosting, MX/SPF/DKIM), users API (create/disable/delete/reset password/aliases), messages/folders/threads APIs (an own-webmail is possible), logs, anti-spam. Subscription API is **read-only** — no API found to buy/change licences or plans (portal/store, manual). Custom login URL `mail.theirdomain.com` via CNAME + certificate generated in the admin console (paid orgs only, per domain, no API found; post-login pages still redirect to Zoho). Data centres incl. UAE (`mail.zoho.ae`) and Saudi (`mail.zoho.sa`). Rate limits unpublished (one third-party file says 30/min, unverified); no webhooks seen. Partner page states commissions but no rates, no white-label, no API mention. Unanswered: does a Partner Admin token act on child orgs, how licences are purchased, wholesale vs commission. (`dev-api.html` is the in-app widget SDK, not the server API.)
+- **Open-Xchange OX App Suite:** explicitly white-label for hosting providers, provisioning/theming/migration APIs, managed OX Cloud or self-hosted; sales-led pricing, heavier — the scale-up path (hundreds of mailboxes).
+- **Self-hosting on Contabo:** Contabo sells no webmail/email product — only VPS to install your own mail server; it allows resale of its servers with no reseller programme/discounts. Port 25 reports conflict (some say open, some blocked) and there is no official policy. Self-hosting means owning deliverability/IP reputation, spam, backups, patching, abuse. **Never put mail on the app server** (shared IP reputation with invoices/password resets, resource contention, blast radius). A pilot on a SEPARATE small VPS (Mailcow, branded SnappyMail/Roundcube, outbound relay via SES/Postmark) is a possible later experiment, not the launch path. Stalwart's multi-tenancy + branding are Enterprise-licence features.
+- **Rejected:** ShipMail (per-plan hosted mailboxes for end users; no white-label/reseller/provisioning API found), Migadu (flat per-account limits shared by all tenants, no reseller/white-label found), Google Workspace / Microsoft 365 (not white-label, thin margin — maybe later as "connect your existing mailbox").
+
+### Planned design (once a route is confirmed)
+- New **Mail** module (own service or inside an existing one — decide): domain add → DNS records shown with a live checker (verify, MX, SPF, DKIM, DMARC) → package (e.g. 5/10/25 mailboxes) → mailboxes/aliases/forwards (Titan-direct) or seats + admin-panel link (ResellerClub) → SSO "Open mailbox" (Titan autologin).
+- **Billing:** mail packages are **recurring seat subscriptions**, not credits — the Billing page needs a new recurring add-on type (the credits flow in Module 93 does not cover this). On non-payment: **suspend, never delete**, with a grace period and an export path.
+- Provider credentials live only in server env vars (like `DATAFORSEO_*`); never per tenant, never in the repo. Remember: compose maps env vars by hand (`docker-compose.prod.yml`) and `/opt/vrodux/shared/.env` is the only canonical env file (Module 60).
+- Safety: prove domain ownership (DNS verification) before attaching a domain; per-tenant sending limits and monitoring (one tenant's spam hurts the shared reputation); nightly reconciliation of Vrodux vs provider mailbox counts vs billing; tell customers which region (US/EU) their mail is stored in.
+- Optional later: own inbox over IMAP/JMAP; mailbox links into CRM/Lead Gen (Lead Gen already connects SMTP/IMAP mailboxes — never advertise cold outreach from reseller mailboxes without checking the provider's sending policy).
+
+### Questions still to put to Titan / ResellerClub (answers decide the design)
+1. Wholesale price per mailbox (monthly and annual), minimums, invoicing/currency, who sets retail.
+2. **Titan-direct:** will they accept a SaaS platform as a partner; authentication scheme; rate limits; regions; can the partner control panel and webmail carry our branding/domain; event notifications content.
+3. **ResellerClub:** can mailboxes be created by API or only in the admin panel; how autologin URLs are generated; webmail/control-panel branding; plan ids and regions; sandbox access.
+4. What happens to mailboxes on non-payment / order deletion; export path; sending limits and the outreach/cold-email policy; support responsibilities for end users.
+
+---
+
+## Module 96 — AI Assistant: coverage of 8 more modules, platform-wide AI fallback, platform voice
+
+### 1. Tool coverage
+`Tools/Generic/ModuleToolCatalogMore.cs` (same shape and rules as `ModuleToolCatalog`, registered by concatenating both in `InfrastructureExtensions`). 87 new tools for **Real Estate, Hospitality (hotel + tours), Library, Lead Generation, SEO, E-commerce, Construction, Recipe**: lists, get-by-id, and a small set of confirm-gated writes (create tenant/listing/booking/member/title/project/site, issue/return/renew loans, rent payment + reminder, check-in/out/cancel, approve/reject SEO fix, activate/archive recipe). `AiAgents.Labels` gained the 8 keys so they appear in the picker and in "Vrodux <module>" call-by-name.
+- **Deliberately not exposed:** anything that spends credits or money (Lead Gen reveal, starting a campaign, buying credits, posting to Finance, taking card payments). Construction and Recipe have no permission keys, so their tools need only the module.
+- All 87 paths were checked against the real controller routes by a script (0 mismatches); tool names are unique.
+- **Still no tools** for the later features of covered modules (CRM quotations/reports, Finance integration center/VAT/recurring, HR WPS/schedules, POS credit, restaurant delivery/loyalty, Inventory online listings).
+
+### 2. Platform-wide AI fallback (super admin: `/super-admin/ai-platform`, menu "Platform AI")
+- `PlatformAiSettings` (one global row, excluded from tenant isolation) + `PlatformAiUsage` (per tenant per month, tenant-isolated). Migration `AddPlatformAi`.
+- `IAiKeyResolver` / `AiKeyResolver` is the single decision point, used by the orchestrator and `AiCompletionService` (SEO/CRM batch work):
+  1. the workspace's own enabled key, always first (its own second provider backs it up);
+  2. else the platform key, within the monthly cap;
+  3. the platform key also backs up a workspace's own key when its provider is rate limited/down (unless it set its own second provider);
+  4. a workspace that switched the assistant off while holding a key stays off.
+- **A message is counted only after the model answered** (`RecordMessageAsync`), so a broken platform key or outage never uses up allowances. Background batch work and confirm steps are not counted but the cap is still enforced.
+- Settings: enable, provider, model (OpenRouter has no default — free models change), key (encrypted, write-only), test button, monthly message cap per workspace (default 100, 0 = unlimited), "suggest own key every N messages" (default 10), permanent banner on/off, usage table per workspace.
+- Tenant side: `PlatformAiNoticeDto` rides on chat replies and on `/api/ai/capabilities` (so every user sees it, not only admins). Chat shows a permanent amber note (messages left + "Add my key", or "ask an administrator" for users without `settings.ai.edit`), a toast on every Nth message, and a clear message when the cap is hit. The side panel links to `/ai-assistant?settings=1`, which opens the settings modal.
+- A workspace served by the platform has `aiEnabled = true` even though it never switched anything on.
+- **Softaxis tenant:** its existing per-tenant OpenRouter fallback keeps working untouched. Paste the same key into Platform AI to make it the default for everyone; the old per-tenant fallback can then be cleared.
+- Known: when a workspace's own key fails and the platform key answers as backup, that message is not counted.
+
+### 3. Platform voice
+- Super-admin voice settings live on the same page: enable, speech-to-text model, text-to-speech model, voice name, monthly requests per workspace (default 50), optional separate key.
+- Uses OpenRouter's dedicated endpoints `POST /api/v1/audio/transcriptions` (JSON `{model, input_audio:{data,format}, language}`) and `/audio/speech` (`{model, input, voice, response_format:"mp3"}`), announced 2026-05. Example models from OpenRouter's announcement: `openai/whisper-large-v3`, `openai/gpt-4o-mini-transcribe`, `openai/gpt-4o-mini-tts-2025-12-15`. **The announcement lists no free speech models** — check pricing before choosing.
+- API `api/ai/voice-chat`: `GET status`, `POST transcribe`, `POST speak` (returns mp3). Key order: a workspace on OpenRouter with its own key uses it (no allowance), otherwise the platform voice within its cap. Each recording or spoken reply is one request; failures are not counted.
+- Frontend `hooks/ai/use-server-voice.ts`: MediaRecorder push-to-talk (works in Firefox/Safari, unlike the browser's built-in recognition), server speech with automatic fallback to the browser voice. Works on every plan (no tier gate). The Vapi outbound phone-call feature is separate and unchanged.
+- Not built: spoken confirmation of write actions (confirmations still need a click), Arabic/Urdu accuracy testing, streaming playback.
+
+### Verification
+- Backend builds (0 errors). Frontend `tsc` clean in every touched file.
+- Run on a local gateway (:5199) against the dev DB with test JWTs: migration applied; super-admin read/write; key stored encrypted and never returned; platform off → "not set up"; cap enforced; failed provider calls not counted and shown as "shared AI not answering"; voice off → 409, enabled → available, provider failure → 503, bad input → 422; the 8 new agents listed. Test rows were removed afterwards.
+- **Not verified:** a real model answering through the platform key, a real OpenRouter speech call, the new screens in a browser, Arabic. The nudge toast math (`count % N == 0`) was reasoned, not run, because no successful model call was possible without a real key.
+- **Pending (republish + restart):** migration `AddPlatformAi` auto-applies. Then enter the OpenRouter key and a model in Platform AI and press Test.
+
+### Module 96b — voice: real errors visible, recordings sent as WAV
+- "The shared voice is not answering right now" hides the provider's reason on purpose (tenants cannot fix the platform key). The reason is now **logged** (`Transcription failed … / Speech synthesis failed …`) and the Platform AI page has **Test saved voice settings** (`POST api/admin/ai-platform/test-voice`): it speaks a sentence, then transcribes that audio, and shows each step's exact provider error.
+- Mic recordings are re-encoded in the browser to 16 kHz mono 16-bit WAV before upload (`toWav` in `use-server-voice.ts`), since browsers record WebM/Opus and speech APIs often reject it. Falls back to the original recording if the browser cannot decode it. Checked in headless Chrome with a fake mic: valid WAV, correct length.
+- Not verified against a real OpenRouter key; the likely causes of the original failure are a wrong model id, an unsupported audio format (addressed above) or a key without credit — the new test button tells which.
+
+---
+
+## Module 97 — Signup: more modules to pick, SEO + Lead Gen for everyone, up to 3 business types
+
+- **Picker** (`lib/onboarding/module-data.ts`, `/trial`): added **Online Store** (`ecommerce`, brings Inventory), **Projects & Tasks** (`project-management`), **Insurance** and **B2B Sales** (both build on CRM). Labels in en + ar (`onboarding:module.*`). Still not pickable at signup: `recipe` (part of Restaurant), `reports`, `file-manager`, `notifications`, `ai-assistant`, `support`, `calendar` (always on or part of other modules).
+- **Included with every workspace:** `Tenant.AlwaysOnModules` is now `settings, users, leadgen, seo` (and `seo` is in `PlanDefinitions.AllModules`), so every tenant gets SEO and Lead Generation whatever industry or modules it picks, existing tenants included at their next login. Vrodux AI was already open to all. Access inside each is still by permission (`seo.*`, `leadgen.*`), and Administrator roles gain them on startup. The signup screens show an "Included with every workspace" row (`IncludedNote`). Tests: `TenantModulesTests` (Identity.Tests, 19 pass).
+- **Cost note:** SEO gives every workspace its welcome credits (20 audit credits); Lead Gen credits are bought. Check that is the exposure you want across all tenants.
+- **Business type step** is now multi-select, max 3 (`MAX_BUSINESS_TYPES`). The value is sent comma-joined (`businessType: "pharma,salon"`); the backend only passes it through and stores nothing, so no migration. Recommended modules are the union of the picked types' suggestions.
+- Not verified in a browser (type-check clean; unit tests for the backend rule).
+
+---
+
+## Module 98 — Inventory → Online Listings: stock-first listing (phase 1 of 3)
+
+Online listings could only be started from the listing editor, so a stock item had to be re-entered to be sold online. Now the stock item is the starting point; nothing is moved, the listing is a link to it.
+
+- **Decisions taken:** drafts by default (optional "publish straight away"); one listing and one price for every store; product photos and image import come in phases 2 and 3 (server-side fetch with the SEO crawler's address guard).
+- **Backend** (`ProductTemplates/ListOnlineHandlers.cs`): `POST api/inventory/product-templates/list-products {productIds[≤200], publish}` makes one single-variant draft listing per stock item, copying name, description, category and brand once. Price, SKU and stock stay on the product. Items already listed, switched off or deleted are skipped and reported with a reason. Duplicate names in one request get distinct slugs. `GET …/unlisted` is the worklist of active items with no listing; `POST …/listing-status {productIds}` tells the stock list which items are online. Gated `inventory.stock.view|edit`; no migration.
+- **Frontend:** Stock Items gets row checkboxes (items not yet online), an "Online / Draft listing" badge and a "List online" bar; Online Listings gets a "Not yet listed" tab with the same action (`list-online-button.tsx`, `unlisted-panel.tsx`). en + ar strings under `inventory:listings.listOnline`.
+- **Verified:** Inventory.API builds with 0 errors; `tsc` shows no errors in the touched files. **Not run** against a gateway or in a browser.
+
+### Module 98b — phase 2: photos belong to the stock item
+
+- **Model:** `ProductImage.TemplateId` is now optional (migration `MakeProductImageListingOptional`, one column made nullable). A photo with a `ProductId` belongs to that stock item for good; while the item is in a listing the photo also points at the listing, so the storefront, Shopify sync and the listing editor show it with no change. A photo with no `ProductId` is the listing's own shared photo, as before.
+- **Joining and leaving:** when an item joins a listing (List online, "use an existing product", add variant) its photos are adopted by the listing (same rows, not copies; the first becomes the cover if the listing has none; over the 60-photo limit the extras stay with the item). When it leaves the listing, or the listing is deleted, its photos go back to the item; only the listing's shared photos are deleted. The listing always keeps a cover.
+- **API:** `api/inventory/products/{id}/photos` (list, get bytes, add, alt text, make main, delete), `inventory.stock.view|edit`. Up to 20 photos per item outside a listing; inside one the listing's 60 applies. Upload rules (8 MB, compression, storage quota) are shared with listing photos through `ImageStore`.
+- **UI:** a Photos section at the top of the stock item drawer.
+- **Verified:** 36 scripted API checks against a local gateway + LocalDB (adopt on list, cover handling, add to a listed item, delete listing keeps photos, relist, join and leave a multi-variant listing, limit, worklist, status). Test data removed. **Not verified:** the permission 403s (the dev tenant's subscription is expired, so those returned a subscription error instead), object-storage path, the drawer in a browser.
+
+### Module 98c — phase 3: stock import with pictures (and listing online)
+
+- **Server-side import:** `POST api/inventory/product-import {rows[≤500], listOnline}` (`inventory.stock.create`). Replaces the old one-call-per-row browser loop. A category (default "General") or brand named in the file is created when new; a unit is matched by symbol. **Safe to re-run:** an item whose SKU (or barcode, when it has no SKU) is already in stock is left exactly as it is; only its missing pictures and listing are filled in. In-file duplicate SKU/barcode, a barcode used by another item, negative numbers and an empty name fail only that row (0-based `index` returned; the screen shows sheet row = index + 2).
+- **Pictures:** link columns (Image1–Image4, or one `Images` cell with several links) are queued in `inventory.pending_product_photos` and downloaded in the background by `ProductPhotoDownloadWorker` (starts 1 min after boot, per workspace, honours `ITenantWorkFilter`, 8 per workspace per pass). Each download is added through the normal `AddProductPhotosCommand`, so compression, the storage quota and the 20/60 photo limits apply, and the item's listing shows it. Three tries for slow or unreachable sites, none for a 404 or a non-picture. A re-run does not queue pictures for an item that already has some. `GET …/product-import/photos` reports pending / failed / done and the reasons; `POST …/photos/retry-failed` retries. A banner on Stock Items follows it.
+- **Safety:** `SafeImageDownloader` (BuildingBlocks) — http/https only, ports 80/443, public hosts only, checked on the address a name resolves to at connect time; redirects followed by hand (5); 25 s timeout; 8 MB cap; the type is read from the file's own first bytes (JPEG/PNG/GIF/WebP), SVG and anything else refused. **`SsrfGuard` moved from `Softaxis.Seo.Infrastructure.Net` to `Softaxis.BuildingBlocks.Infrastructure.Net`** so Inventory and SEO share one copy. Loopback/private addresses are allowed only when `ASPNETCORE_ENVIRONMENT=Development` **and** `Inventory:AllowPrivateImageUrls=true`.
+- **List online + variants:** with "list online" ticked each new or unlisted item becomes a draft listing; rows sharing `Group` become the variants of one listing, each row giving its choices in `Options` (`Size=M; Colour=Blue`). A group is checked up front and is all-or-nothing (every row needs Options, same option names, no two rows with the same choices, max 3 options).
+- **UI:** the stock import dialog reads CSV or Excel, auto-matches columns (and lets you correct them), and shows picture progress and failures. Template: Name, SKU, Barcode, Category, Brand, Unit, CostPrice, SalePrice, TaxRate, OpeningStock, ReorderLevel, Description, Image1–4, Images, Group, Options. en + ar strings under `inventory:productImport`.
+- Migration `AddPendingProductPhotos`.
+
+---
+
+## Module 99 — Finance: provider-neutral UAE e-invoicing (credit notes, PINT AE XML, send queue, readiness)
+
+Everything that does not depend on which Accredited Service Provider (ASP) we pick. **Nothing is sent to anyone**: the registered gateway is `UnavailableEInvoiceGateway`, which reports "no provider connected". Provider research and the Storecove reply: `docs/uae-einvoicing-providers.md`; the legal plan: `docs/uae-einvoicing-plan.md`.
+
+### Credit notes (the only way to correct an issued invoice)
+- `CreditNote` + `CreditNoteItem`, linked to the invoice, `draft → issued | cancelled`. Created for the whole invoice or one entered amount; issuing posts the reversal (Dr revenue 4001, Dr VAT 2200, Cr receivables 1200) through `GlPoster`, refuses a closed fiscal period, and re-checks the creditable balance at issue (another credit note may have been issued since the draft).
+- `Invoice.CreditedAmount` (new column); `AmountDue = Total - AmountPaid - CreditedAmount`; an invoice is `paid` when payments plus credits cover the total. A credit reduces what is owed without pretending money was received.
+- **Gotcha fixed by the live test:** an invoice's `Total` is computed from its lines, so any handler that loads an `Invoice` to read `Total`/`AmountDue` must `Include(x => x.Items)`; without it the total reads 0.
+- An invoice with issued credit notes cannot be cancelled or reset (it would reverse their effect twice).
+
+### Provider seam, queue and processor
+- `IEInvoiceGateway` (`ProviderKey`, `IsAvailable`, `SendAsync` → `Sent|Delivered|Accepted|Rejected|TransientFailure|NotAvailable`). One class per provider later; replace the DI line in `AddFinanceInfrastructure`.
+- `EInvoiceSettings` (one row per workspace, created on first read): provider, environment, enabled, go-live date, legal registration (AE:TL/EID/PAS/CD + number + issuing authority), supplier city. **Sending cannot be switched on without an available provider** (409). No credentials are stored yet; they arrive with the first adapter, encrypted.
+- `EInvoiceSubmission`: one row per document (unique on type + document id = the duplicate-send guard). Statuses `queued, sending, sent, delivered, accepted, rejected, failed, blocked`. `blocked` = data incomplete, nothing left Vrodux, the reasons are stored. The XML snapshot of the first attempt is kept and is what every retry sends. Backoff 1m/5m/30m/2h/6h, give up after 8.
+- `EInvoiceProcessor` claims with an `ExecuteUpdate` (queued → sending) before sending; `EInvoiceHostedService` (6-minute startup delay, 2-minute loop, does nothing while no provider is available). Issuing an invoice (manual or scheduled send) or a credit note calls `EInvoiceQueue.EnqueueIfEnabledAsync` after the commit; a failure to queue never undoes the issue.
+- **Lock:** an invoice whose submission is `sending/sent/delivered/accepted` cannot be edited, deleted, cancelled or reset (corrections = credit note). A merely queued one can still be corrected.
+
+### PINT AE builder and validator (`Finance.Application/EInvoicing/PintAe.cs`, pure)
+- `PintAeBuilder.Build` → UBL 2.1 Invoice (380) or CreditNote (381); `PintAeValidator.Validate` / `ValidateSupplier` / `Totals`. TIN (network id) = first 10 digits of the 15-digit TRN, scheme 0235; buyer with no TRN and no Peppol id gets the reserved endpoint `9900000098`; foreign-currency documents state VAT a second time in AED (needs a stored rate — it never guesses one).
+- **Not certified.** Built from the published structure and the provider's descriptions; not run through the official Schematron or any ASP. The XML says so inside. The issuing-authority placement (`RegistrationAddress/CityName`) is our approximation. Providers such as Storecove build the legal document themselves from our data; the XML is for download, for UBL-accepting providers, and for checking data completeness.
+
+### Readiness and API (`api/finance/einvoicing`)
+`settings` GET/PUT · `readiness` (your own company details, then up to 500 invoices since go-live or 90 days, grouped by what blocks them, plus customer gaps) · `{invoice|credit-note}/{id}/check|xml|queue` · `submissions` + `submissions/{id}/retry` · `credit-notes` list/get/create/`{id}/issue`/DELETE (draft only). New permissions `finance.einvoicing` view / edit / send (Identity migration `AddFinanceEInvoicingPermissions`); credit notes use `finance.invoicing.create/edit/view`. Finance migration `AddEInvoicing`.
+
+### Frontend
+`/finance/einvoicing` ("UAE E-Invoicing": Readiness, Sent documents, Credit notes, Provider & registration) and an **E-invoice panel in the invoice drawer** (check result, download XML, queue, credit note dialog). English only.
+
+### Verified
+- 217 unit tests in `Softaxis.Finance.Tests` pass (45 new: validator rules, XML structure, totals, submission states, credit note maths, invoice balance).
+- Gateway built and run on a **fresh scratch database** (the whole migration chain applied cleanly, the 3 permissions seeded): signed up a real tenant, logged in, and ran 43 API checks, 42 pass — the one miss was a stale assertion in the test script, not the product. Covered: provider cannot be enabled, registration saved, readiness, customer tax identity, XML download, drafts refused, credit note drafted/issued with a balanced ledger entry and the invoice's credited amount, over-credit refused (single and cumulative), double issue refused, issued credit note not discardable, credited invoice not cancellable, queue idempotent (one row), queued invoice still editable, sent invoice locked, incomplete invoice blocked with reasons, anonymous 401, no NULL-tenant rows.
+- Frontend `tsc -p tsconfig.app.json` 0 errors.
+
+### Not verified / not built
+- The processor sending through a real provider (none connected), the screens in a browser, Arabic, per-permission 403s for restricted roles, a two-tenant isolation run.
+- Not built: a provider adapter and credentials storage; incoming supplier invoices → draft purchase bills; mapping Customer/Invoice fields the provider needs beyond the above; credit notes for Real Estate/Visa/POS documents; the invoice create form still has no per-line tax category/reason picker beyond what Module 55 added.
+
+
+---
+
+## Module 99 - Fitness & Gym (new module, "Fitness & Gym" industry)
+
+New service `Softaxis.Fitness` (schema `fitness`, clean CQRS, same shape as Library). Module code `fitness`; stands alone (Finance suggested, never required). Picked up from a half-built state: the Domain, the Application contracts and the API skeleton existed, but there was no DbContext, no handlers, no controllers, no wiring, no permissions and no frontend.
+
+### Model
+- `FitnessBranch`, `MembershipPlan` (category gym / classes / combo / personal_training / day_pass, price, joining fee, class credits, visits, freeze rules, guest passes, off-peak hours), `FitnessSettings` (one row per workspace, created on first read), `FitnessMember` (member number `PREFIX-00001` from `FitnessCounter`), `Subscription` (a sold plan; **copies the plan values at sale**, so editing a plan never changes a sold membership), `FreezePeriod`, `FitnessPayment` (receipt `RCT-000001`; voided, never deleted), `CheckIn`, `BodyMeasurement`, `FitnessProgram`, `Trainer`, `ClassType`, `ClassSession`, `ClassBooking`, `PtPackage`, `PtSession`, `Equipment`, `MaintenanceLog`, `Locker`, `FitnessLead`.
+- Dates are `yyyy-MM-dd` strings. **expired / upcoming / overdue are never stored**; they are worked out from the date (`Fx.State`). The client sends its own `today` and local time with every dated call (server clock is UTC).
+- Migration `InitialFitness` (22 tables). Identity migration `AddFitnessPermissions`.
+
+### Rules worth knowing (all in `Infrastructure/Handlers`)
+- A renewal starts the day after the old one ends. A freeze gives back only the days the plan allows. A balance is `total - paid` per subscription and PT package.
+- Check-in (`DeskHandlers`): refuses blacklisted / inactive / frozen / not started / expired past grace / other branch / visit limit / off-peak hours / unpaid balance (setting) / unsigned waiver (setting) / already inside. Staff can override everything except blacklisted. Every scan is recorded, allowed or not. Someone still "in" after 6 hours is treated as gone.
+- Classes: booking spends credits from the member's running plan; full class goes to a waitlist; a timely cancel returns the credit, a late one (inside the cut-off) keeps it spent; freeing a seat promotes the waitlist. Cancelling a class refunds everyone. No re-booking after a *late* cancel; a plain cancel row is removed on re-book.
+- Personal training: a session cannot overlap another PT session or class of the same trainer; booked sessions count against the package so it cannot be over-booked; completed and no-show use a session, cancelled does not.
+- Deleting is refused while it would strand something (member with payments, plan in use, branch with members, locker assigned, trainer with clients).
+- `Fx.BranchesAsync` creates a first branch ("Main Branch") per workspace on first read, never at startup.
+
+### Permissions (seeded, `fitness.*`)
+`members` view/create/edit/delete, `memberships` view/create/edit, `payments` view/create/**approve (= void a receipt)**, `checkin` view/create/**edit (= override, check everyone out)**, `classes`, `training`, `facility` (equipment + lockers), `leads` (all view/create/edit/delete), `setup` view/edit, `reports` view. Lists that feed forms across the module (branches, plans, trainers, class types, settings) are readable with any Fitness view key.
+
+### Licensing
+`ModuleCodes.Fitness`, in `PlanDefinitions.AllModules`, `/api/fitness/` in `ModuleEnforcementMiddleware`, industry `fitness_gym` / `fitness` attaches the module without CRM, super-admin module chip, onboarding picker, industry pack, permission-matrix group.
+
+### Frontend
+`lib/fitness/fitness.api.ts`, `hooks/fitness/use-fitness.ts` (`useAct` refreshes the whole module after a write), `modules/fitness/{shared,dashboard,members,frontdesk,classes,training,facility,leads,payments,setup}`, pages `/fitness/*` in `ModuleGuard module="fitness"`, nav group "Fitness & Gym". English only (no i18n namespace yet). `shared/ui.tsx` has a small spec-driven `FormModal` most screens use.
+
+### Verified / not verified
+- Gateway, Fitness projects build with 0 errors; frontend `tsc -p tsconfig.app.json` 0 errors.
+- Runtime smoke test: see the status line at the end of the session notes (run against a throwaway LocalDB database because the dev SQL Server was not reachable from this machine).
+- Not built: member photo upload in the UI, workout / diet program screens (API exists), Reports-hub entries (`GET /api/fitness/reports/run/{id}` exists), expiry alert emails (`ExpiryAlertsEnabled` setting and `FitnessAlertState` table exist, no sender yet), posting payments to Finance, member self-service portal, Arabic strings, AI-assistant tools, door / turnstile hardware.
+
+### Module 99b - Fitness & Gym: reports, programs, photos, expiry alert
+- **Reports hub:** new "Fitness" category with 9 reports (`FITNESS_REPORTS` in `report-registry.ts`), run by `GET /api/fitness/reports/run/{id}`; one permission, `fitness.reports.view`. The runner builds the column list from the first row's keys.
+- **Programs:** `modules/fitness/programs/components/programs-panel.tsx`. A program is a list of blocks (`[{label, text}]` in `ItemsJson`): a workout day or a diet meal. Templates live on Personal Training > Program templates; a member's own programs are on the member drawer's Programs tab ("Use a template" copies one). Gated on `fitness.members.edit`.
+- **Photos:** click the round picture in the member drawer; the image is shrunk to 480 px JPEG in the browser (a few tens of KB) and saved with the member. The server only replaces a photo when one is sent.
+- **Expiry alert:** `FitnessAlertService` (8 min after start, every 6 h) sends one bell alert a day to holders of `fitness.memberships.edit` when memberships end within the workspace's "expiring" window. Uses each member's latest membership, so renewed members are not counted. Switch: the `expiryAlertsEnabled` setting. Module key `fitness` is in `NotificationModuleAccess`.
+- **Verified:** gateway build 0 errors, frontend `tsc` 0 errors. Not run: the new screens in a browser, the alert service against a database.
+- **Still not built:** posting payments to Finance, member self-service portal, Arabic strings, AI-assistant tools, turnstile hardware.
+
+### Module 99c - Fitness & Gym: AI tools and Finance posting
+- **AI assistant:** agent `fitness` ("Fitness & Gym"), 19 tools in `ModuleToolCatalogMore.cs`: dashboard, lists (members, plans, branches, payments, visits, occupancy, class types, sessions, trainers, PT packages, equipment, lockers, leads), get member, create lead, take payment, check a member in, book a class, freeze / unfreeze a membership. Writes are confirm-gated like every other module. Not exposed: creating a member (its body is nested), selling a membership, voiding a payment, deleting anything.
+- **Finance:** queue source `fitness.payment` (`PostingSources`, `IntegrationCatalogue`): Dr cash or bank, Cr one revenue account (4001), voided receipts skipped, a receipt voided after posting is flagged. "Post to Finance" button on the Payments page. Off until the workspace switches it on in Finance Posting.
+- **Verified:** gateway build 0 errors, frontend `tsc` 0 errors, AI project builds. Not run against a database or a model; the SQL for `fitness.payment` is checked only by `SourceSchemaTests` when `FINANCE_TEST_DB` is set (not run here).
+- **Still not built:** Arabic strings, turnstile / door hardware (needs a per-branch device key and an anonymous scan endpoint). The member portal is built, see 99d.
+
+### Module 99d - Fitness & Gym: member portal (member number + PIN)
+Same design as the Library portal (Module 72g). A public page per gym, `/gym-portal/{tenant-slug}`: a member sees their membership(s), class credits, balance owed, the classes they can book (and books or cancels them), payments and recent visits, and can change their PIN. **Off per workspace until the gym turns it on** (Setup > Rules > Member portal), and a member can sign in only after staff give them a PIN (member drawer > Online access).
+- **Members are not Identity users.** No plan seat, no staff permissions. The session is the portal's own HMAC token (12 h, key derived from `Jwt:Secret` under its own label, sent as `X-Member-Token`), so it cannot be used as a staff token and a staff JWT is refused as a member session. PINs are PBKDF2-hashed; five wrong PINs lock sign-in for 15 minutes; a new, changed or removed PIN ends open sessions at once because the member is re-read on every request.
+- **Tenant from the slug** (`TenantLookup` over `identity.tenants`). Every handler calls `PortalGate.OpenAsync` then the plain, non-async `door.Enter()` (ambient set inside an awaited helper is lost on return). Unknown address and closed portal give the same 404; unknown number, no PIN and wrong PIN give the same 401.
+- Booking and cancelling go through the desk's own `BookClassCommand` / `CancelBookingCommand`, so every class rule (credits, waitlist, late-cancel) applies online. The member always comes from the session; someone else's booking looks like one that does not exist (404). `PortalSettings.AllowBooking` can switch online booking off.
+- API: public `api/fitness/portal/{slug}` (info, `sign-in`, `change-pin`, `account`, `classes`, `bookings`, `bookings/{id}/cancel`); staff `api/fitness/portal-settings` (`fitness.setup.*`) and `members/{id}/portal-pin` POST / DELETE (`fitness.members.edit`). Rate limits `fitness_portal` (120/min/IP) and `fitness_portal_signin` (30/min/IP), registered in the gateway.
+- Migration `AddMemberPortal` (3 columns on `Members` + `PortalSettings`). `MemberDetailDto.HasPortalAccess` is a trailing optional field.
+- **Verified:** 45 scripted checks against a local gateway and a throwaway LocalDB database (closed by default, staff 403, no PIN, wrong then right PIN, lockout and desk reset, account figures, booking, double booking 409, credit used and returned, someone else's booking 404, booking switch, PIN change ending the old session, removal ending a session, a second gym cannot be reached, switched-off portal 404). Test database dropped. `tsc` 0 errors, gateway build 0 errors.
+- **Not verified:** the public page and the staff PIN dialog in a browser, a phone, Arabic (English only). Not built: PIN reset by email, member self-registration, paying online, freezing a membership from the portal.
+- **Test gotcha:** a super-admin test token bypasses the tenant filter, so settings and plan-name checks cross workspaces; use a normal tenant token with explicit permissions.

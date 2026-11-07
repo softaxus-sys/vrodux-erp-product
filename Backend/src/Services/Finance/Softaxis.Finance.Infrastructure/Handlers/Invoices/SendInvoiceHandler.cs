@@ -5,6 +5,7 @@ using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Finance.Application.Abstractions;
 using Softaxis.Finance.Application.Invoices.Commands;
 using Softaxis.Finance.Infrastructure.Handlers.GeneralLedger;
+using Softaxis.Finance.Infrastructure.EInvoicing;
 using Softaxis.Finance.Infrastructure.Persistence;
 using Softaxis.Finance.Infrastructure.Services;
 
@@ -36,6 +37,9 @@ internal sealed class SendInvoiceHandler(
         // Committed BEFORE the email. An invoice that is posted but not emailed can be re-sent; an
         // email for an invoice that failed to save is a bill the customer holds and the books do not.
         await db.SaveChangesAsync(ct);
+
+        // Hand the e-invoice to the send queue. A no-op until e-invoicing is switched on and a provider is connected.
+        await EInvoiceQueue.EnqueueIfEnabledAsync(db, EInvoiceDocumentTypes.Invoice, invoice.Id, invoice.InvoiceDate, logger, ct);
 
         // Actually email it. This handler previously did everything above and then simply returned —
         // so pressing Send marked the invoice "sent", posted the ledger, and dispatched nothing. The

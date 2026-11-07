@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.RealEstate.Application.Abstractions;
 
 namespace Softaxis.RealEstate.Infrastructure.Services;
@@ -49,6 +50,20 @@ internal static class ListingConfidentiality
     /// to whoever last touched it — that is a materially different, and much larger, grant.
     /// </summary>
     public static bool CanManage(ICurrentUser user, Guid? agentUserId) =>
+        IsOwnerOrAdmin(user, agentUserId);
+
+    /// <summary>
+    /// Who may EDIT, PARK or DELETE a listing: the agent who owns it, or a tenant admin. Holding the
+    /// generic units.edit permission is deliberately not enough — otherwise any agent could change
+    /// another agent's listing. A listing nobody owns (e.g. a bulk import) is admin-only.
+    /// </summary>
+    public static bool CanModify(ICurrentUser user, Guid? agentUserId) =>
+        IsOwnerOrAdmin(user, agentUserId);
+
+    public static Error NotOwner() => Error.Custom("Listing.Forbidden",
+        "Only the agent who owns this listing (or an administrator) can change it.");
+
+    private static bool IsOwnerOrAdmin(ICurrentUser user, Guid? agentUserId) =>
         CanViewAll(user)
         || (agentUserId.HasValue && user.Id.HasValue && agentUserId.Value == user.Id.Value);
 }

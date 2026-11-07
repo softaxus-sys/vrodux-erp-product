@@ -12,6 +12,13 @@ export function useActiveSessions() {
   });
 }
 
+export function useBranchStock(search: string, branchId?: string) {
+  return useQuery({
+    queryKey: [QK, "branch-stock", search, branchId ?? "all"],
+    queryFn: () => posApi.getBranchStock(search, branchId),
+  });
+}
+
 export function useSession(id: string) {
   return useQuery({
     queryKey: [QK, "session", id],

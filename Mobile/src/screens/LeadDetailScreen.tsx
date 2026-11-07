@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Linking, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useConvertLead, useLead, useSetLeadStatus } from "@/hooks/use-leads";
-import { useActivities, useCreateActivity } from "@/hooks/use-activities";
+import { useActivities } from "@/hooks/use-activities";
+import { useLeadAssignments } from "@/hooks/use-crm-extra";
+import { ActivityComposer, ActivityRow } from "@/components/crm/ActivityParts";
 import { buildLeadSummary, cleanPhone, formatCompactValue, leadHeat, urgencyLabel } from "@/lib/crm-helpers";
 import { useAuthStore } from "@/store/auth.store";
 import { LEAD_STATUS_LABELS, NEXT_STATUSES } from "@/types/crm";
@@ -32,14 +34,11 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
 
   const lead = useLead(leadId);
   const activities = useActivities("lead", leadId);
+  const assignments = useLeadAssignments(leadId);
   const setStatus = useSetLeadStatus();
-  const createActivity = useCreateActivity();
   const convertLead = useConvertLead();
-  const userName = useAuthStore((s) => s.user?.fullName ?? "");
 
   const [confirmingStatus, setConfirmingStatus] = useState<string | null>(null);
-  const [logType, setLogType] = useState<ActivityType | null>(null);
-  const [logNote, setLogNote] = useState("");
   const [converting, setConverting] = useState(false);
   const [dealTitle, setDealTitle] = useState("");
   const [dealValue, setDealValue] = useState("");
@@ -66,22 +65,6 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
     setConfirmingStatus(null);
   }
 
-  function submitLog() {
-    if (!logType) return;
-    createActivity.mutate(
-      {
-        type: logType,
-        subject: logType === "call" ? "Phone call" : "Note",
-        description: logNote.trim() || undefined,
-        relatedToType: "lead",
-        relatedToId: l.id,
-        relatedToName: l.fullName,
-        assignedTo: userName,
-      },
-      { onSuccess: () => setLogNote("") }
-    );
-    setLogType(null);
-  }
 
   function openConvert() {
     setDealTitle(`${l.company || l.fullName} — Opportunity`);
@@ -204,28 +187,7 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
 
       {/* Log activity */}
       <SectionCard title="Log activity">
-        {logType ? (
-          <View style={styles.formGap}>
-            <TextInput
-              style={[styles.input, styles.multiline]}
-              placeholder={logType === "call" ? "What was discussed? (optional)" : "Note"}
-              placeholderTextColor={colors.subtleForeground}
-              value={logNote}
-              onChangeText={setLogNote}
-              multiline
-              autoFocus
-            />
-            <View style={styles.buttonsRow}>
-              <Button label={createActivity.isPending ? "Saving..." : "Save"} onPress={submitLog} disabled={createActivity.isPending} />
-              <Button label="Cancel" variant="ghost" onPress={() => setLogType(null)} />
-            </View>
-          </View>
-        ) : (
-          <View style={styles.chipRow}>
-            <Chip label="Log call" onPress={() => setLogType("call")} />
-            <Chip label="Add note" onPress={() => setLogType("note")} />
-          </View>
-        )}
+        <ActivityComposer relatedToType="lead" relatedToId={l.id} relatedToName={l.fullName} />
       </SectionCard>
 
       {/* Activity feed */}
@@ -235,13 +197,26 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
         ) : !activities.data || activities.data.length === 0 ? (
           <Text style={styles.notes}>Nothing logged yet.</Text>
         ) : (
-          activities.data.map((a) => (
-            <View key={a.id} style={styles.activityRow}>
+          activities.data.map((a) => <ActivityRow key={a.id} a={a} />)
+        )}
+      </SectionCard>
+
+      {/* Who has handled this lead */}
+      <SectionCard title="Assignment history">
+        {assignments.isLoading ? (
+          <LoadingState size="small" />
+        ) : (assignments.data ?? []).length === 0 ? (
+          <Text style={styles.notes}>No handovers recorded.</Text>
+        ) : (
+          (assignments.data ?? []).map((h) => (
+            <View key={h.id} style={styles.activityRow}>
               <Text style={styles.activitySubject}>
-                {a.type === "call" ? "☎️" : "📝"} {a.subject}
+                {h.fromUserName ? `${h.fromUserName} → ${h.toUserName}` : `Assigned to ${h.toUserName}`}
               </Text>
-              {a.description ? <Text style={styles.notes}>{a.description}</Text> : null}
-              <Text style={styles.activityDate}>{new Date(a.createdAt).toLocaleString()}</Text>
+              {h.note ? <Text style={styles.notes}>{h.note}</Text> : null}
+              <Text style={styles.activityDate}>
+                {h.assignedByName ? `By ${h.assignedByName} · ` : ""}{new Date(h.createdAt).toLocaleString()}
+              </Text>
             </View>
           ))
         )}

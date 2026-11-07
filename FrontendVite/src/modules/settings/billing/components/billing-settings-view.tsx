@@ -11,6 +11,7 @@ import {
   useBillingOverview, useBillingInvoices, useStartCheckout,
   useBillingPortal, useCancelSubscription, useStartTrial, useTenantStorageUsage,
 } from "@/hooks/billing/use-billing";
+import { CreditsSection } from "./credits-section";
 import { formatUsd, TRIAL_DAYS } from "@/lib/billing/plans";
 import type { PaymentProviderName, PlanOptionDto } from "@/lib/billing/billing.api";
 
@@ -526,6 +527,9 @@ export function BillingSettingsView() {
           </CardContent>
         </Card>
       )}
+
+      {/* Add-on credits (SEO, Lead Generation, …) — only for a workspace that has a subscription. */}
+      {sub?.grantsAccess && <CreditsSection />}
 
       {/* Invoices */}
       {invoices && invoices.length > 0 && (

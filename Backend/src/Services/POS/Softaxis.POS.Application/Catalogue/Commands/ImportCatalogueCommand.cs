@@ -1,6 +1,7 @@
 using FluentValidation;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.POS.Application.Abstractions;
 using Softaxis.POS.Application.Catalogue.Dtos;
 using Softaxis.POS.Domain.Entities;
 using Softaxis.POS.Domain.Repositories;
@@ -32,7 +33,8 @@ public sealed class ImportCatalogueCommandHandler(
     ICatalogueProvider         catalogue,
     IProductRepository         productRepo,
     IProductCategoryRepository categoryRepo,
-    IUnitOfWork                uow)
+    IUnitOfWork                uow,
+    ICatalogueGateway          gateway)
     : ICommandHandler<ImportCatalogueCommand, ImportCatalogueResultDto>
 {
     private const int SaveEvery = 500;
@@ -48,6 +50,10 @@ public sealed class ImportCatalogueCommandHandler(
             ? cmd.Categories.ToHashSet(StringComparer.OrdinalIgnoreCase)
             : null;
         var rows = pack.Items.Where(i => wanted is null || wanted.Contains(i.K)).ToList();
+
+        // A workspace whose catalogue is in Inventory gets the pack there. Importing into the POS schema
+        // would put its first rows there and quietly move it off Inventory.
+        if (await gateway.UsesInventoryAsync(ct)) return await gateway.ImportAsync(cmd, rows, ct);
 
         // One read of the tenant's barcodes instead of a lookup per row.
         var taken = await productRepo.GetAllBarcodesAsync(ct);

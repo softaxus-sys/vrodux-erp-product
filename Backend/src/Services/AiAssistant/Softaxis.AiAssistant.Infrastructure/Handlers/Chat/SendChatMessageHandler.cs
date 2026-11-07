@@ -12,7 +12,7 @@ using Softaxis.BuildingBlocks.Domain.Results;
 namespace Softaxis.AiAssistant.Infrastructure.Handlers.Chat;
 
 internal sealed class SendChatMessageHandler(
-    IAiOrchestrator orchestrator, AiAssistantDbContext db, ICurrentUser currentUser)
+    IAiOrchestrator orchestrator, AiAssistantDbContext db, ICurrentUser currentUser, IAiKeyResolver keys)
     : ICommandHandler<SendChatMessageCommand, AiChatResponseDto>
 {
     public async Task<Result<AiChatResponseDto>> Handle(SendChatMessageCommand cmd, CancellationToken ct)
@@ -28,13 +28,20 @@ internal sealed class SendChatMessageHandler(
         // gets actionable feedback in the chat rather than a raw error toast.
         catch (AiNotConfiguredException ex)
         {
-            response = new AiChatResponseDto(ex.Message, [], "none", "none");
+            response = new AiChatResponseDto(ex.Message, [], "none", "none",
+                PlatformAi: ex is AiPlatformLimitException ? await keys.PeekNoticeAsync(ct) : null);
         }
         catch (AiProviderException ex)
         {
-            response = new AiChatResponseDto(
-                $"I couldn't reach the AI provider. Please check the API key and model in Settings.\n\n> {ex.Message}",
-                [], "none", "none");
+            // On the shared AI the workspace cannot fix the key, so do not send it to Settings for that.
+            var shared = await keys.PeekNoticeAsync(ct);
+            response = shared is not null
+                ? new AiChatResponseDto(
+                    "The shared AI is not answering right now. Please try again in a moment, or add your own AI key in Settings to be independent of it.",
+                    [], "none", "none", PlatformAi: shared)
+                : new AiChatResponseDto(
+                    $"I couldn't reach the AI provider. Please check the API key and model in Settings.\n\n> {ex.Message}",
+                    [], "none", "none");
         }
 
         await PersistTurnAsync(cmd.Message, response.Reply, response.UsedFallback, ct);

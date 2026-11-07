@@ -25,7 +25,9 @@ internal static class PropertyCounts
         if (property is null) return;
 
         var units = await db.PropertyUnits.AsNoTracking()
-            .Where(u => u.PropertyId == propertyId && !u.IsDeleted)
+            // Parked listings are off the market, so they count toward neither the building's
+            // total nor its occupancy.
+            .Where(u => u.PropertyId == propertyId && !u.IsDeleted && u.ParkedAt == null)
             .Select(u => u.Status)
             .ToListAsync(ct);
 
@@ -84,11 +86,8 @@ internal sealed class UpdateUnitHandler(RealEstateDbContext db, ICurrentUser use
     {
         var unit = await db.PropertyUnits.FirstOrDefaultAsync(u => u.Id == cmd.Id && !u.IsDeleted, ct);
         if (unit is null) return Result.Failure(Error.NotFoundById("Unit", cmd.Id));
-
-        // Only the person who added the listing, or an admin, may edit it.
-        if (!ListingConfidentiality.CanManage(user, unit.AgentUserId))
-            return Result.Failure(Error.Custom("Listing.Forbidden",
-                "Only the person who added this listing can edit it."));
+        if (!ListingConfidentiality.CanModify(user, unit.AgentUserId))
+            return Result.Failure(ListingConfidentiality.NotOwner());
 
         var number = cmd.UnitNumber.Trim();
         var duplicate = await db.PropertyUnits.AsNoTracking()
@@ -112,11 +111,8 @@ internal sealed class DeleteUnitHandler(RealEstateDbContext db, ICurrentUser use
     {
         var unit = await db.PropertyUnits.FirstOrDefaultAsync(u => u.Id == cmd.Id && !u.IsDeleted, ct);
         if (unit is null) return Result.Failure(Error.NotFoundById("Unit", cmd.Id));
-
-        // Only the listing's owner (assigned agent) or an admin may delete it.
-        if (!ListingConfidentiality.CanManage(user, unit.AgentUserId))
-            return Result.Failure(Error.Custom("Listing.Forbidden",
-                "Only the owner of this listing can delete it."));
+        if (!ListingConfidentiality.CanModify(user, unit.AgentUserId))
+            return Result.Failure(ListingConfidentiality.NotOwner());
 
         // A let unit has a lease, a rent schedule and reminders hanging off it. Deleting it would
         // orphan all three and leave a tenant being chased for a unit that no longer exists.

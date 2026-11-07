@@ -1,15 +1,16 @@
 import * as React from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Check, CreditCard, Loader2, Wallet } from "lucide-react";
+import { Check, CreditCard, ExternalLink, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Can } from "@/components/auth/can";
 import { cn } from "@/lib/utils";
-import { formatPrice, type PackDto } from "@/lib/leadgen/leadgen.api";
-import { useCheckout, useConfirmPayPal, useLedger, usePacks, usePaymentOptions, usePurchases, useSetLowBalanceAlert, useWallet } from "@/hooks/leadgen/use-leadgen";
+import { formatPrice } from "@/lib/leadgen/leadgen.api";
+import { useAuthStore } from "@/store/auth.store";
+import { useConfirmPayPal, useLedger, usePurchases, useSetLowBalanceAlert, useWallet } from "@/hooks/leadgen/use-leadgen";
 import { Banner, EmptyState, ErrorBlock, Field, LeadGenFrame, LoadingBlock, NoAccess, Pager, SELECT, StatTile, StatusPill, TH, formatDateTime, useCanAny } from "../shared/ui";
 
 export function CreditsView() {
@@ -17,10 +18,8 @@ export function CreditsView() {
   const qc = useQueryClient();
   const canView = useCanAny(["leadgen.credits.view"]);
   const wallet = useWallet(canView);
-  const packs = usePacks(canView);
-  const options = usePaymentOptions(canView);
+  const canOpenBilling = useAuthStore(st => st.hasRawPermission)("settings.billing.view");
   const purchases = usePurchases(canView);
-  const checkout = useCheckout();
   const confirm = useConfirmPayPal();
   const alertSet = useSetLowBalanceAlert();
   const [params, setParams] = useSearchParams();
@@ -28,7 +27,6 @@ export function CreditsView() {
   const [page, setPage] = React.useState(1);
   const ledger = useLedger({ type: ledgerType || undefined, page, pageSize: 15 }, canView);
   const [alertValue, setAlertValue] = React.useState("");
-  const [buying, setBuying] = React.useState<string | null>(null);
   const handled = React.useRef(false);
 
   React.useEffect(() => { if (wallet.data) setAlertValue(wallet.data.lowBalanceAlert?.toString() ?? ""); }, [wallet.data?.lowBalanceAlert]);  // eslint-disable-line react-hooks/exhaustive-deps
@@ -65,13 +63,6 @@ export function CreditsView() {
   if (!canView) return <LeadGenFrame title={t("credits.title")}><NoAccess permission="leadgen.credits.view" /></LeadGenFrame>;
 
   const w = wallet.data;
-  const canBuy = (options.data?.stripe || options.data?.payPal) ?? false;
-  const buy = (pack: PackDto, provider: "stripe" | "paypal") => {
-    setBuying(`${pack.id}:${provider}`);
-    checkout.mutate({ packId: pack.id, provider, returnPath: "/lead-generation/credits" },
-      { onSuccess: r => { window.location.href = r.url; }, onSettled: () => setBuying(null) });
-  };
-
   return (
     <LeadGenFrame title={t("credits.title")} description={t("credits.description")}>
       {wallet.isLoading ? <LoadingBlock /> : wallet.error ? <ErrorBlock error={wallet.error as Error} onRetry={() => wallet.refetch()} /> : w && (
@@ -86,37 +77,14 @@ export function CreditsView() {
         </>
       )}
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-bold">{t("credits.buyTitle")}</h2>
-        {!options.isLoading && !canBuy && <Banner tone="warn">{t("credits.paymentsOff")}</Banner>}
-        {packs.isLoading ? <LoadingBlock /> : (
-          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {(packs.data ?? []).map(p => (
-              <article key={p.id} className={cn("rounded-xl border bg-card p-5 space-y-4 relative", p.badge ? "border-primary/50" : "border-border")}>
-                {p.badge && <span className="absolute -top-2.5 start-4 text-[10px] font-bold uppercase tracking-wide bg-primary text-primary-foreground px-2 py-0.5 rounded-full">{p.badge}</span>}
-                <div><p className="font-semibold">{p.name}</p><p className="text-3xl font-bold tabular-nums mt-1">{p.credits.toLocaleString(i18n.language)}<span className="text-sm font-medium text-muted-foreground"> {t("credits.creditsUnit")}</span></p></div>
-                <div>
-                  <p className="text-xl font-semibold">{formatPrice(p.priceMinor, p.currency, i18n.language)}</p>
-                  <p className="text-xs text-muted-foreground">{t("credits.perCredit", { price: formatPrice(Math.round(p.priceMinor / p.credits), p.currency, i18n.language) })}</p>
-                </div>
-                <Can permission="leadgen.credits.create">
-                  <div className="space-y-2">
-                    {options.data?.stripe && (
-                      <Button className="w-full gap-2" disabled={checkout.isPending} onClick={() => buy(p, "stripe")}>
-                        {buying === `${p.id}:stripe` ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}{t("credits.payCard")}
-                      </Button>
-                    )}
-                    {options.data?.payPal && (
-                      <Button variant="outline" className="w-full gap-2" disabled={checkout.isPending} onClick={() => buy(p, "paypal")}>
-                        {buying === `${p.id}:paypal` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}{t("credits.payPayPal")}
-                      </Button>
-                    )}
-                  </div>
-                </Can>
-              </article>
-            ))}
-          </div>
-        )}
+      <section className="rounded-xl border border-border bg-card p-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold">{t("credits.buyMovedTitle")}</h2>
+          <p className="text-xs text-muted-foreground mt-1">{t("credits.buyMovedBody")}</p>
+        </div>
+        {canOpenBilling
+          ? <Button asChild className="gap-2"><Link to="/settings/billing"><ExternalLink className="h-4 w-4" />{t("credits.openBilling")}</Link></Button>
+          : <p className="text-xs text-muted-foreground">{t("credits.askBillingAdmin")}</p>}
       </section>
 
       <Can permission="leadgen.credits.edit">

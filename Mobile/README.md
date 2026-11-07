@@ -1066,6 +1066,39 @@ oversight.
 - No notification preferences screen (mute a category, quiet hours, etc.) — there's exactly one
   notification type today, so there's nothing yet to let someone turn off selectively.
 
+## Release 1.2.0 — Lead Generation, Master Data, CRM completion
+
+- **Lead Generation** (`LeadGen` tab, module `leadgen`, `screens/leadgen/`, `lib/leadgen.api.ts`). Overview with funnel
+  and attention list; Prospects (search, status filter, reveal a contact with credits after a confirm, add to CRM,
+  set status); Find businesses (run a search with a pre-check of what it will use; cancel a running one); Campaigns
+  (view, start, pause, stop); Inbox (replies, classify, archive, reply); Credits (balance and history); Mailboxes
+  (pause, resume, check for replies). Every action is gated on the same `leadgen.*` keys as the controllers.
+  Left on the web on purpose: connecting a mailbox (OAuth), the campaign builder, buying credits (Billing),
+  suppression lists, the super-admin console.
+- **Master Data** (`MasterData` tab, `lib/master-data.ts`). One data-driven registry mirrors the web one
+  (categories, brands, units, warehouses, currencies, tax rates, payment terms, customer groups, customers,
+  vendors, branches) and three generic screens serve all of them. A list shows only if the tenant owns the module
+  and the user holds a view key; with no write key it opens read-only. Inventory writes gate on `inventory.stock.*`
+  (what the API enforces), POS-backed lists on `pos.sessions.approve` / `pos.customers.edit`.
+- **CRM** (the earlier README text saying lead/account create and accounts view were missing was out of date —
+  those already existed). Added: account detail (details, contacts add/edit/primary/remove, linked opportunities,
+  timeline, log activity); opportunity contacts with roles; lead assignment history; the activity composer now
+  covers call / meeting / email / task / note with due date and time; a Tasks screen (overdue / today / upcoming /
+  done); and all eight CRM reports (`lib/crm-reports.ts` describes each as data; date presets are computed live).
+- Not on the phone: CRM reports export, lead import, team filing, quotations from a template, document upload,
+  Meta lead-quality feedback, creating campaigns.
+- Verified by `tsc --noEmit` and a full Android bundle only — not run on a device or against a live gateway.
+
+## Release 1.3.0 - Hotel front desk
+
+- **Front desk** (Hospitality > Front desk): today's arrivals, departures, in-house guests and no-shows, with occupancy.
+- **Stay detail** (tap any booking): the full bill (room, extras, discount, service, tax, fees), payments and extra charges.
+  Check in, check out (asks before leaving a balance unpaid), take a payment, post a charge, void a charge with a reason,
+  mark a no-show, cancel with a reason. Gated on `hospitality.bookings.edit`, `hospitality.folio.create`, `hospitality.folio.approve`.
+- Not on the phone: cancellation fees, room moves, date amendments, rates, guest profiles, hotel settings.
+- Library, Manufacturing, Trade, Recipes, Calendar, Support and Tours were already in 1.2.0 (module browser).
+- Verified by `tsc --noEmit` only - not run on a device.
+
 ## Next module
 
 **Full ERP module parity is the active program** — the web app has ~25 modules across 18 nav
@@ -1125,3 +1158,27 @@ and per-device refresh tokens / "my devices" session management, see Settings ab
   flatter per-feature `hr.self.*` pattern with no tiers (`HR_SELF_*` in `hr.api.ts`).
 - `@/*` → `src/*` path alias, same as the web app (via `babel-plugin-module-resolver` here, since
   Metro doesn't read `tsconfig.json` paths on its own).
+
+## Release 1.1.0 — catching up with the web (2026-10)
+
+- **Branches (restaurant).** The API now requires a branch for restaurant orders and for the shift they ride on
+  (workspaces that have branches). `store/branch.store.ts` + `hooks/use-branches.ts` keep the branch this phone works
+  at (restricted users start on their assigned one; a one-branch workspace is chosen automatically); every restaurant
+  read carries it and takeaway/delivery orders send it. `BranchGate` asks on first use, `BranchSwitcher` changes it, and
+  Open Shift records the branch for restaurant workspaces.
+- **Live Orders fixed.** The orders endpoint returns a page (`{ items }`); the app read it as a bare list.
+  Non-table orders also show their type instead of "Table".
+- **Order totals** show the tax profile (label and rate), service fee, delivery-platform source and FBR status.
+- **Stock by Branch** (POS) — what each branch server last reported; read-only.
+- **Tours** (Hospitality) — dashboard with what needs attention, packages and open departures, tour bookings with
+  detail (travellers, services, payment schedule), confirm / complete / cancel / reopen and record a payment.
+  The hotel overview now asks only for what the user may read, so a tour agency doesn't see errors.
+- Not on the phone: branch-server admin, tax/FBR/platform settings, branch prices, restaurant offline mode,
+  creating packages or tour bookings.
+
+### Tester feedback (1.1.0)
+- **First-run walkthrough** (6 slides, skippable, shown once per device after first sign-in; replay from Settings → Help & feedback).
+- **Theme**: Settings → Appearance — System default / Light / Dark, saved on the device (`store/prefs.store.ts`).
+- **Rate the app**: Settings → Help & feedback opens the Play Store page; a one-time in-app review request is made on a later
+  launch (8th, after the tour, once) via `expo-store-review` (new native module). **Send feedback** opens an email to support.
+- Not code: Play Store screenshots, listing testimonials.

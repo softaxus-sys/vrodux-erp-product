@@ -34,6 +34,7 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         // The daily sweep filters on exactly this, and it runs across every workspace.
         builder.HasIndex(x => x.ScheduledSendDate);
         builder.Property(x => x.AmountPaid).HasPrecision(18, 2);
+        builder.Property(x => x.CreditedAmount).HasPrecision(18, 2).HasDefaultValue(0m);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);
 

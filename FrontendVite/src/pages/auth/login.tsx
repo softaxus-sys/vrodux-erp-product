@@ -367,8 +367,8 @@ export default function LoginPage() {
                 style={{ borderColor: D.border, background: D.border }}
               >
                 {[
-                  { value: "13", label: t("metric.modules") },
-                  { value: "6",  label: t("metric.industries") },
+                  { value: "20+", label: t("metric.modules") },
+                  { value: "12+", label: t("metric.industries") },
                   { value: t("metric.tenantValue"), label: t("metric.tenant") },
                   { value: "99.9%", label: t("metric.uptime") },
                 ].map(s => (

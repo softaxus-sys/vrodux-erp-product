@@ -17,6 +17,10 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     public DbSet<UnitOfMeasure>   UnitsOfMeasure   => Set<UnitOfMeasure>();
     public DbSet<StockTransfer>   StockTransfers   => Set<StockTransfer>();
     public DbSet<StockTransferItem> StockTransferItems => Set<StockTransferItem>();
+    public DbSet<ProductTemplate> ProductTemplates => Set<ProductTemplate>();
+    public DbSet<ProductImage>    ProductImages    => Set<ProductImage>();
+    public DbSet<CatalogueMove>   CatalogueMoves   => Set<CatalogueMove>();
+    public DbSet<PendingProductPhoto> PendingProductPhotos => Set<PendingProductPhoto>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +34,7 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
         TenantIsolation.TenantUniqueIndex<Brand>(modelBuilder, [nameof(Brand.Code)], extraFilter: "[Code] IS NOT NULL");
         TenantIsolation.TenantUniqueIndex<Product>(modelBuilder, [nameof(Product.SKU)], extraFilter: "[SKU] IS NOT NULL");
         TenantIsolation.TenantUniqueIndex<UnitOfMeasure>(modelBuilder, [nameof(UnitOfMeasure.Symbol)]);
+        TenantIsolation.TenantUniqueIndex<ProductTemplate>(modelBuilder, [nameof(ProductTemplate.Slug)]);
         base.OnModelCreating(modelBuilder);
     }
 

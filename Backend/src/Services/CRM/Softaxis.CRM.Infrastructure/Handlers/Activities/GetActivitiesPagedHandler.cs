@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.CRM.Application.Abstractions;
 using Softaxis.CRM.Application.Activities.Dtos;
 using Softaxis.CRM.Application.Activities.Queries;
 using Softaxis.CRM.Infrastructure.Persistence;
@@ -9,7 +10,7 @@ using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Activities;
 
-internal sealed class GetActivitiesPagedHandler(CrmDbContext db, ILeadAccessGuard access)
+internal sealed class GetActivitiesPagedHandler(CrmDbContext db, ILeadAccessGuard access, ICurrentUser currentUser)
     : IQueryHandler<GetActivitiesPagedQuery, PagedResult<ActivityDto>>
 {
     /// <summary>Capped so a hand-edited pageSize cannot ask for the whole table and reintroduce
@@ -24,6 +25,12 @@ internal sealed class GetActivitiesPagedHandler(CrmDbContext db, ILeadAccessGuar
         // Access scope first: everything below only narrows what the caller may already see.
         // Assigned-only users see activities on the leads they own; full-view users see all.
         var q = access.ScopeActivities(db.Activities.AsNoTracking());
+
+        if (query.Mine)
+        {
+            var me = currentUser.Id;
+            q = me is { } uid ? q.Where(a => a.AssignedToUserId == uid) : q.Where(_ => false);
+        }
 
         if (!string.IsNullOrWhiteSpace(query.RelatedToType)) q = q.Where(a => a.RelatedToType == query.RelatedToType);
         if (query.RelatedToId.HasValue)                      q = q.Where(a => a.RelatedToId == query.RelatedToId.Value);

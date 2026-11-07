@@ -1,11 +1,11 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Pencil, Trash2, Phone, Camera, Megaphone, Building2, Lock } from "lucide-react";
+import { X, Pencil, Trash2, Phone, Camera, Megaphone, Building2, Lock, Archive, ArchiveRestore } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Can } from "@/components/auth/can";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
-import { useDeleteListing, useSetPropertyWebsiteListing, useListing } from "@/hooks/real-estate/use-re";
+import { useDeleteListing, useSetPropertyWebsiteListing, useListing, useParkListing, useUnparkListing } from "@/hooks/real-estate/use-re";
 import type { ListingDto } from "@/lib/real-estate/re.api";
 import { PropertyImg, PropertyPhotoSlider } from "@/modules/real-estate/properties/components/property-photos";
 import { useProperty } from "@/hooks/real-estate/use-re";
@@ -28,13 +28,17 @@ interface Props {
 export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }: Props) {
   const currency = useCurrency();
   const del = useDeleteListing();
+  const park = useParkListing();
+  const unpark = useUnparkListing();
   const setListing = useSetPropertyWebsiteListing();
   // Hooks must run before the early return below, so this is keyed off the prop directly.
   const { data: fresh } = useListing(open && listing ? listing.id : undefined);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [confirmPark, setConfirmPark] = React.useState(false);
+  const [parkReason, setParkReason] = React.useState("");
 
   // Reset on close, or reopening another listing would show the confirmation still armed.
-  React.useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
+  React.useEffect(() => { if (!open) { setConfirmDelete(false); setConfirmPark(false); setParkReason(""); } }, [open]);
 
   // The building's full photo list, for the slider. Loaded only when it has photos.
   const { data: building } = useProperty(
@@ -47,6 +51,24 @@ export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }
 
   const price = l.purpose === "sale" ? l.salePrice : l.rentPerYear;
   const priceHeading = l.purpose === "sale" ? "Asking price" : "Annual rent";
+
+  // Only the owning agent or an administrator may change a listing; the server enforces it too.
+  const canModify = l.canModify !== false;
+  const isParked = !!l.parkedAt;
+
+  const handlePark = async () => {
+    try {
+      await park.mutateAsync({ id: l.id, reason: parkReason });
+      onClose();
+    } catch { /* the hook toasts the reason */ }
+  };
+
+  const handleUnpark = async () => {
+    try {
+      await unpark.mutateAsync(l.id);
+      onClose();
+    } catch { /* the hook toasts the reason */ }
+  };
 
   const handleDelete = async () => {
     try {
@@ -120,6 +142,16 @@ export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }
                   {l.isListed && <Chip className="bg-success/10 text-success"><Megaphone className="w-3 h-3 me-1" />Advertised</Chip>}
                 </div>
               </div>
+
+              {isParked && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Archive className="w-4 h-4" /> Parked on {formatDate(l.parkedAt)}
+                  </p>
+                  {l.parkedReason && <p className="text-muted-foreground mt-1">{l.parkedReason}</p>}
+                  {l.parkedByName && <p className="text-xs text-muted-foreground mt-1">By {l.parkedByName}</p>}
+                </div>
+              )}
 
               <Group title="Unit">
                 <Row label="Layout" value={l.bedsLabel || (l.bedrooms != null ? `${l.bedrooms} bedrooms` : null)} />
@@ -211,25 +243,65 @@ export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }
 
             </div>
 
-            {l.canManageConfidential ? (
-            <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Can permission="real-estate.units.delete">
-                <Button variant="outline" size="sm" className="text-destructive gap-1.5"
-                  onClick={() => setConfirmDelete(true)} disabled={del.isPending}>
-                  <Trash2 className="w-3.5 h-3.5" /> Delete
-                </Button>
-              </Can>
-              <Can permission="real-estate.units.edit">
-                <Button size="sm" className="gap-1.5 ms-auto" onClick={() => onEdit(l)}>
-                  <Pencil className="w-3.5 h-3.5" /> Edit
-                </Button>
-              </Can>
+            <div className="px-6 py-4 border-t border-border flex flex-wrap gap-2 justify-between shrink-0">
+              {canModify ? (
+                <>
+                  <Can permission="real-estate.units.delete">
+                    <Button variant="outline" size="sm" className="text-destructive gap-1.5"
+                      onClick={() => setConfirmDelete(true)} disabled={del.isPending}>
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </Button>
+                  </Can>
+                  <div className="flex gap-2 ms-auto">
+                    <Can permission="real-estate.units.edit">
+                      {isParked ? (
+                        <Button variant="outline" size="sm" className="gap-1.5" onClick={handleUnpark} disabled={unpark.isPending}>
+                          <ArchiveRestore className="w-3.5 h-3.5" /> Restore
+                        </Button>
+                      ) : (
+                        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setConfirmPark(true)}>
+                          <Archive className="w-3.5 h-3.5" /> Park
+                        </Button>
+                      )}
+                      <Button size="sm" className="gap-1.5" onClick={() => onEdit(l)}>
+                        <Pencil className="w-3.5 h-3.5" /> Edit
+                      </Button>
+                    </Can>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5" />
+                  Only {l.agentName ? `${l.agentName} (the listing's agent)` : "the listing's agent"} or an administrator can change this listing.
+                </p>
+              )}
             </div>
-            ) : (
-              <div className="px-6 py-3 border-t border-border text-xs text-muted-foreground flex items-center gap-2 shrink-0">
-                <Lock className="w-3.5 h-3.5" /> Only the owner of this listing can edit or delete it.
-              </div>
-            )}
+
+            <AnimatePresence>
+              {confirmPark && (
+                <motion.div
+                  className="absolute inset-0 z-[60] bg-background/80 backdrop-blur-sm flex items-center justify-center p-6"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                >
+                  <div className="bg-card border border-border rounded-xl p-5 w-full max-w-sm shadow-xl">
+                    <h3 className="font-semibold text-foreground">Park this listing?</h3>
+                    <p className="text-sm text-muted-foreground mt-1.5">
+                      It moves to the Parked tab with today's date and is kept, not deleted. You can restore it any time.
+                    </p>
+                    <label className="block text-xs font-medium text-muted-foreground mt-3 mb-1">Reason (optional)</label>
+                    <textarea
+                      value={parkReason} onChange={e => setParkReason(e.target.value)} maxLength={500} rows={3}
+                      placeholder="e.g. Tenant moved out, owner will re-list next year"
+                      className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
+                    />
+                    <div className="flex gap-2 justify-end mt-4">
+                      <Button variant="outline" size="sm" onClick={() => setConfirmPark(false)}>Cancel</Button>
+                      <Button size="sm" onClick={handlePark} disabled={park.isPending}>Park listing</Button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* State-based confirmation, never window.confirm. */}
             <AnimatePresence>

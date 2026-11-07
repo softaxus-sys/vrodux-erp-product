@@ -4,7 +4,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useOrders, useOrdersSummary } from "@/hooks/use-restaurant";
 import { formatCompactValue } from "@/lib/crm-helpers";
 import { useAuthStore } from "@/store/auth.store";
-import { ORDER_STATUS_LABELS, ORDER_STATUS_TONE } from "@/types/restaurant";
+import { ORDER_STATUS_LABELS, ORDER_STATUS_TONE, ORDER_TYPE_LABELS } from "@/types/restaurant";
 import type { OrderDto } from "@/types/restaurant";
 import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
@@ -88,7 +88,7 @@ function OrderRow({ order, currency, onPress }: { order: OrderDto; currency: str
   return (
     <ListItemCard onPress={onPress}>
       <View style={styles.rowTop}>
-        <Text style={styles.name}>Table {order.tableNumber}</Text>
+        <Text style={styles.name}>{order.orderType === "dine_in" ? `Table ${order.tableNumber}` : (ORDER_TYPE_LABELS[order.orderType] ?? order.orderType)}</Text>
         <Text style={styles.value}>{formatCompactValue(order.total, currency)}</Text>
       </View>
       <Text style={styles.meta}>
