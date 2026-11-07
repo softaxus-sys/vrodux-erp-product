@@ -1,5 +1,5 @@
 import { apiClient, type PagedResult } from "@/lib/api-client";
-import type { ProductDto, ProductSummaryDto } from "./types";
+import type { ProductDto, ProductLookupDto, ProductSummaryDto } from "./types";
 
 import { getApiBaseUrl } from "@/lib/desktop";
 const BASE = `${getApiBaseUrl()}/api/inventory/products`;
@@ -95,6 +95,14 @@ export const inventoryProductsApi = {
 
   getByBarcode: (barcode: string): Promise<ProductDto> =>
     apiClient.get<ProductDto>(`${BASE}/barcode/${encodeURIComponent(barcode)}`),
+
+  /**
+   * "What is this scanned code?" The server cleans the scan (a QR holding a web link, a GS1 string, UPC vs EAN
+   * spellings), finds the product already in stock, and otherwise suggests details from public product databases.
+   * Never returns a 404 for an unknown code - `existing` and `suggested` are simply both null.
+   */
+  lookup: (code: string): Promise<ProductLookupDto> =>
+    apiClient.get<ProductLookupDto>(`${BASE}/lookup?code=${encodeURIComponent(code)}`),
 
   activate:   (id: string): Promise<void> => apiClient.post<void>(`${BASE}/${id}/activate`, {}),
   deactivate: (id: string): Promise<void> => apiClient.post<void>(`${BASE}/${id}/deactivate`, {}),

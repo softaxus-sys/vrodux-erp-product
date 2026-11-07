@@ -31,7 +31,7 @@ export const inventoryWriteApi = {
   getCategories: (): Promise<CategoryLite[]> => apiClient.get(`${BASE}/categories?isActive=true`),
 
   createProduct: (p: {
-    name: string; sku: string | null; barcode: string | null; categoryId: string; salePrice: number; costPrice: number;
+    name: string; description?: string | null; sku: string | null; barcode: string | null; categoryId: string; salePrice: number; costPrice: number;
     taxRate: number; unit: string; openingStock: number; reorderLevel: number; trackInventory: boolean;
   }) => apiClient.post<{ id: string; name: string }>(`${BASE}/products`, p),
 

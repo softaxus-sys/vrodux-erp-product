@@ -29,7 +29,7 @@ export default function ProductsListScreen({ navigation }: Props) {
   const query = useProductsPaged({ page, pageSize: PAGE_SIZE, search, isLowStock: lowStockOnly || undefined });
 
   useHeaderActions(navigation, [
-    { label: "Scan", icon: "camera", onPress: () => navigation.navigate("BarcodeScanner") },
+    { label: "Scan to add stock", icon: "camera", onPress: () => navigation.navigate("BarcodeScanner") },
     { label: "Transfers", icon: "truck", onPress: () => navigation.navigate("TransfersList") },
     { label: "New", enabled: hasPermission(...INVENTORY_PRODUCTS_CREATE), onPress: () => navigation.navigate("NewProduct") },
   ]);

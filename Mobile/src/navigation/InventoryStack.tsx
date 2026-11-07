@@ -24,7 +24,7 @@ export default function InventoryStack() {
       <Stack.Screen
         name="BarcodeScanner"
         component={BarcodeScannerScreen}
-        options={{ headerTitle: "Scan Barcode", headerTintColor: "#fff", headerStyle: { backgroundColor: "#000" } }}
+        options={{ headerTitle: "Scan", headerTintColor: "#fff", headerStyle: { backgroundColor: "#000" } }}
       />
       <Stack.Screen name="StockAdjust" component={StockAdjustScreen} options={{ headerTitle: "Adjust stock" }} />
       <Stack.Screen name="NewProduct" component={NewProductScreen} options={{ headerTitle: "New product" }} />
