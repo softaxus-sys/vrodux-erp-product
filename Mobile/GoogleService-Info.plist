@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyDm1Zc0DpQpSE08eC40ZbiCX7MubKj3NyY</string>
+	<key>GCM_SENDER_ID</key>
+	<string>282051112389</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.softaxis.vroduxerp</string>
+	<key>PROJECT_ID</key>
+	<string>vrodux-erp</string>
+	<key>STORAGE_BUCKET</key>
+	<string>vrodux-erp.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:282051112389:ios:457c4433621bc9a4906fac</string>
+</dict>
+</plist>
