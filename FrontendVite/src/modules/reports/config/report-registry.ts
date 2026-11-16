@@ -87,6 +87,7 @@ export const CATEGORY_MODULE: Record<ReportCategory, ModuleKey> = {
   Library:       "library",
   "Import / Export": "trade",
   Fitness:       "fitness",
+  Farming:       "farming",
 };
 
 export type ReportCategory =
@@ -103,7 +104,8 @@ export type ReportCategory =
   | "Manufacturing"
   | "Library"
   | "Import / Export"
-  | "Fitness";
+  | "Fitness"
+  | "Farming";
 
 export type ReportBadge =
   | "Popular"
@@ -1306,6 +1308,37 @@ export const FITNESS_REPORTS: ReportDefinition[] = FITNESS_REPORT_CARDS.map(r =>
   icon: r.icon, color: `text-${r.tone}`, bg: `bg-${r.tone}/10`, previewColumns: r.columns,
   filters: r.ranged ? [DATE_RANGE] : [], exportFormats: ["PDF", "Excel", "CSV"], subGroup: r.group,
   requiresModule: "fitness", requiresPermission: "fitness.reports.view",
+}));
+
+// ── Farming ──────────────────────────────────────────────────────────────────
+// Tabular runner, served by `GET /api/farming/reports/run/{id}`. One permission for all of them.
+type FarmCard = { id: string; title: string; description: string; icon: string; group: string; tone: Tone; columns: string[]; ranged: boolean };
+const FARMING_REPORT_CARDS: FarmCard[] = [
+  { id: "production", title: "Production Log", group: "Production", icon: "ClipboardList", tone: "primary",
+    description: "Every milk, egg, fish, honey and harvest record in the period.", columns: ["Date", "Farm type", "Product", "Quantity", "Unit", "Rejected", "From", "Session"], ranged: true },
+  { id: "production-by-product", title: "Production by Product", group: "Production", icon: "TrendingUp", tone: "success",
+    description: "Totals per product for the period.", columns: ["Product", "Unit", "Records", "Total", "Rejected"], ranged: true },
+  { id: "milk-by-animal", title: "Milk Yield by Animal", group: "Production", icon: "TrendingUp", tone: "success",
+    description: "Litres per animal, days milked and daily average. Spots the cows that pay and the ones that do not.", columns: ["Animal", "Total", "Days milked", "Average per day milked", "Average per day in range"], ranged: true },
+  { id: "batch-performance", title: "Batch Performance", group: "Production", icon: "Layers", tone: "primary",
+    description: "Each flock, pond or planting: age, deaths and mortality, feed cost, output, sales and feed conversion.", columns: ["Batch", "Type", "Status", "Started", "Age (days)", "Started with", "Deaths", "Mortality %", "Sold", "Now", "Feed cost", "Output", "Sales", "FCR"], ranged: false },
+  { id: "feed", title: "Feed Cost", group: "Costs", icon: "DollarSign", tone: "warning",
+    description: "Quantity and cost per feed, with the cost per unit.", columns: ["Feed", "Quantity", "Unit", "Cost", "Cost per unit"], ranged: true },
+  { id: "sales", title: "Sales", group: "Sales", icon: "Banknote", tone: "success",
+    description: "Every farm sale in the period with what was paid and what is still owed.", columns: ["Date", "Product", "Buyer", "Quantity", "Unit", "Price", "Total", "Paid", "Balance"], ranged: true },
+  { id: "receivables", title: "Who Owes You", group: "Sales", icon: "AlertTriangle", tone: "warning",
+    description: "Buyers with an unpaid balance, how long it has been owed, with phone numbers to call.", columns: ["Buyer", "Phone", "Date", "Product", "Total", "Paid", "Balance", "Days owed"], ranged: false },
+  { id: "health-due", title: "Vaccinations & Treatments Due", group: "Health", icon: "Calendar", tone: "warning",
+    description: "Scheduled follow-ups, overdue first.", columns: ["Due", "What", "Kind", "For", "Last done", "Days overdue"], ranged: false },
+  { id: "mortality", title: "Deaths", group: "Health", icon: "AlertTriangle", tone: "destructive",
+    description: "Animals, birds and fish lost in the period, with causes.", columns: ["Date", "Animal / batch", "Count", "Cause"], ranged: true },
+];
+
+export const FARMING_REPORTS: ReportDefinition[] = FARMING_REPORT_CARDS.map(r => ({
+  id: `farming-${r.id}`, title: r.title, description: r.description, category: "Farming" as ReportCategory,
+  icon: r.icon, color: `text-${r.tone}`, bg: `bg-${r.tone}/10`, previewColumns: r.columns,
+  filters: r.ranged ? [DATE_RANGE] : [], exportFormats: ["PDF", "Excel", "CSV"], subGroup: r.group,
+  requiresModule: "farming", requiresPermission: "farming.reports.view",
 }));
 
 // ── Import / Export ──────────────────────────────────────────────────────────

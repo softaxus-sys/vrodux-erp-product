@@ -136,6 +136,44 @@ public static class ModuleToolCatalogMore
         new("fitness_list_equipment", "List gym equipment and its status.", "fitness", "api/fitness/equipment", "fitness.facility.view"),
         new("fitness_list_lockers", "List lockers and who has them.", "fitness", "api/fitness/lockers", "fitness.facility.view,fitness.checkin.view"),
         new("fitness_list_leads", "List gym enquiries / leads and their follow-up status.", "fitness", "api/fitness/leads", "fitness.leads.view"),
+        new("farming_dashboard", "Farm overview: animals, head in batches, production today and last 30 days, sales, costs, profit, deaths and what needs attention.", "farming", "api/farming/dashboard", "farming.reports.view"),
+        new("farming_list_farms", "List the farm sites.", "farming", "api/farming/farms", "farming.livestock.view,farming.production.view,farming.health.view,farming.sales.view,farming.setup.view,farming.reports.view"),
+        new("farming_list_units", "List sheds, barns, ponds and fields with their ids, type and head now.", "farming", "api/farming/units", "farming.livestock.view,farming.production.view,farming.health.view,farming.sales.view,farming.setup.view,farming.reports.view",
+        [
+            new("type", "string", "dairy, poultry, fish, goat_sheep, cattle, crops, beekeeping (optional)"),
+        ]),
+        new("farming_list_animals", "List tagged animals (dairy, goats, sheep, cattle) with ids, tag, breed, status and 30-day output.", "farming", "api/farming/animals", "farming.livestock.view,farming.production.view,farming.health.view,farming.sales.view,farming.setup.view,farming.reports.view",
+        [
+            new("type", "string", "dairy, goat_sheep, cattle (optional)"),
+            new("status", "string", "active, sold, dead, culled (optional)"),
+            new("search", "string", "Tag, name or breed (optional)"),
+        ]),
+        new("farming_list_batches", "List batches (poultry flocks, fish ponds, crop plantings, hives) with ids, head now, deaths and feed cost.", "farming", "api/farming/batches", "farming.livestock.view,farming.production.view,farming.health.view,farming.sales.view,farming.setup.view,farming.reports.view",
+        [
+            new("type", "string", "poultry, fish, crops, beekeeping, other (optional)"),
+            new("status", "string", "active or closed (optional)"),
+        ]),
+        new("farming_list_production", "List production records: milk, eggs, fish, honey, harvest.", "farming", "api/farming/production", "farming.production.view",
+        [
+            new("from", "string", "From date yyyy-MM-dd (optional)"),
+            new("to", "string", "To date yyyy-MM-dd (optional)"),
+            new("product", "string", "milk, eggs, fish, meat, wool, honey, crop (optional)"),
+        ]),
+        new("farming_list_health", "List vaccinations and treatments. Set dueOnly to see follow-ups that are scheduled or overdue.", "farming", "api/farming/health", "farming.health.view",
+        [
+            new("dueOnly", "boolean", "Only records with a follow-up date (optional)"),
+        ]),
+        new("farming_list_sales", "List farm sales with what each buyer still owes.", "farming", "api/farming/sales", "farming.sales.view",
+        [
+            new("from", "string", "From date yyyy-MM-dd (optional)"),
+            new("to", "string", "To date yyyy-MM-dd (optional)"),
+            new("unpaidOnly", "boolean", "Only sales not fully paid (optional)"),
+        ]),
+        new("farming_list_expenses", "List farm expenses (labour, power, rent, repairs).", "farming", "api/farming/expenses", "farming.sales.view",
+        [
+            new("from", "string", "From date yyyy-MM-dd (optional)"),
+            new("to", "string", "To date yyyy-MM-dd (optional)"),
+        ]),
     ];
 
     public static readonly IReadOnlyList<AiGetByIdSpec> GetByIds =
@@ -151,6 +189,7 @@ public static class ModuleToolCatalogMore
         new("seo_get_site", "Get one tracked website by id — score, trend and settings.", "seo", "api/seo/sites/{id}", "siteId", "seo.sites.view"),
         new("construction_get_project", "Get one construction project by id.", "construction", "api/construction/projects/{id}", "projectId", ""),
         new("recipe_get_recipe", "Get one recipe by id with ingredients and cost.", "recipe", "api/recipes/{id}", "recipeId", ""),
+        new("farming_get_animal", "Get one animal by id with production, health, breeding, weights and offspring.", "farming", "api/farming/animals/{id}", "animalId", "farming.livestock.view"),
         new("fitness_get_member", "Get one gym member by id with memberships, balance and recent visits.", "fitness", "api/fitness/members/{id}", "memberId", "fitness.members.view,fitness.memberships.view,fitness.checkin.view,fitness.payments.view,fitness.classes.view,fitness.training.view"),
     ];
 
@@ -285,6 +324,55 @@ public static class ModuleToolCatalogMore
             new("sessionId",      "string",  "Class session id (GUID) (required)", true),
             new("memberId",       "string",  "Member id (GUID) (required)", true),
             new("allowWaitlist",  "boolean", "Join the waitlist if full", false, "true"),
+        ]),
+        new("farming_record_production", "Record production: milk, eggs, fish, honey, harvest. Link an animal id, a batch id or a shed/pond id (from the list tools).", "farming", "api/farming/production", "farming.production.create",
+        [
+            new("date",     "string", "Date yyyy-MM-dd (required)", true),
+            new("type",     "string", "dairy, poultry, fish, goat_sheep, cattle, crops, beekeeping (required)", true),
+            new("product",  "string", "milk, eggs, fish, meat, wool, honey, crop, manure, other (required)", true),
+            new("quantity", "number", "Quantity (required)", true),
+            new("uom",      "string", "Unit: L, kg, pcs, trays (required)", true),
+            new("session",  "string", "morning, midday or evening (optional)"),
+            new("animalId", "string", "Animal id (GUID) (optional)"),
+            new("batchId",  "string", "Batch id (GUID) (optional)"),
+            new("unitId",   "string", "Shed / pond / field id (GUID) (optional)"),
+        ]),
+        new("farming_record_feed", "Record feed given, with its cost.", "farming", "api/farming/feed", "farming.production.create",
+        [
+            new("date",     "string", "Date yyyy-MM-dd (required)", true),
+            new("feedName", "string", "Feed name (required)", true),
+            new("quantity", "number", "Quantity (required)", true),
+            new("uom",      "string", "Unit, e.g. kg (required)", true),
+            new("cost",     "number", "Cost (optional)"),
+            new("animalId", "string", "Animal id (GUID) (optional)"),
+            new("batchId",  "string", "Batch id (GUID) (optional)"),
+        ]),
+        new("farming_record_health", "Record a vaccination, treatment or check-up for an animal or batch. A next-due date puts it on the follow-up list.", "farming", "api/farming/health", "farming.health.create",
+        [
+            new("date",           "string", "Date yyyy-MM-dd (required)", true),
+            new("kind",           "string", "vaccination, treatment, deworming, checkup, other (required)", true),
+            new("title",          "string", "What was given or done (required)", true),
+            new("animalId",       "string", "Animal id (GUID); this or batchId is required"),
+            new("batchId",        "string", "Batch id (GUID); this or animalId is required"),
+            new("medicine",       "string", "Medicine or vaccine (optional)"),
+            new("nextDueOn",      "string", "Next due yyyy-MM-dd (optional)"),
+            new("withdrawalDays", "number", "Days milk or meat cannot be sold (optional)"),
+            new("cost",           "number", "Cost (optional)"),
+        ]),
+        new("farming_record_death", "Record a death: one animal, or a number of birds / fish from a batch.", "farming", "api/farming/mortality", "farming.health.create",
+        [
+            new("date",     "string", "Date yyyy-MM-dd (required)", true),
+            new("animalId", "string", "Animal id (GUID); this or batchId is required"),
+            new("batchId",  "string", "Batch id (GUID); this or animalId is required"),
+            new("count",    "number", "How many, for a batch (default 1)"),
+            new("cause",    "string", "Cause (optional)"),
+        ]),
+        new("farming_record_expense", "Record a farm expense.", "farming", "api/farming/expenses", "farming.sales.create",
+        [
+            new("date",        "string", "Date yyyy-MM-dd (required)", true),
+            new("category",    "string", "Labour, Power & water, Rent, Equipment, Transport, Stock purchase, Repairs, Other (required)", true),
+            new("description", "string", "Description (required)", true),
+            new("amount",      "number", "Amount (required)", true),
         ]),
     ];
 

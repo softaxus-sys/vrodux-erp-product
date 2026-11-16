@@ -9349,7 +9349,48 @@ Same design as the Library portal (Module 72g). A public page per gym, `/gym-por
 
 ---
 
-## Module 100 — SEO: business profile, relevance filter, clearer plan titles, competitor suggestions
+## Module 100 - Farming (new module, "Agriculture & Farming" industry)
+
+New service `Softaxis.Farming` (schema `farming`, clean CQRS, same shape as Fitness/Library). Module code `farming`; stands alone (Inventory / Finance / HR suggested at signup, never required). One module covers **every kind of farm**: each shed, pond or field has a farm type, so a dairy, a poultry house and a fish pond live in one workspace.
+
+### Industry attach
+- Signup industry **"Agriculture & Farming"** (`agriculture_farming`; the old "Agriculture" label and `agriculture` / `farming` map to it too) -> module `farming` on every plan, no CRM pulled in (`Tenant.IndustryPackModule`). Onboarding pre-selects farming, inventory, finance, hr. Also in the module picker (Tractor icon), industry packs, super-admin module selector (with an `agriculture_farming` default set) and the roles matrix ("Farming").
+- Farm types: dairy, poultry, fish, goat_sheep, cattle, crops, beekeeping, other. **All are on for a new workspace**; Farms & setup lets the owner switch off the ones they do not run (`FarmSettings.EnabledTypes`, created on first read, never at startup).
+- `ModuleCodes.Farming`, in `PlanDefinitions.AllModules`, `/api/farming/` in `ModuleEnforcementMiddleware`, AI agent label, Farm Manager / Farm Staff roles from `ModuleRoleCatalogue`.
+
+### Model (`Softaxis.Farming.Domain`)
+`Farm`, `FarmUnit` (barn/shed/pen/pond/tank/cage/field/greenhouse/apiary), `Animal` (individually tagged: dairy, goat/sheep, cattle; dam/sire links), `Batch` (flock, pond stocking, planting, hives), `BreedingRecord` (expected birth date defaults by species: cattle 283 days, goat 150, sheep 147), `WeightRecord`, `ProductionRecord` (milk/eggs/fish/meat/wool/honey/crop...), `FeedRecord`, `HealthRecord` (next-due date = follow-up list; withdrawal days block milk/meat sales), `MortalityRecord`, `FarmSale`, `FarmExpense`, `FarmSettings`. Dates are `yyyy-MM-dd` strings; the client sends its own `today`.
+- **A batch's head count is never stored**: started with - deaths - sold, worked out on read. Mortality cannot exceed what is left; a sale cannot take more head than are left.
+- Selling an animal (product `animals`/`meat`) marks it sold; deleting that sale brings it back. Recording a death marks the animal dead; deleting the record restores it.
+- Milking sheet (`POST production/bulk`): re-saving the same date + session replaces, never doubles.
+- FCR = feed kg / (latest sample weight x head now), shown only when both a weigh-in and feed exist.
+- Delete is refused while it would strand history (animal/batch with production or sales, unit with live stock, farm with units, last farm).
+
+### API (`api/farming`)
+`settings`, `farms`, `units`, `dashboard`, `animals` (+`{id}`, `{id}/status`), `batches` (+`{id}/close`), `breeding` (+`{id}/outcome`), `weights`, `production` (+`bulk`), `feed`, `health` (+`{id}/done`), `mortality`, `sales`, `expenses`. Permissions `farming.setup` (view/edit), `farming.livestock` / `production` / `health` / `sales` (view/create/edit/delete), `farming.reports` (view = dashboard). Settings, farms, units and the animal/batch lists feed forms across the module, so any Farming view key may read them.
+- Migrations: `InitialFarming` (13 tables) and Identity `AddFarmingPermissions` (19 rows). Both auto-apply on startup; admins gain the permissions via `SyncAdministratorPermissionsAsync`, other roles need a grant and a re-login.
+
+### Frontend
+`lib/farming/farming.api.ts`, `hooks/farming/use-farming.ts` (`useAct` refreshes the whole module), `modules/farming/{shared,dashboard,livestock,production,health,sales,setup}`, pages `/farming/{dashboard,livestock,production,health,sales,setup}` in `ModuleGuard module="farming"`, nav group "Farming". English only (labelAr on menu items only).
+
+### Verified / not verified
+- Gateway and frontend build with 0 errors; `tsc -p tsconfig.app.json` clean for every touched file.
+- Gateway started on a **scratch LocalDB database** (whole migration chain applied, 13 farming tables) and 27 scripted API checks passed with a super-admin test token: settings, auto first farm, units, duplicate tag 409, milking sheet replace, breeding + expected date, second pending service 409, batch counts after deaths and sales, over-sell and over-death 409, animal sale / delete round trip, health follow-up overdue + withdrawal flag, dashboard figures, delete guards. Scratch DB dropped.
+- **Not verified:** the screens in a browser; per-permission 403s and tenant isolation with a real tenant (the test token bypassed both); signup with the new industry end to end; Arabic.
+- **Not built:** Inventory feed stock, per-animal milk-yield charts, spoilage of withdrawal dates on sales, member/buyer ledger, CSV import of an existing herd.
+- **AI assistant (agent `farming`, 17 tools in `ModuleToolCatalogMore.cs`):** dashboard, lists (farms, units, animals, batches, production, health, sales, expenses), get animal, and confirm-gated writes for production, feed, health, death and expense. Not exposed: selling, breeding, deleting. Builds; not run against a model.
+- **Finance posting (Integration Center queue, off until the workspace switches it on):** `farming.sale` (Dr cash for what was paid + Dr customer for the balance, Cr revenue 4001), `farming.expense` (Dr 5900, Cr cash) and `farming.feed` (Dr 5400 for feed records with a cost, Cr cash). Sales, expenses and feed record no payment method, so money is treated as cash; remap the cash account if it goes through a bank. A sale paid for more than its total is held. Vet and medicine costs post separately as `farming.health`. "Post to Finance" button on Sales & expenses. Verified: 234 Finance unit tests pass and the nine farming SourceSchema SQL checks run against a real schema (scratch DB, dropped). **Not verified:** posting a real document through the API or the button in a browser.
+- **Reports hub:** new "Farming" category with 9 reports (`FARMING_REPORTS` in `report-registry.ts`): production log, production by product, milk yield by animal, batch performance (mortality, feed cost, FCR), feed cost, sales, who owes you, vaccinations/treatments due, deaths. Served by `GET /api/farming/reports/run/{id}` (`RunFarmReportHandler`), one permission `farming.reports.view`; the hub hides them without the Farming module. Verified against a scratch gateway: all nine return the right figures and an unknown id is 404. **Not verified:** the hub UI in a browser, PDF / Excel / CSV export of these reports.
+- **Vet costs to Finance:** queue source `farming.health` (Dr 5900 farm operating cost, Cr cash) for health records with a cost; records with no cost are skipped; treated as paid in cash (remap if owed to the vet or paid from the bank). Verified the same way as the other farming sources (unit tests + SQL against a scratch schema). Not posted through the UI.
+- **Arabic:** Farming is translated (en + ar). Namespace `farming` with the **English wording as the key** (`lib/farming/ft.ts`: `ft("Text", {vars})`, `useFt()`), so a string with no Arabic yet shows in English and never as a raw key. The shared components in `modules/farming/shared/ui.tsx` translate their own props (titles, labels, hints, options, empty states), and `i18n/locales/ar/farming.json` holds ~325 entries. Keys contain dots and colons, hence separators are off in `ft`. **Not translated:** the dashboard "needs attention" lines (built by the server in English), server error messages, report column headings in the Reports hub, and the Farming signup industry name list in the picker is covered. Checked in a browser (see below).
+
+### Languages offered across the product (changed with Farming)
+Only **English and Arabic** are offered now. Urdu, Chinese (Simplified), Spanish and French were listed in the language switcher but have no translation files (choosing one gave an English screen with the wrong direction/fonts), and signup and Settings > General > Regional also offered 10+ more. Changed: `i18n/languages.ts` `LANGUAGES` (en, ar), `lib/onboarding/geo-data.ts` `LANGUAGES` (English, Arabic), `general-settings-view.tsx` `LANGUAGE_VALUES` (en-US, en-GB, ar-AE; a saved fr-FR/hi-IN falls back to en-US). A stored `ur`/`fr`/... in a browser falls back to English. To bring one back: add `locales/<code>/` with every namespace and restore its entry. **Left alone on purpose** because they are data, not UI language: the languages a Real Estate broker speaks (`add-broker-form.tsx`) and the language of an AI phone call (`voice-agent-modal.tsx`).
+- **Browser check (done, against a scratch gateway on a throwaway DB, super-admin test token shown as a tenant admin):** Dashboard, Animals, Production, Sales (+ the Record sale form), Health and the Reports hub (Farming category, 9 reports, Milk Yield by Animal run end to end) all render with real data in **English and Arabic (RTL)**. Fixed from it: sidebar labels had no `nav.json` keys (added `farming*` in en + ar); list separator used an Arabic comma in English; the tag column wrapped mid-number; the unit field now defaults by product when left blank (it stayed "L" for eggs); "30-day output" header was untranslated. **Still English in Arabic mode:** Reports-hub column headings and group names, server-built dashboard alerts, units/names that are data. **Not checked:** CSV/Excel/PDF export of a report, the Add forms other than Record sale, narrow phone widths, permission-restricted roles and tenant isolation (the test token bypasses both), signup with the new industry.
+
+---
+
+## Module 101 — SEO: business profile, relevance filter, clearer plan titles, competitor suggestions
 
 Fixes "the content it generated after competitor analysis does not match what the site is for". Cause: the SEO module had **no knowledge of the business** — only page titles and an optional free-text niche hint — and the competitor plan took whatever competitors rank for with no relevance check.
 
@@ -9365,7 +9406,7 @@ Fixes "the content it generated after competitor analysis does not match what th
 - **Not verified:** the migration was created but not applied; nothing run against a live gateway/database or in a browser; the AI judge and the draft-from-website prompt were not run against a real model; the DataForSEO `competitors_domain` request/response shape is from memory and **unproven against the live account** (parser is unit-tested on a sample, the first real call should be watched); Arabic (SEO screens are English only).
 - **Known limits:** the Keyword/Topic gap tabs still show the raw, unfiltered findings (only the plan is filtered); relevance without AI is word-matching, so a business described in very few words will have many ideas left out.
 
-### Module 100b — SEO: the business profile fills itself in when a website is connected
+### Module 101b — SEO: the business profile fills itself in when a website is connected
 
 Nobody has to type the profile: connecting a site now queues a background fill-in that the person only checks.
 

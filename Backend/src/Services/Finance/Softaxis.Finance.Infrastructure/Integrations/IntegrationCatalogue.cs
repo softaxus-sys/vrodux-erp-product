@@ -180,6 +180,26 @@ internal static class IntegrationCatalogue
             "Each receipt is collected once: cash or bank is debited and revenue credited. Voided receipts are not posted; one voided after posting is flagged. Joining fees, memberships and personal training all go to the one revenue account — change it in the mapping if you split them.",
             [Dr("cash", "Cash received", "1001"), Dr("bank", "Card, transfer or online received", "1010"), Cr("revenue", "Membership and training revenue", "4001")]),
 
+        new("farming.sale", "farming", "Farm sales (milk, eggs, fish, livestock, crops)", IntegrationKind.Queue,
+            "Farm sale recorded",
+            "Each sale is collected once: revenue is credited for the full amount, cash is debited for what was paid at the time and the customer account for the balance still owed. A sale records no payment method, so money paid is treated as cash; map the cash account to your bank if that is where it goes. Later changes to a sale after it was collected hold it for a person to re-check.",
+            [Dr("cash", "Cash received", "1001"), Dr("customer", "Customer account (balance owed)", "1200"), Cr("revenue", "Farm sales revenue", "4001")]),
+
+        new("farming.expense", "farming", "Farm expenses (labour, power, rent, repairs)", IntegrationKind.Queue,
+            "Farm expense recorded",
+            "Each expense is collected once: the cost is debited and cash credited. An expense records no payment method, so it is treated as paid in cash; change the cash account in the mapping if it was paid from the bank. Every farm expense goes to the one cost account.",
+            [Dr("cost", "Farm operating costs", "5900"), Cr("cash", "Cash paid", "1001")]),
+
+        new("farming.feed", "farming", "Farm feed and fertiliser purchases", IntegrationKind.Queue,
+            "Feed or fertiliser recorded with a cost",
+            "Each feed record with a cost is collected once: the cost is debited to cost of goods sold and cash credited. Records with no cost are skipped. Treated as paid in cash; change the cash account in the mapping if the feed was bought on account or from the bank. Vet and medicine costs are posted separately.",
+            [Dr("cost", "Feed and fertiliser cost", "5400"), Cr("cash", "Cash paid", "1001")]),
+
+        new("farming.health", "farming", "Veterinary and medicine costs", IntegrationKind.Queue,
+            "Vaccination or treatment recorded with a cost",
+            "Each health record with a cost is collected once: the cost is debited to the farm operating cost account and cash credited. Records with no cost are skipped. Treated as paid in cash; change the cash account in the mapping if it was paid from the bank or is owed to the vet.",
+            [Dr("cost", "Veterinary and medicine cost", "5900"), Cr("cash", "Cash paid", "1001")]),
+
         new("tours.payment", "hospitality", "Tour customer payments", IntegrationKind.Queue,
             "Payment taken on a tour booking",
             "Each payment is collected once and credited to the customer account. Deposits taken before the trip therefore sit as a credit on the customer until the trip is posted, which debits the customer with the full price. A payment voided after posting is flagged for a person.",

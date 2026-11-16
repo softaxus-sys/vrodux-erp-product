@@ -176,7 +176,7 @@
     "Technology & IT": "Technology & IT",
     "Wholesale & Distribution": "Wholesale & Distribution",
     "Professional Services": "Professional Services",
-    "Agriculture": "Agriculture",
+    "Agriculture & Farming": "Agriculture & Farming",
     "Other": "Other",
     "Library": "Library",
     "Import & Export": "Import & Export",
@@ -269,6 +269,10 @@
     "library": {
       "label": "Library",
       "desc": "Catalogue, members, lending & fines across branches"
+    },
+    "farming": {
+      "label": "Farming",
+      "desc": "Dairy, poultry, fish, goat & sheep, cattle, crops & beekeeping"
     },
     "trade": {
       "label": "Import / Export",

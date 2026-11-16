@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ShoppingCart, Package, DollarSign, Users, BarChart3,
   Truck, Building2, Home, Utensils, BedDouble, Briefcase,
-  TrendingUp, HeartPulse, GraduationCap, Stamp, Factory, Library, Dumbbell, Ship,
+  TrendingUp, HeartPulse, GraduationCap, Stamp, Factory, Library, Dumbbell, Ship, Tractor,
   Store, KanbanSquare, ShieldCheck, Handshake,
 } from "lucide-react";
 
@@ -13,7 +13,7 @@ export type ModuleId =
   | "pos" | "inventory" | "sales" | "purchase"
   | "finance" | "hr" | "crm"
   | "restaurant" | "hospitality" | "real-estate" | "construction"
-  | "healthcare" | "education" | "visa" | "manufacturing" | "library" | "fitness" | "trade"
+  | "healthcare" | "education" | "visa" | "manufacturing" | "library" | "fitness" | "farming" | "trade"
   | "ecommerce" | "project-management" | "insurance" | "b2b";
 
 export interface ModuleDef {
@@ -246,6 +246,19 @@ export const MODULES: ModuleDef[] = [
     // Stands alone: it keeps its own catalogue, members and branches.
     requires: [],
     recommends: ["finance"],
+    triggersBusinessType: false,
+    category: "industry",
+  },
+  {
+    id: "farming",
+    label: "Farming",
+    description: "Dairy, poultry, fish, goat & sheep, cattle, crops & beekeeping",
+    icon: Tractor,
+    color: "bg-lime-500/10",
+    iconColor: "text-lime-600",
+    // Stands alone and covers every kind of farm: each shed, pond or field has its own type.
+    requires: [],
+    recommends: ["inventory", "finance", "hr"],
     triggersBusinessType: false,
     category: "industry",
   },

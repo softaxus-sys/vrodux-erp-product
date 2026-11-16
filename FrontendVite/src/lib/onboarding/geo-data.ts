@@ -198,15 +198,12 @@ export const INDUSTRIES = [
   "Technology & IT",
   "Wholesale & Distribution",
   "Professional Services",
-  "Agriculture",
+  "Agriculture & Farming",
   "Other",
 ];
 
-export const LANGUAGES = [
-  "English", "Arabic", "French", "German", "Spanish",
-  "Urdu", "Hindi", "Turkish", "Malay", "Indonesian",
-  "Portuguese", "Dutch", "Italian", "Russian", "Chinese (Simplified)",
-];
+// Only the languages the product is actually translated into (see i18n/languages.ts).
+export const LANGUAGES = ["English", "Arabic"];
 
 export const FISCAL_YEARS = [
   "January - December",

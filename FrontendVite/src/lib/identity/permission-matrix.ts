@@ -58,6 +58,7 @@ export const MODULE_GROUPS: Record<string, string> = {
   ecommerce: "E-commerce",
   library: "Library",
   fitness: "Fitness & Gym",
+  farming: "Farming",
   hospitality: "Hospitality & Tourism",
   trade: "Import / Export",
   leadgen: "Lead Generation",
@@ -68,7 +69,7 @@ export const MODULE_GROUPS: Record<string, string> = {
 
 export const GROUP_ORDER = [
   "POS", "Restaurant", "Inventory", "E-commerce", "Manufacturing", "Finance", "Sales", "Purchase", "Import / Export", "CRM", "Lead Generation",
-  "B2B", "Education", "Healthcare", "Insurance", "Visa Services", "Real Estate", "Library", "Fitness & Gym", "Hospitality & Tourism", "HR",
+  "B2B", "Education", "Healthcare", "Insurance", "Visa Services", "Real Estate", "Library", "Fitness & Gym", "Farming", "Hospitality & Tourism", "HR",
   "Project Management", "SEO AI Agent", "Reports", "File Manager", "Support", "Settings",
 ];
 

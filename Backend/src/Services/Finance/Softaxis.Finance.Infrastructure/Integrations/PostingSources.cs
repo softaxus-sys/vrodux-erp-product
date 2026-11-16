@@ -233,6 +233,97 @@ internal static class PostingSources
             CancelledFrom: "FROM [fitness].[Payments] p",
             CancelledWhere: "p.[IsVoided] = 1"),
 
+        // Farm sale: A1 total, A2 paid at the time. The sale carries no payment method.
+        new("farming.sale",
+            IdExpr: "s.[Id]",
+            Select: $"""
+                s.[Id], CAST('FS-' + UPPER(LEFT(CAST(s.[Id] AS varchar(36)), 8)) AS nvarchar(100)) AS [Number],
+                CAST(LEFT(s.[Date], 10) AS varchar(10)) AS [Date],
+                CAST(LEFT(ISNULL(s.[Buyer], N'Walk-in') + N' — ' + s.[Product], 200) AS nvarchar(200)) AS [Description],
+                CAST(ROUND(s.[Quantity] * s.[UnitPrice], 2) AS decimal(18,2)) AS A1,
+                CAST(s.[AmountPaid] AS decimal(18,2)) AS A2,
+                {Zero("A3", "A4", "A5", "A6", "A7")}
+                """,
+            FromWhere: """
+                FROM [farming].[Sales] s
+                WHERE s.[TenantId] = {0} AND s.[IsDeleted] = 0 AND ROUND(s.[Quantity] * s.[UnitPrice], 2) > 0
+                  AND LEFT(s.[Date], 10) >= {1}
+                """,
+            OrderBy: "s.[CreatedAt]",
+            Amounts: r =>
+            {
+                var d = new Dictionary<string, decimal> { ["revenue"] = r.A1 };
+                if (r.A2 > 0) d["cash"] = r.A2;
+                if (r.A1 - r.A2 > 0) d["customer"] = r.A1 - r.A2;
+                return d;
+            },
+            Check: r => r.A2 > r.A1 + Cent ? "More was paid than the sale total, so the figures do not balance." : null,
+            CancelledFrom: "FROM [farming].[Sales] s",
+            CancelledWhere: "s.[IsDeleted] = 1"),
+
+        // Farm expense: A1 amount. No payment method is recorded, so it is cash.
+        new("farming.expense",
+            IdExpr: "e.[Id]",
+            Select: $"""
+                e.[Id], CAST('FE-' + UPPER(LEFT(CAST(e.[Id] AS varchar(36)), 8)) AS nvarchar(100)) AS [Number],
+                CAST(LEFT(e.[Date], 10) AS varchar(10)) AS [Date],
+                CAST(LEFT(e.[Category] + N' — ' + e.[Description], 200) AS nvarchar(200)) AS [Description],
+                CAST(e.[Amount] AS decimal(18,2)) AS A1,
+                {Zero("A2", "A3", "A4", "A5", "A6", "A7")}
+                """,
+            FromWhere: """
+                FROM [farming].[Expenses] e
+                WHERE e.[TenantId] = {0} AND e.[IsDeleted] = 0 AND e.[Amount] > 0
+                  AND LEFT(e.[Date], 10) >= {1}
+                """,
+            OrderBy: "e.[CreatedAt]",
+            Amounts: r => new() { ["cost"] = r.A1, ["cash"] = r.A1 },
+            Check: r => r.A1 <= 0 ? "The amount is not more than zero." : null,
+            CancelledFrom: "FROM [farming].[Expenses] e",
+            CancelledWhere: "e.[IsDeleted] = 1"),
+
+        // Feed and fertiliser with a cost: A1 cost.
+        new("farming.feed",
+            IdExpr: "f.[Id]",
+            Select: $"""
+                f.[Id], CAST('FD-' + UPPER(LEFT(CAST(f.[Id] AS varchar(36)), 8)) AS nvarchar(100)) AS [Number],
+                CAST(LEFT(f.[Date], 10) AS varchar(10)) AS [Date],
+                CAST(LEFT(f.[FeedName], 200) AS nvarchar(200)) AS [Description],
+                CAST(f.[Cost] AS decimal(18,2)) AS A1,
+                {Zero("A2", "A3", "A4", "A5", "A6", "A7")}
+                """,
+            FromWhere: """
+                FROM [farming].[Feed] f
+                WHERE f.[TenantId] = {0} AND f.[IsDeleted] = 0 AND f.[Cost] > 0
+                  AND LEFT(f.[Date], 10) >= {1}
+                """,
+            OrderBy: "f.[CreatedAt]",
+            Amounts: r => new() { ["cost"] = r.A1, ["cash"] = r.A1 },
+            Check: r => r.A1 <= 0 ? "The amount is not more than zero." : null,
+            CancelledFrom: "FROM [farming].[Feed] f",
+            CancelledWhere: "f.[IsDeleted] = 1"),
+
+        // Vaccinations and treatments with a cost: A1 cost.
+        new("farming.health",
+            IdExpr: "h.[Id]",
+            Select: $"""
+                h.[Id], CAST('FH-' + UPPER(LEFT(CAST(h.[Id] AS varchar(36)), 8)) AS nvarchar(100)) AS [Number],
+                CAST(LEFT(h.[Date], 10) AS varchar(10)) AS [Date],
+                CAST(LEFT(h.[Kind] + N' — ' + h.[Title], 200) AS nvarchar(200)) AS [Description],
+                CAST(h.[Cost] AS decimal(18,2)) AS A1,
+                {Zero("A2", "A3", "A4", "A5", "A6", "A7")}
+                """,
+            FromWhere: """
+                FROM [farming].[Health] h
+                WHERE h.[TenantId] = {0} AND h.[IsDeleted] = 0 AND h.[Cost] > 0
+                  AND LEFT(h.[Date], 10) >= {1}
+                """,
+            OrderBy: "h.[CreatedAt]",
+            Amounts: r => new() { ["cost"] = r.A1, ["cash"] = r.A1 },
+            Check: r => r.A1 <= 0 ? "The cost is not more than zero." : null,
+            CancelledFrom: "FROM [farming].[Health] h",
+            CancelledWhere: "h.[IsDeleted] = 1"),
+
         // Travel agency: money received from the customer.
         new("tours.payment",
             IdExpr: "p.[Id]",

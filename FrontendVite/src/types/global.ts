@@ -152,6 +152,7 @@ export type ModuleKey =
   | "ecommerce"
   | "library"
   | "fitness"
+  | "farming"
   | "trade"
   | "leadgen"
   | "support"
