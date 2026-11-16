@@ -23,6 +23,7 @@ public sealed class SeoDbContext(DbContextOptions<SeoDbContext> options)
     public DbSet<SeoKeywordSnapshot>     KeywordSnapshots      => Set<SeoKeywordSnapshot>();
     public DbSet<SeoCompetitorScan>      CompetitorScans       => Set<SeoCompetitorScan>();
     public DbSet<SeoPlanItem>            PlanItems             => Set<SeoPlanItem>();
+    public DbSet<SeoBusinessProfile>     BusinessProfiles      => Set<SeoBusinessProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

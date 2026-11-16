@@ -8,6 +8,7 @@ using Softaxis.Seo.Application.Content.Queries;
 using Softaxis.Seo.Domain.Entities;
 using Softaxis.Seo.Infrastructure.Content;
 using Softaxis.Seo.Infrastructure.Persistence;
+using Softaxis.Seo.Infrastructure.Profile;
 using Softaxis.Seo.Infrastructure.WordPress;
 
 namespace Softaxis.Seo.Infrastructure.Handlers.Content;
@@ -48,6 +49,9 @@ internal sealed class GenerateArticleNowHandler(SeoDbContext db, IArticleGenerat
             settings = new SeoContentSettings(cmd.SiteId);
             db.ContentSettings.Add(settings);
         }
+
+        if (await BusinessContextLoader.LoadAsync(db, site, ct) is null)
+            return Result.Failure<GenerateArticleNowResultDto>(Error.Custom("Validation.Failed", BusinessContextLoader.NeededMessage));
 
         var count = await runner.RunAsync(site, settings, ct);
         settings.RecordRunCompleted(DateTime.UtcNow);

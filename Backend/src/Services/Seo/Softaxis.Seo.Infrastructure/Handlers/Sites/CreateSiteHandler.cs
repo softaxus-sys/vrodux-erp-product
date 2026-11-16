@@ -1,16 +1,18 @@
 using Softaxis.BuildingBlocks.Infrastructure.Net;
 using Microsoft.Extensions.Configuration;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Seo.Application.Sites.Commands;
 using Softaxis.Seo.Application.Sites.Dtos;
 using Softaxis.Seo.Domain.Entities;
 using Softaxis.Seo.Infrastructure.Net;
 using Softaxis.Seo.Infrastructure.Persistence;
+using Softaxis.Seo.Infrastructure.Profile;
 
 namespace Softaxis.Seo.Infrastructure.Handlers.Sites;
 
-internal sealed class CreateSiteHandler(SeoDbContext db, IConfiguration configuration) : ICommandHandler<CreateSiteCommand, SiteDto>
+internal sealed class CreateSiteHandler(SeoDbContext db, IConfiguration configuration, IProfileAutofillQueue autofill) : ICommandHandler<CreateSiteCommand, SiteDto>
 {
     public async Task<Result<SiteDto>> Handle(CreateSiteCommand cmd, CancellationToken ct)
     {
@@ -24,7 +26,12 @@ internal sealed class CreateSiteHandler(SeoDbContext db, IConfiguration configur
             return Result.Failure<SiteDto>(Error.Custom("Validation.Failed", "That does not look like a public website address. Enter a domain such as example.com."));
 
         db.Sites.Add(site);
+        // So nobody has to type out what the business does: read the website and the workspace's company details in the background and
+        // leave a draft for them to check. The profile row exists straight away so the screen can say "reading your website…".
+        db.BusinessProfiles.Add(SeoBusinessProfile.CreatePending(site.Id, site.DisplayName));
         await db.SaveChangesAsync(ct);
+
+        if (TenantAmbient.TenantId is { } tenantId) autofill.Enqueue(tenantId, site.Id);
         return Result.Success(SiteMappings.ToDto(site, googleConnected: false));
     }
 }

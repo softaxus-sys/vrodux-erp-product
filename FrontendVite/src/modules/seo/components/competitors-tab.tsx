@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Loader2, Plus, X, Play, FileText, SkipForward, Info, CalendarDays, Search, Layers } from "lucide-react";
+import { Loader2, Plus, X, Play, FileText, Ban, Info, CalendarDays, Search, Layers, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatDate } from "@/lib/utils";
@@ -8,14 +8,19 @@ import {
   useCompetitors, useCompetitorScan, useAddCompetitor, useRemoveCompetitor, useStartCompetitorScan, useDraftPlanItem, useSkipPlanItem,
 } from "@/hooks/seo/use-seo-competitors";
 import type { PlanItemDto } from "@/lib/seo/seo-competitors.api";
+import { useBusinessProfile, useSuggestCompetitors } from "@/hooks/seo/use-seo-profile";
+import { ProfileNeededBanner } from "./business-profile-tab";
 
 type View = "plan" | "keywords" | "topics";
 
 /** Compare a website with up to five competitors: what they cover that it does not, and a 30-day plan to close the gap. */
-export function CompetitorsTab({ siteId }: { siteId: string }) {
+export function CompetitorsTab({ siteId, onOpenProfile }: { siteId: string; onOpenProfile: () => void }) {
   const { hasRawPermission } = useAuthStore();
   const canEdit = hasRawPermission("seo.sites.edit");
   const canDraft = hasRawPermission("seo.content.edit");
+  const { data: profile } = useBusinessProfile(siteId);
+  const profileReady = profile?.ready ?? true;   // until it loads, do not flash a lock
+  const suggest = useSuggestCompetitors();
   const { data: ov, isLoading } = useCompetitors(siteId);
   const scanId = ov?.latestScan?.id ?? null;
   const { data: scan } = useCompetitorScan(scanId, ov?.latestScan?.status);
@@ -39,8 +44,14 @@ export function CompetitorsTab({ siteId }: { siteId: string }) {
     try { await add.mutateAsync({ siteId, domain: d }); setDomain(""); } catch { /* hook toasts */ }
   };
 
+  const findCompetitors = () => suggest.mutate({ siteId, locationCode: location });
+  const addSuggested = async (d: string) => { try { await add.mutateAsync({ siteId, domain: d }); } catch { /* hook toasts */ } };
+  const suggestions = suggest.data;
+
   return (
     <div className="space-y-5">
+      {!profileReady && <ProfileNeededBanner onOpen={onOpenProfile} draft={!!profile?.isDraft && profile.summary.length > 0} />}
+
       <section className="space-y-3">
         <div>
           <h3 className="text-sm font-semibold">Your competitors</h3>
@@ -72,6 +83,39 @@ export function CompetitorsTab({ siteId }: { siteId: string }) {
           </div>
         )}
         {full && <p className="text-xs text-muted-foreground">That is the maximum. Remove one to add another.</p>}
+
+        {canEdit && !full && ov.keywordDataAvailable && (
+          <div className="space-y-2">
+            <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" disabled={suggest.isPending || ov.balance < ov.creditsPerCompetitorKeywords} onClick={findCompetitors}>
+              {suggest.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+              Find competitors for me <span className="text-muted-foreground">({ov.creditsPerCompetitorKeywords} credits)</span>
+            </Button>
+            <p className="text-[11px] text-muted-foreground">
+              Looks for websites that rank for the same searches as yours, so you compare against real rivals rather than whoever you thought of. Uses the market chosen below.
+            </p>
+            {suggestions && (
+              <div className="rounded-lg border border-border divide-y divide-border">
+                {suggestions.suggestions.length === 0 && <p className="p-3 text-xs text-muted-foreground">{suggestions.note ?? "No suggestions found."}</p>}
+                {suggestions.suggestions.map(s => (
+                  <div key={s.domain} className="flex items-center justify-between gap-3 p-2.5">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{s.domain}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Ranks for {s.sharedKeywords.toLocaleString()} of the same searches{s.averagePosition != null ? ` · average position ${s.averagePosition}` : ""}
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1" disabled={add.isPending || full || ov.competitors.some(c => c.domain === s.domain)} onClick={() => addSuggested(s.domain)}>
+                      <Plus className="w-3 h-3" />Add
+                    </Button>
+                  </div>
+                ))}
+                {suggestions.creditsCharged > 0 && suggestions.suggestions.length > 0 && (
+                  <p className="p-2 text-[11px] text-muted-foreground">{suggestions.creditsCharged} credits used. Check each one is really a business you compete with before adding it.</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="rounded-xl border border-border p-4 space-y-3">
@@ -83,7 +127,7 @@ export function CompetitorsTab({ siteId }: { siteId: string }) {
             </select>
           </label>
           {canEdit && (
-            <Button size="sm" className="gap-1.5" disabled={running || ov.competitors.length === 0 || !enough || start.isPending}
+            <Button size="sm" className="gap-1.5" disabled={running || ov.competitors.length === 0 || !enough || start.isPending || !profileReady}
               onClick={() => start.mutate({ siteId, locationCode: location })}>
               {running || start.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
               {running ? "Comparing…" : "Run comparison"}
@@ -169,32 +213,37 @@ function Plan({ items, canDraft }: { items: PlanItemDto[]; canDraft: boolean }) 
   const draft = useDraftPlanItem();
   const skip = useSkipPlanItem();
   const [busy, setBusy] = React.useState<string | null>(null);
-  if (items.length === 0) return <Empty text="Nothing to plan: your site already covers what these competitors do." />;
+  if (items.length === 0) return <Empty text="Nothing relevant to plan. Either your site already covers what these competitors do, or what they cover does not fit your business. Check the note above, and the Keyword and Topic gaps tabs for the raw findings." />;
 
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-2.5">
       {items.map(i => (
-        <li key={i.id} className={cn("rounded-lg border border-border p-3", i.status === "skipped" && "opacity-50")}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-xs text-muted-foreground">{formatDate(i.plannedDate)} · {i.source === "keyword" ? "Search term" : "Topic"}
-                {i.searchVolume != null && ` · ${i.searchVolume.toLocaleString()}/month`}{i.difficulty != null && ` · difficulty ${i.difficulty}`}</div>
-              <div className="text-sm font-medium mt-0.5">{i.title}</div>
-              <div className="text-xs text-muted-foreground mt-1">{i.reason}</div>
-            </div>
-            <div className="shrink-0 flex gap-1.5">
-              {i.status === "drafted" && <span className="text-xs text-emerald-600 dark:text-emerald-400 self-center">Draft written — see Content</span>}
-              {i.status === "skipped" && <span className="text-xs text-muted-foreground self-center">Skipped</span>}
-              {i.status === "planned" && canDraft && (
-                <>
-                  <Button size="sm" variant="outline" className="gap-1" disabled={busy === i.id}
-                    onClick={async () => { setBusy(i.id); try { await draft.mutateAsync(i.id); } catch { /* toasted */ } finally { setBusy(null); } }}>
-                    {busy === i.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}Write draft
-                  </Button>
-                  <Button size="sm" variant="ghost" aria-label="Skip" onClick={() => skip.mutate(i.id)}><SkipForward className="w-3.5 h-3.5" /></Button>
-                </>
-              )}
-            </div>
+        <li key={i.id} className={cn("rounded-lg border border-border p-3.5", i.status === "skipped" && "opacity-50")}>
+          <div className="text-[11px] text-muted-foreground">
+            {formatDate(i.plannedDate)} · {i.source === "keyword" ? "Search term" : "Topic"}
+            {i.searchVolume != null && ` · ${i.searchVolume.toLocaleString()} searches/month`}{i.difficulty != null && ` · difficulty ${i.difficulty}`}
+          </div>
+          <div className="text-sm font-semibold mt-1 leading-snug">{i.title}</div>
+          {i.summary && <p className="text-xs text-foreground/80 mt-1 leading-relaxed">{i.summary}</p>}
+          <dl className="mt-2 space-y-0.5 text-[11px] text-muted-foreground">
+            <div><dt className="inline font-medium">Target search: </dt><dd className="inline">“{i.targetKeyword}”</dd></div>
+            {i.fitReason && <div><dt className="inline font-medium">Why it suits you: </dt><dd className="inline">{i.fitReason}</dd></div>}
+            <div><dt className="inline font-medium">Found because: </dt><dd className="inline">{i.reason}</dd></div>
+          </dl>
+          <div className="mt-3 flex items-center gap-2">
+            {i.status === "drafted" && <span className="text-xs text-emerald-600 dark:text-emerald-400">Draft written. Review it in the Content tab.</span>}
+            {i.status === "skipped" && <span className="text-xs text-muted-foreground">Ignored</span>}
+            {i.status === "planned" && canDraft && (
+              <>
+                <Button size="sm" className="gap-1.5 h-8 text-xs" disabled={busy === i.id}
+                  onClick={async () => { setBusy(i.id); try { await draft.mutateAsync(i.id); } catch { /* toasted */ } finally { setBusy(null); } }}>
+                  {busy === i.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}Write this article
+                </Button>
+                <Button size="sm" variant="ghost" className="gap-1.5 h-8 text-xs text-muted-foreground" disabled={busy === i.id} onClick={() => skip.mutate(i.id)}>
+                  <Ban className="w-3.5 h-3.5" />Ignore
+                </Button>
+              </>
+            )}
           </div>
         </li>
       ))}

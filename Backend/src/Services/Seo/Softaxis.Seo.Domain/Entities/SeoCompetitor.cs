@@ -136,6 +136,16 @@ public sealed class SeoPlanItem
     public string   Status        { get; private set; } = PlanItemStatuses.Planned;
     public Guid?    ArticleId     { get; private set; }
     public DateTime CreatedAt     { get; private set; }
+    /// <summary>One plain sentence on what the finished article would cover, so a person can decide to write it or ignore it.</summary>
+    public string   Summary       { get; private set; } = string.Empty;
+    /// <summary>Why this suits the business, judged against its profile.</summary>
+    public string   FitReason     { get; private set; } = string.Empty;
+
+    public void SetEditorial(string title, string summary, string fitReason)
+    {
+        if (!string.IsNullOrWhiteSpace(title)) Title = Cut(title, 300);
+        Summary = Cut(summary, 400); FitReason = Cut(fitReason, 300);
+    }
 
     public void MarkDrafted(Guid articleId) { ArticleId = articleId; Status = PlanItemStatuses.Drafted; }
     public void Skip() { Status = PlanItemStatuses.Skipped; }

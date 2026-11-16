@@ -250,6 +250,30 @@ internal sealed class SeoPlanItemConfiguration : IEntityTypeConfiguration<SeoPla
         builder.Property(x => x.Reason).IsRequired().HasMaxLength(600);
         builder.Property(x => x.Source).IsRequired().HasMaxLength(20);
         builder.Property(x => x.Status).IsRequired().HasMaxLength(20);
+        builder.Property(x => x.Summary).IsRequired().HasMaxLength(400).HasDefaultValue("");
+        builder.Property(x => x.FitReason).IsRequired().HasMaxLength(300).HasDefaultValue("");
         builder.HasIndex(x => new { x.SiteId, x.ScanId });
+    }
+}
+
+internal sealed class SeoBusinessProfileConfiguration : IEntityTypeConfiguration<SeoBusinessProfile>
+{
+    public void Configure(EntityTypeBuilder<SeoBusinessProfile> builder)
+    {
+        builder.ToTable("seo_business_profiles");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.HasIndex(x => x.SiteId).IsUnique();
+        builder.Property(x => x.BusinessName).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.Industry).IsRequired().HasMaxLength(120);
+        builder.Property(x => x.Summary).IsRequired().HasMaxLength(1500);
+        builder.Property(x => x.OffersJson).IsRequired().HasColumnType("nvarchar(max)");
+        builder.Property(x => x.Audience).IsRequired().HasMaxLength(500);
+        builder.Property(x => x.ServiceAreas).IsRequired().HasMaxLength(300);
+        builder.Property(x => x.AvoidTopicsJson).IsRequired().HasColumnType("nvarchar(max)");
+        builder.Property(x => x.Source).IsRequired().HasMaxLength(20);
+        builder.Property(x => x.IsDraft).HasDefaultValue(false);
+        builder.Property(x => x.AutofillStatus).IsRequired().HasMaxLength(12).HasDefaultValue("none");
+        builder.Property(x => x.AutofillNote).HasMaxLength(300);
+        builder.Ignore(x => x.Offers); builder.Ignore(x => x.AvoidTopics); builder.Ignore(x => x.IsReady);
     }
 }

@@ -1,3 +1,5 @@
+using Softaxis.Seo.Infrastructure.Profile;
+
 namespace Softaxis.Seo.Infrastructure.Content;
 
 public sealed record WrittenArticle(string Title, string Slug, string MetaDescription, string TargetKeyword, string BodyMarkdown);
@@ -10,5 +12,5 @@ public interface IArticleWriter
     /// a partial/malformed response.</summary>
     Task<IReadOnlyList<WrittenArticle>> WriteAsync(
         string domain, string? nicheHint, IReadOnlyList<string> ownPageTitles,
-        IReadOnlyList<ResearchSignal> signals, int count, int targetWordCount, CancellationToken ct);
+        IReadOnlyList<ResearchSignal> signals, int count, int targetWordCount, BusinessContext? business, CancellationToken ct);
 }

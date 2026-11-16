@@ -14,11 +14,16 @@ import {
 import {
   ARTICLE_STATUS_META, parseSourceSignals, type ArticleDto, type ContentFrequency,
 } from "@/lib/seo/seo-content.api";
+import { useBusinessProfile } from "@/hooks/seo/use-seo-profile";
+import { ProfileNeededBanner } from "./business-profile-tab";
 
-export function ContentTab({ siteId, domain }: { siteId: string; domain: string }) {
+export function ContentTab({ siteId, domain, onOpenProfile }: { siteId: string; domain: string; onOpenProfile: () => void }) {
+  const { data: profile } = useBusinessProfile(siteId);
+  const profileReady = profile?.ready ?? true;   // until it loads, do not flash a lock
   return (
     <div className="space-y-6">
-      <ContentSettingsCard siteId={siteId} domain={domain} />
+      {!profileReady && <ProfileNeededBanner onOpen={onOpenProfile} draft={!!profile?.isDraft && profile.summary.length > 0} />}
+      <ContentSettingsCard siteId={siteId} domain={domain} profileReady={profileReady} />
       <WordPressCard siteId={siteId} />
       <ArticleReviewList siteId={siteId} />
     </div>
@@ -27,7 +32,7 @@ export function ContentTab({ siteId, domain }: { siteId: string; domain: string 
 
 // ── Settings ──────────────────────────────────────────────────────────────
 
-function ContentSettingsCard({ siteId, domain }: { siteId: string; domain: string }) {
+function ContentSettingsCard({ siteId, domain, profileReady }: { siteId: string; domain: string; profileReady: boolean }) {
   const { data: settings } = useContentSettings(siteId);
   const update = useUpdateContentSettings();
   const generateNow = useGenerateArticleNow();
@@ -124,8 +129,8 @@ function ContentSettingsCard({ siteId, domain }: { siteId: string; domain: strin
           Save settings
         </Button>
         {enabled && (
-          <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" disabled={generateNow.isPending || dirty}
-            title={dirty ? "Save your changes first" : undefined}
+          <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" disabled={generateNow.isPending || dirty || !profileReady}
+            title={dirty ? "Save your changes first" : !profileReady ? "Add your business profile first" : undefined}
             onClick={() => generateNow.mutate(siteId)}>
             {generateNow.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5" />}
             Generate now
@@ -304,8 +309,9 @@ function ArticleCard({ article, expanded, onToggle, onApprove, onReject, onPush,
             <span className="text-[10px] text-muted-foreground">{article.wordCount} words</span>
             {article.wordPressPostId && <span className="text-[10px] text-muted-foreground">· pushed to WordPress</span>}
           </div>
-          <p className="text-sm font-medium text-foreground truncate">{article.title}</p>
-          <p className="text-xs text-muted-foreground truncate">Target: {article.targetKeyword || "—"}</p>
+          <p className="text-sm font-semibold text-foreground leading-snug">{article.title}</p>
+          {article.metaDescription && <p className="text-xs text-foreground/75 mt-0.5 line-clamp-2">{article.metaDescription}</p>}
+          <p className="text-[11px] text-muted-foreground mt-1 truncate">Target search: {article.targetKeyword || "—"}</p>
         </div>
         {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
       </button>

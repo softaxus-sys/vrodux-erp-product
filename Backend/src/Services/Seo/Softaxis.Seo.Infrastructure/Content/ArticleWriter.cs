@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Softaxis.AiAssistant.Application.Abstractions;
+using Softaxis.Seo.Infrastructure.Profile;
 
 namespace Softaxis.Seo.Infrastructure.Content;
 
@@ -14,14 +15,20 @@ public sealed class ArticleWriter(IAiCompletionService completion) : IArticleWri
         signal over inventing one from nothing. NEVER propose a topic that duplicates one of the site's
         existing page titles (given to you) almost verbatim.
 
-        Never invent specific facts about the business itself (address, phone number, prices, founding date,
-        staff names, certifications) that were not given to you — write general, helpful, accurate content
-        on the topic instead. Aim for approximately {2} words per article, a clear H1-equivalent opening,
+        You are also given a "business" block describing what this business actually does, sells and who its customers
+        are. Every article must be written for THAT business's customers and must stay inside what it does: if a
+        research signal is about something the business does not do, ignore that signal. Never write about anything
+        in "neverWriteAbout". Never invent specific facts about the business itself (address, phone number, prices,
+        founding date, staff names, certifications) that were not given to you — write general, helpful, accurate
+        content on the topic instead. Aim for approximately {2} words per article, a clear H1-equivalent opening,
         subheadings, and a natural (not stuffed) use of the target keyword.
+
+        The title must tell a reader plainly what the article is about: specific, readable, 70 characters or fewer,
+        not just the keyword and not filler such as "A Practical Guide".
 
         Respond with ONLY a JSON array, no prose, no markdown fences. Each element:
         {{
-          "title": "<article title, <= 60 characters where possible>",
+          "title": "<specific article headline, <= 70 characters>",
           "slug": "<url-safe-slug-like-this>",
           "metaDescription": "<<= 155 characters>",
           "targetKeyword": "<the primary keyword this article targets>",
@@ -31,12 +38,17 @@ public sealed class ArticleWriter(IAiCompletionService completion) : IArticleWri
 
     public async Task<IReadOnlyList<WrittenArticle>> WriteAsync(
         string domain, string? nicheHint, IReadOnlyList<string> ownPageTitles,
-        IReadOnlyList<ResearchSignal> signals, int count, int targetWordCount, CancellationToken ct)
+        IReadOnlyList<ResearchSignal> signals, int count, int targetWordCount, BusinessContext? business, CancellationToken ct)
     {
         var systemPrompt = string.Format(SystemPromptTemplate, domain, count, targetWordCount);
 
         var userPrompt = JsonSerializer.Serialize(new
         {
+            business = business is null ? null : new
+            {
+                name = business.Name, industry = business.Industry, whatItDoes = business.Summary, offers = business.Offers,
+                customers = business.Audience, works = business.ServiceAreas, neverWriteAbout = business.Avoid,
+            },
             nicheHint = string.IsNullOrWhiteSpace(nicheHint) ? null : nicheHint,
             existingPageTitles = ownPageTitles.Take(30),
             researchSignals = signals.Select(s => new { s.Kind, s.Detail }),

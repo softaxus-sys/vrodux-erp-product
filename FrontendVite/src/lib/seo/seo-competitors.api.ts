@@ -23,6 +23,10 @@ export interface KeywordGapDto { keyword: string; volume: number; difficulty: nu
 export interface PlanItemDto {
   id: string; plannedDate: string; title: string; targetKeyword: string; reason: string; searchVolume: number | null;
   difficulty: number | null; source: "keyword" | "topic"; status: "planned" | "drafted" | "skipped"; articleId: string | null;
+  /** One sentence on what the finished article would cover, so an editor can decide to write it or ignore it. */
+  summary: string;
+  /** Why it suits this business, judged against its profile. */
+  fitReason: string;
 }
 export interface ScanDetailDto {
   summary: ScanSummaryDto; competitors: string[]; topicGaps: TopicGapDto[]; keywordGaps: KeywordGapDto[]; plan: PlanItemDto[];

@@ -10,6 +10,7 @@ using Softaxis.Seo.Domain.Entities;
 using Softaxis.Seo.Infrastructure.Credits;
 using Softaxis.Seo.Infrastructure.Crawl;
 using Softaxis.Seo.Infrastructure.Persistence;
+using Softaxis.Seo.Infrastructure.Profile;
 
 namespace Softaxis.Seo.Infrastructure.Competitors;
 
@@ -40,7 +41,8 @@ public interface ICompetitorScanRunner
 /// checks the balance covers the maximum before it is queued.
 /// </summary>
 public sealed class CompetitorScanRunner(
-    SeoDbContext db, SiteCrawler crawler, IKeywordDataProvider keywords, ISeoCreditService credits, SeoOptions options, ILogger<CompetitorScanRunner> logger)
+    SeoDbContext db, SiteCrawler crawler, IKeywordDataProvider keywords, ISeoCreditService credits, SeoOptions options, IPlanEditor planEditor,
+    ILogger<CompetitorScanRunner> logger)
     : ICompetitorScanRunner
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -57,6 +59,15 @@ public sealed class CompetitorScanRunner(
 
         try
         {
+            // Checked before any page is read: a plan that cannot be judged against the business is not worth building.
+            var business = await BusinessContextLoader.LoadAsync(db, site, ct);
+            if (business is null)
+            {
+                scan.Fail(BusinessContextLoader.NeededMessage);
+                await db.SaveChangesAsync(ct);
+                return;
+            }
+
             var domains = JsonSerializer.Deserialize<List<string>>(scan.CompetitorsJson, Json) ?? [];
             var limits = new CrawlLimits(options.CompetitorPagesPerDomain, options.CrawlConcurrency, 0);
 
@@ -122,7 +133,17 @@ public sealed class CompetitorScanRunner(
 
             // ── Analysis + plan ──────────────────────────────────────────────
             var topicGaps = CompetitorAnalysis.TopicGaps(own, compPages);
-            var slots = CompetitorAnalysis.BuildPlan(kwGaps, topicGaps, DateOnly.FromDateTime(DateTime.UtcNow));
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            // Competitors are often bigger or broader than the site, so the raw gaps include plenty that this business would never write.
+            // Build a wider candidate list, then keep only what suits the business, each with a clear headline and a one-line description.
+            var candidates = CompetitorAnalysis.BuildPlan(kwGaps, topicGaps, today, 30);
+            var judged = await planEditor.JudgeAsync(business, candidates, ct);
+            var curated = PlanCurator.Curate(business, candidates, judged, today);
+            if (curated.Dropped > 0)
+                note = (note is null ? "" : note + " ") + $"{curated.Dropped} idea(s) from competitors were left out because they do not fit your business.";
+            if (!curated.UsedAi && candidates.Count > 0)
+                note = (note is null ? "" : note + " ") + "The AI assistant was not available, so only ideas that clearly match your business profile were kept.";
 
             // ── Charge what was really used ──────────────────────────────────
             var cost = options.CreditsFor(Math.Max(1, totalPages)) + freshCompetitors * options.CreditsPerCompetitorKeywords;
@@ -134,8 +155,13 @@ public sealed class CompetitorScanRunner(
                 return;
             }
 
-            foreach (var s in slots)
-                db.PlanItems.Add(new SeoPlanItem(site.Id, scan.Id, s.PlannedDate, s.Title, s.TargetKeyword, s.Reason, s.Volume, s.Difficulty, s.Source));
+            foreach (var c in curated.Kept)
+            {
+                var s = c.Slot;
+                var item = new SeoPlanItem(site.Id, scan.Id, s.PlannedDate, s.Title, s.TargetKeyword, s.Reason, s.Volume, s.Difficulty, s.Source);
+                item.SetEditorial(s.Title, c.Summary, c.FitReason);
+                db.PlanItems.Add(item);
+            }
             scan.Complete(totalPages, cost, kwUsed, note, JsonSerializer.Serialize(topicGaps, Json), JsonSerializer.Serialize(kwGaps, Json));
             await db.SaveChangesAsync(ct);
         }

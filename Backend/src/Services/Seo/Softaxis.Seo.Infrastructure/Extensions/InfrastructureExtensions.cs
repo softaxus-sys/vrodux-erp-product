@@ -77,6 +77,14 @@ public static class InfrastructureExtensions
         services.AddHttpClient(DataForSeoClient.ClientName);
         services.AddScoped<IKeywordDataProvider, DataForSeoClient>();
         services.AddScoped<ICompetitorScanRunner, CompetitorScanRunner>();
+        services.AddScoped<Softaxis.Seo.Infrastructure.Profile.IPlanEditor, Softaxis.Seo.Infrastructure.Profile.PlanEditor>();
+        services.AddScoped<Softaxis.Seo.Infrastructure.Profile.ITenantBusinessReader, Softaxis.Seo.Infrastructure.Profile.TenantBusinessReader>();
+        services.AddScoped<Softaxis.Seo.Infrastructure.Profile.SiteTextReader>();
+        services.AddSingleton<Softaxis.Seo.Infrastructure.Profile.ProfileAutofillQueue>();
+        services.AddSingleton<Softaxis.Seo.Infrastructure.Profile.IProfileAutofillQueue>(sp => sp.GetRequiredService<Softaxis.Seo.Infrastructure.Profile.ProfileAutofillQueue>());
+        services.AddScoped<Softaxis.Seo.Infrastructure.Profile.IProfileAutofill, Softaxis.Seo.Infrastructure.Profile.ProfileAutofill>();
+        services.AddHostedService<Softaxis.Seo.Infrastructure.Profile.ProfileAutofillBackgroundService>();
+        services.AddScoped<Softaxis.Seo.Infrastructure.Profile.IBusinessProfileDrafter, Softaxis.Seo.Infrastructure.Profile.BusinessProfileDrafter>();
         services.AddSingleton<CompetitorScanQueue>();
         services.AddSingleton<ICompetitorScanQueue>(sp => sp.GetRequiredService<CompetitorScanQueue>());
         services.AddHostedService<CompetitorScanBackgroundService>();

@@ -13,6 +13,7 @@ using Softaxis.Seo.Infrastructure.Credits;
 using Softaxis.Seo.Infrastructure.Crawl;
 using Softaxis.Seo.Infrastructure.Net;
 using Softaxis.Seo.Infrastructure.Persistence;
+using Softaxis.Seo.Infrastructure.Profile;
 
 namespace Softaxis.Seo.Infrastructure.Handlers.Competitors;
 
@@ -28,7 +29,7 @@ internal static class CompetitorMappings
     }
 
     public static PlanItemDto ToDto(SeoPlanItem i) =>
-        new(i.Id, i.PlannedDate, i.Title, i.TargetKeyword, i.Reason, i.SearchVolume, i.Difficulty, i.Source, i.Status, i.ArticleId);
+        new(i.Id, i.PlannedDate, i.Title, i.TargetKeyword, i.Reason, i.SearchVolume, i.Difficulty, i.Source, i.Status, i.ArticleId, i.Summary, i.FitReason);
 
     /// <summary>The most one comparison can cost right now.</summary>
     public static int Estimate(SeoOptions o, bool keywordData, int competitors) =>
@@ -101,7 +102,12 @@ internal sealed class StartCompetitorScanHandler(
     {
         if (TenantAmbient.TenantId is not { } tenantId)
             return Result.Failure<ScanSummaryDto>(Error.Custom("Validation.Failed", "Could not work out which workspace this is."));
-        if (!await db.Sites.AnyAsync(s => s.Id == cmd.SiteId, ct)) return Result.Failure<ScanSummaryDto>(Error.NotFoundById("SeoSite", cmd.SiteId));
+        var site = await db.Sites.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cmd.SiteId, ct);
+        if (site is null) return Result.Failure<ScanSummaryDto>(Error.NotFoundById("SeoSite", cmd.SiteId));
+
+        // The plan is judged against what the business does; without that it can only be a list of whatever competitors publish.
+        if (await BusinessContextLoader.LoadAsync(db, site, ct) is null)
+            return Result.Failure<ScanSummaryDto>(Error.Custom("Validation.Failed", BusinessContextLoader.NeededMessage));
 
         var location = cmd.LocationCode ?? CompetitorLocations.Default;
         if (!CompetitorLocations.IsKnown(location)) return Result.Failure<ScanSummaryDto>(Error.Custom("Validation.Failed", "Choose one of the listed countries."));
@@ -164,15 +170,21 @@ internal sealed class DraftPlanItemHandler(SeoDbContext db, IArticleWriter write
         if (site is null) return Result.Failure<PlanItemDto>(Error.NotFoundById("SeoSite", item.SiteId));
         var settings = await db.ContentSettings.AsNoTracking().FirstOrDefaultAsync(s => s.SiteId == item.SiteId, ct);
 
+        var business = await BusinessContextLoader.LoadAsync(db, site, ct);
+        if (business is null)
+            return Result.Failure<PlanItemDto>(Error.Custom("Validation.Failed", BusinessContextLoader.NeededMessage));
+
         var ownTitles = await db.Pages.AsNoTracking().Where(p => p.SiteId == item.SiteId && p.Title != null)
             .OrderByDescending(p => p.Id).Select(p => p.Title!).Take(30).ToListAsync(ct);
 
         var detail = item.SearchVolume is { } v
             ? $"“{item.TargetKeyword}” — about {v:N0} searches a month. {item.Reason}"
             : $"“{item.TargetKeyword}” — {item.Reason}";
+        // Write the article the editor actually saw and chose: same headline, same promised coverage.
+        if (item.Summary.Length > 0) detail += $" Planned article: “{item.Title}” — {item.Summary}";
         var signals = new List<ResearchSignal> { new("competitor_topic", detail) };
 
-        var written = await writer.WriteAsync(site.Domain, settings?.NicheHint ?? item.Title, ownTitles, signals, 1, settings?.TargetWordCount ?? 900, ct);
+        var written = await writer.WriteAsync(site.Domain, settings?.NicheHint, ownTitles, signals, 1, settings?.TargetWordCount ?? 900, business, ct);
         var first = written.FirstOrDefault();
         if (first is null)
             return Result.Failure<PlanItemDto>(Error.Custom("PlanItem.Conflict",

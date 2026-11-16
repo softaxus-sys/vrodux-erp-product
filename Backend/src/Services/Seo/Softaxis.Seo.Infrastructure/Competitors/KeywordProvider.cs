@@ -12,11 +12,16 @@ public sealed record KeywordRow(string Keyword, int Volume, int? Difficulty, int
 /// <summary>The keyword provider refused or failed. The message is safe to show to a customer (it never contains credentials).</summary>
 public sealed class KeywordProviderException(string message) : Exception(message);
 
+/// <summary>A website that ranks for many of the same searches as the target.</summary>
+public sealed record CompetitorDomainRow(string Domain, int SharedKeywords, int? AveragePosition);
+
 public interface IKeywordDataProvider
 {
     bool IsConfigured { get; }
     /// <summary>The terms <paramref name="domain"/> ranks for in Google, highest search volume first.</summary>
     Task<IReadOnlyList<KeywordRow>> RankedKeywordsAsync(string domain, int locationCode, CancellationToken ct);
+    /// <summary>Websites that rank for the same searches as <paramref name="domain"/>, most overlap first.</summary>
+    Task<IReadOnlyList<CompetitorDomainRow>> CompetitorDomainsAsync(string domain, int locationCode, CancellationToken ct);
 }
 
 /// <summary>
@@ -54,8 +59,6 @@ public sealed class DataForSeoClient(IHttpClientFactory httpFactory, DataForSeoO
 
     public async Task<IReadOnlyList<KeywordRow>> RankedKeywordsAsync(string domain, int locationCode, CancellationToken ct)
     {
-        if (!options.IsConfigured) throw new KeywordProviderException("Keyword data is not set up on this server.");
-
         var body = JsonSerializer.Serialize(new[]
         {
             new Dictionary<string, object?>
@@ -67,10 +70,35 @@ public sealed class DataForSeoClient(IHttpClientFactory httpFactory, DataForSeoO
                 ["order_by"] = new[] { "keyword_data.keyword_info.search_volume,desc" },
             },
         });
+        var text = await PostAsync("/v3/dataforseo_labs/google/ranked_keywords/live", body, domain, ct);
+        return Parse(text, domain, logger);
+    }
+
+    public async Task<IReadOnlyList<CompetitorDomainRow>> CompetitorDomainsAsync(string domain, int locationCode, CancellationToken ct)
+    {
+        var body = JsonSerializer.Serialize(new[]
+        {
+            new Dictionary<string, object?>
+            {
+                ["target"] = domain,
+                ["location_code"] = locationCode,
+                ["language_code"] = "en",
+                ["limit"] = 40,
+                ["exclude_top_domains"] = true,
+                ["order_by"] = new[] { "intersections,desc" },
+            },
+        });
+        var text = await PostAsync("/v3/dataforseo_labs/google/competitors_domain/live", body, domain, ct);
+        return ParseCompetitors(text, domain, logger);
+    }
+
+    private async Task<string> PostAsync(string path, string body, string domain, CancellationToken ct)
+    {
+        if (!options.IsConfigured) throw new KeywordProviderException("Keyword data is not set up on this server.");
 
         var http = httpFactory.CreateClient(ClientName);
         http.Timeout = TimeSpan.FromSeconds(90);
-        using var req = new HttpRequestMessage(HttpMethod.Post, $"{options.BaseUrl}/v3/dataforseo_labs/google/ranked_keywords/live")
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"{options.BaseUrl}{path}")
         {
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
@@ -97,7 +125,45 @@ public sealed class DataForSeoClient(IHttpClientFactory httpFactory, DataForSeoO
                 logger.LogWarning("DataForSEO answered HTTP {Status} for {Domain}.", (int)res.StatusCode, domain);
                 throw new KeywordProviderException("The keyword data service had a problem. Try again later.");
             }
-            return Parse(text, domain, logger);
+            return text;
+        }
+    }
+
+    /// <summary>Reads a competitors_domain response: the websites that rank for the same searches as the target, most overlap first.</summary>
+    public static IReadOnlyList<CompetitorDomainRow> ParseCompetitors(string json, string domain, ILogger? logger = null)
+    {
+        JsonDocument doc;
+        try { doc = JsonDocument.Parse(json); }
+        catch (JsonException) { throw new KeywordProviderException("The keyword data service sent an answer we could not read."); }
+
+        using (doc)
+        {
+            if (!doc.RootElement.TryGetProperty("tasks", out var tasks) || tasks.ValueKind != JsonValueKind.Array || tasks.GetArrayLength() == 0)
+                throw new KeywordProviderException("The keyword data service sent an unexpected answer.");
+            var task = tasks[0];
+            var code = task.TryGetProperty("status_code", out var sc) && sc.ValueKind == JsonValueKind.Number ? sc.GetInt32() : 0;
+            if (code is 40200 or 40201 or 40202)
+                throw new KeywordProviderException("Keyword data is temporarily unavailable. The platform owner has been told.");
+            if (code is 40101 or 40100)
+                throw new KeywordProviderException("The keyword data service rejected our account. The platform owner has been told to check it.");
+            if (code != 20000)
+            {
+                logger?.LogWarning("DataForSEO competitors task for {Domain} answered {Code}.", domain, code);
+                throw new KeywordProviderException("The keyword data service could not return data for that website.");
+            }
+
+            var rows = new List<CompetitorDomainRow>();
+            if (!task.TryGetProperty("result", out var results) || results.ValueKind != JsonValueKind.Array || results.GetArrayLength() == 0) return rows;
+            if (!results[0].TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array) return rows;
+            foreach (var item in items.EnumerateArray())
+            {
+                var d = item.TryGetProperty("domain", out var dp) && dp.ValueKind == JsonValueKind.String ? dp.GetString() : null;
+                if (string.IsNullOrWhiteSpace(d)) continue;
+                var shared = item.TryGetProperty("intersections", out var ip) && ip.ValueKind == JsonValueKind.Number ? ip.GetInt32() : 0;
+                int? avg = item.TryGetProperty("avg_position", out var ap) && ap.ValueKind == JsonValueKind.Number ? (int)Math.Round(ap.GetDouble()) : null;
+                rows.Add(new CompetitorDomainRow(d!.Trim().ToLowerInvariant(), shared, avg));
+            }
+            return rows;
         }
     }
 

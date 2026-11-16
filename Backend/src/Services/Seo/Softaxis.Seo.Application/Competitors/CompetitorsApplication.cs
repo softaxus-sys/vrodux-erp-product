@@ -25,7 +25,7 @@ public sealed record KeywordGapDto(string Keyword, int Volume, int? Difficulty, 
 
 public sealed record PlanItemDto(
     Guid Id, string PlannedDate, string Title, string TargetKeyword, string Reason, int? SearchVolume, int? Difficulty,
-    string Source, string Status, Guid? ArticleId);
+    string Source, string Status, Guid? ArticleId, string Summary = "", string FitReason = "");
 
 public sealed record ScanDetailDto(
     ScanSummaryDto Summary, IReadOnlyList<string> Competitors, IReadOnlyList<TopicGapDto> TopicGaps,
