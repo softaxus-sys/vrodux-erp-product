@@ -56,7 +56,7 @@ internal sealed class CreateUnitHandler(RealEstateDbContext db, ICurrentUser use
         // Unit numbers are how a lease, a tenant and a rent reminder all refer to the unit. Two
         // rows called "101" in the same building makes every one of those ambiguous.
         var duplicate = await db.PropertyUnits.AsNoTracking()
-            .AnyAsync(u => !u.IsDeleted && u.PropertyId == cmd.PropertyId && u.UnitNumber == number, ct);
+            .AnyAsync(u => !u.IsDeleted && u.PropertyId == cmd.PropertyId && u.UnitNumber == number && u.Purpose == null, ct);
         if (duplicate)
             return Result.Failure<UnitDto>(Error.Custom("Unit.Duplicate",
                 $"{property.Name} already has a unit {number}."));
@@ -92,7 +92,7 @@ internal sealed class UpdateUnitHandler(RealEstateDbContext db, ICurrentUser use
         var number = cmd.UnitNumber.Trim();
         var duplicate = await db.PropertyUnits.AsNoTracking()
             .AnyAsync(u => !u.IsDeleted && u.PropertyId == unit.PropertyId
-                        && u.UnitNumber == number && u.Id != cmd.Id, ct);
+                        && u.UnitNumber == number && u.Id != cmd.Id && u.Purpose == unit.Purpose, ct);
         if (duplicate)
             return Result.Failure(Error.Custom("Unit.Duplicate",
                 $"Another unit in this property is already numbered {number}."));

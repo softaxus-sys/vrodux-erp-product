@@ -97,10 +97,10 @@ internal sealed class CreateListingHandler(RealEstateDbContext db, ICurrentUser 
         // Unit numbers are how a lease, a tenant and a rent reminder all refer to the unit. Two
         // rows called "101" in the same building makes every one of those ambiguous.
         var duplicate = await db.PropertyUnits.AsNoTracking()
-            .AnyAsync(u => !u.IsDeleted && u.PropertyId == property.Id && u.UnitNumber == number, ct);
+            .AnyAsync(u => !u.IsDeleted && u.PropertyId == property.Id && u.UnitNumber == number && u.Purpose == PropertyUnit.NormalisePurpose(cmd.Purpose), ct);
         if (duplicate)
             return Result.Failure<ListingDto>(Error.Custom("Unit.Duplicate",
-                $"{property.Name} already has a unit {number}."));
+                $"{property.Name} already has a unit {number} for this purpose (a unit can be listed once for rent and once for sale)."));
 
         var unit = new PropertyUnit(property.Id, number, Clean(cmd.UnitType) ?? propertyType,
             cmd.Area, cmd.Floor, cmd.RentPerYear, cmd.SalePrice);
@@ -172,7 +172,7 @@ internal sealed class UpdateListingHandler(RealEstateDbContext db, ICurrentUser 
             number = cmd.UnitNumber.Trim();
             var duplicate = await db.PropertyUnits.AsNoTracking()
                 .AnyAsync(u => !u.IsDeleted && u.PropertyId == unit.PropertyId
-                            && u.UnitNumber == number && u.Id != cmd.Id, ct);
+                            && u.UnitNumber == number && u.Id != cmd.Id && u.Purpose == PropertyUnit.NormalisePurpose(cmd.Purpose), ct);
             if (duplicate)
                 return Result.Failure<ListingDto>(Error.Custom("Unit.Duplicate",
                     $"Another unit in this building is already numbered {number}."));
@@ -240,7 +240,7 @@ internal sealed class UpdateListingHandler(RealEstateDbContext db, ICurrentUser 
         if (property.Id != previousPropertyId)
         {
             var clash = await db.PropertyUnits.AsNoTracking()
-                .AnyAsync(u => !u.IsDeleted && u.PropertyId == property.Id && u.UnitNumber == number, ct);
+                .AnyAsync(u => !u.IsDeleted && u.PropertyId == property.Id && u.UnitNumber == number && u.Purpose == PropertyUnit.NormalisePurpose(cmd.Purpose), ct);
             if (clash)
                 return Result.Failure<ListingDto>(Error.Custom("Unit.Duplicate",
                     $"That building already has a unit numbered {number}."));

@@ -37,9 +37,9 @@ internal sealed class ImportRentalStockHandler(RealEstateDbContext db, ICurrentU
         var takenUnits = new HashSet<(Guid, string)>(
             (await db.PropertyUnits.AsNoTracking()
                 .Where(u => !u.IsDeleted)
-                .Select(u => new { u.PropertyId, u.UnitNumber })
+                .Select(u => new { u.PropertyId, u.UnitNumber, u.Purpose })
                 .ToListAsync(ct))
-            .Select(u => (u.PropertyId, u.UnitNumber.ToUpperInvariant())));
+            .Select(u => (u.PropertyId, u.UnitNumber.ToUpperInvariant() + "|" + PropertyUnit.NormalisePurpose(u.Purpose))));
 
         // Buildings created in this run but not yet saved, so later rows reuse them rather than
         // creating the same tower a second time.
@@ -110,19 +110,20 @@ internal sealed class ImportRentalStockHandler(RealEstateDbContext db, ICurrentU
             // and it is obviously a placeholder rather than something that looks like a real door
             // number someone might put on a lease.
             var number = row.UnitNumber?.Trim();
+            var rowPurpose = PropertyUnit.NormalisePurpose(RentalStockParser.ParsePurpose(row.Purpose));
             var generated = string.IsNullOrWhiteSpace(number);
 
             if (generated)
             {
                 var n = 1;
-                while (takenUnits.Contains((propertyId, $"LISTING-{n}"))) n++;
+                while (takenUnits.Contains((propertyId, $"LISTING-{n}|{rowPurpose}"))) n++;
                 number = $"LISTING-{n}";
             }
 
-            if (!takenUnits.Add((propertyId, number!.ToUpperInvariant())))
+            if (!takenUnits.Add((propertyId, number!.ToUpperInvariant() + "|" + rowPurpose)))
             {
                 skipped++;
-                Problem(i, $"{building} already has a unit {number} — skipped.");
+                Problem(i, $"{building} already has a unit {number} for this purpose — skipped.");
                 continue;
             }
 

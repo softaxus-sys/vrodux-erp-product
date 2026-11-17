@@ -223,7 +223,7 @@ public sealed class PropertyUnit
     /// rent / sale, or null when the cell says neither. The purpose decides whether a unit appears
     /// under rentals or under sales, so an unreadable value is left unset rather than guessed.
     /// </summary>
-    private static string? NormalisePurpose(string? raw)
+    public static string? NormalisePurpose(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return null;
         var t = raw.Trim().ToLowerInvariant();
