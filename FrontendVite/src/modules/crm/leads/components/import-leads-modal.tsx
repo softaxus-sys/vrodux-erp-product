@@ -127,7 +127,8 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
   const [fileName, setFileName] = React.useState("");
   const [headers, setHeaders] = React.useState<string[]>([]);
   const [rows, setRows] = React.useState<string[][]>([]);
-  const [mapping, setMapping] = React.useState<(ImportTargetField | "")[]>([]);
+  // "" = keep as a form response (question → answer on the lead); "__skip" = leave the column out.
+  const [mapping, setMapping] = React.useState<(ImportTargetField | "" | "__skip")[]>([]);
   const [parsing, setParsing] = React.useState(false);
   const [progress, setProgress] = React.useState<{ done: number; total: number } | null>(null);
   const [result, setResult] = React.useState<ImportLeadsResult | null>(null);
@@ -166,16 +167,21 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
       const lead: ImportLeadInput = { source: "import" };
       let hasValue = false;
       mapping.forEach((field, col) => {
-        if (!field) return;
         const val = (r[col] ?? "").trim();
-        if (!val) return;
+        if (!val || field === "__skip") return;
+        if (!field) {
+          // Not matched to a CRM field: keep it so no question or answer is lost.
+          const key = (headers[col] ?? "").trim() || `Column ${col + 1}`;
+          lead.fields = { ...(lead.fields ?? {}), [key]: val };
+          return;
+        }
         (lead as Record<string, string>)[field] = val;
         if (field === "email" || field === "phone" || field === "fullName" || field === "firstName") hasValue = true;
       });
       if (hasValue) out.push(lead);
     }
     return out;
-  }, [rows, mapping]);
+  }, [rows, mapping, headers]);
 
   const validCount = React.useMemo(
     () => (hasIdentity ? buildPayload().length : 0),
@@ -283,9 +289,10 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
                     <select
                       className="bg-card border border-border rounded-md px-2 py-1.5 text-sm w-40 shrink-0"
                       value={mapping[i] ?? ""}
-                      onChange={(e) => setMapping((prev) => prev.map((m, j) => (j === i ? (e.target.value as ImportTargetField | "") : m)))}
+                      onChange={(e) => setMapping((prev) => prev.map((m, j) => (j === i ? (e.target.value as ImportTargetField | "" | "__skip") : m)))}
                     >
-                      <option value="">{t("import.ignore")}</option>
+                      <option value="">{t("import.keepResponse", { defaultValue: "Keep as form response" })}</option>
+                      <option value="__skip">{t("import.skipColumn", { defaultValue: "Skip this column" })}</option>
                       {IMPORT_TARGET_FIELDS.map((f) => (
                         <option key={f} value={f}
                           disabled={f !== mapping[i] && mappedFields.has(f)}>
