@@ -39,6 +39,9 @@ public sealed class RecurringInvoice
     /// <summary>Copied onto every generated invoice's "Bill To".</summary>
     public string?   CustomerAddress    { get; private set; }
     public string?   CustomerTrn        { get; private set; }
+    public string?   PaymentMethod  { get; private set; }
+    public string?   PaymentLink    { get; private set; }
+    public string?   PaymentInstructions { get; private set; }
     public string    Frequency          { get; private set; } = "monthly";
     public DateTime  StartDate          { get; private set; }
     public DateTime? EndDate            { get; private set; }
@@ -116,6 +119,16 @@ public sealed class RecurringInvoice
             : string.Join(",", csv
                 .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Distinct(StringComparer.OrdinalIgnoreCase));
+
+    /// <summary>How this document is paid. null = the company bank details from settings; "bank" = same, explicitly; "stripe" / "other" = show the link and instructions instead of the bank.</summary>
+    public void SetPaymentDetails(string? method, string? link, string? instructions)
+    {
+        var m = string.IsNullOrWhiteSpace(method) ? null : method.Trim().ToLowerInvariant();
+        PaymentMethod       = m is "bank" or "stripe" or "other" ? m : null;
+        PaymentLink         = string.IsNullOrWhiteSpace(link) ? null : link.Trim();
+        PaymentInstructions = string.IsNullOrWhiteSpace(instructions) ? null : instructions.Trim();
+        UpdatedAt = DateTime.UtcNow;
+    }
 
     public void SetCustomerTaxDetails(string? address, string? trn)
     {

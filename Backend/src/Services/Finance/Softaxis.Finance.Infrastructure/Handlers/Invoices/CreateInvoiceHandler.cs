@@ -15,6 +15,7 @@ internal sealed class CreateInvoiceHandler(FinanceDbContext db) : ICommandHandle
             cmd.InvoiceDate, cmd.DueDate, cmd.TaxRate, cmd.Notes, cmd.CcEmails);
 
         invoice.SetCustomerTaxDetails(cmd.CustomerAddress, cmd.CustomerTrn);
+        invoice.SetPaymentDetails(cmd.PaymentMethod, cmd.PaymentLink, cmd.PaymentInstructions);
         invoice.SetScheduledSend(cmd.ScheduledSendDate);
         invoice.SetRemindBeforeDue(cmd.RemindBeforeDue);
 

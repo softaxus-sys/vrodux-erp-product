@@ -108,6 +108,10 @@ internal static class InvoicePdfBuilder
         });
     }
 
+    internal static bool HasCustomPayment(Invoice i) =>
+        i.PaymentMethod is not null
+        && (!string.IsNullOrWhiteSpace(i.PaymentLink) || !string.IsNullOrWhiteSpace(i.PaymentInstructions));
+
     private static void Header(IContainer c, Invoice invoice, InvoiceBranding brand, byte[]? logo) =>
         c.PaddingBottom(14).Row(row =>
         {
@@ -222,7 +226,19 @@ internal static class InvoicePdfBuilder
                 }
             });
 
-            if (brand.HasBankDetails)
+            if (HasCustomPayment(invoice))
+                col.Item().PaddingTop(16).Background("#f9fafb").Padding(10).Column(pay =>
+                {
+                    pay.Item().Text("PAYMENT DETAILS").FontSize(7).Bold().FontColor("#9ca3af");
+                    if (!string.IsNullOrWhiteSpace(invoice.PaymentInstructions))
+                        pay.Item().PaddingTop(4).Text(invoice.PaymentInstructions!).FontSize(8).SemiBold();
+                    if (!string.IsNullOrWhiteSpace(invoice.PaymentLink))
+                        pay.Item().PaddingTop(4).Text($"Pay online: {invoice.PaymentLink}").FontSize(8).FontColor("#2563eb");
+                    pay.Item().PaddingTop(6)
+                        .Text($"Please quote invoice {invoice.InvoiceNumber} as the payment reference.")
+                        .FontSize(7).Italic().FontColor("#6b7280");
+                });
+            else if (brand.HasBankDetails)
                 col.Item().PaddingTop(16).Background("#f9fafb").Padding(10).Column(bank =>
                 {
                     bank.Item().Text("PAYMENT DETAILS").FontSize(7).Bold().FontColor("#9ca3af");

@@ -12,5 +12,5 @@ internal static class InvoiceMappings
         x.ScheduledSendDate, x.RemindBeforeDue, x.LastReminderSentAt,
         x.Items.Select(i => new InvoiceItemDto(i.Id, i.Description, i.Quantity, i.UnitPrice, i.LineTotal, i.TaxCategory, i.UnitCode, i.ExemptionReason)).ToList(),
         x.PaidAt, x.CreatedAt, x.UpdatedAt,
-        x.CustomerAddress, x.CustomerTrn);
+        x.CustomerAddress, x.CustomerTrn, x.PaymentMethod, x.PaymentLink, x.PaymentInstructions);
 }

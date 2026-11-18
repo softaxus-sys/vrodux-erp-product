@@ -1,3 +1,4 @@
+import { PaymentDetailsFields, EMPTY_PAYMENT } from "@/modules/finance/invoicing/components/payment-details-fields";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
@@ -220,6 +221,7 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
   const [customerEmail, setCustomerEmail] = React.useState("");
   const [customerAddress, setCustomerAddress] = React.useState("");
   const [customerTrn, setCustomerTrn] = React.useState("");
+  const [pay, setPay] = React.useState(EMPTY_PAYMENT);
   const [frequency, setFrequency] = React.useState<RecurrenceFrequency>("monthly");
   const [startDate, setStartDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [endDate, setEndDate] = React.useState("");
@@ -239,6 +241,7 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
       setDueDays(editing.dueDays); setTaxRate(editing.taxRate); setNotes(editing.notes ?? "");
       setCcEmails(editing.ccEmails ?? ""); setAutoSend(editing.autoSend ?? true);
       setCustomerAddress(editing.customerAddress ?? ""); setCustomerTrn(editing.customerTrn ?? "");
+      setPay({ method: editing.paymentMethod ?? "", link: editing.paymentLink ?? "", instructions: editing.paymentInstructions ?? "" });
       setLines(editing.lines.length ? editing.lines.map(l => ({ id: l.id, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice }))
                                     : [{ id: "1", description: "", quantity: 1, unitPrice: 0 }]);
     } else {
@@ -265,6 +268,7 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
       autoSend,
       customerAddress: customerAddress.trim() || null,
       customerTrn: customerTrn.trim() || null,
+      paymentMethod: pay.method || null, paymentLink: pay.method ? (pay.link.trim() || null) : null, paymentInstructions: pay.method ? (pay.instructions.trim() || null) : null,
     };
     if (isEdit && editing) update.mutate({ id: editing.id, data: payload }, { onSuccess: onClose });
     else create.mutate(payload, { onSuccess: onClose });
@@ -296,6 +300,7 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring" /></div>
               <div className="space-y-1.5"><Label>{t("recurring.form.customerTrn", { defaultValue: "Customer TRN#" })}</Label>
                 <Input value={customerTrn} onChange={e => setCustomerTrn(e.target.value)} placeholder="e.g. 100123456700003" /></div>
+              <div className="col-span-full"><PaymentDetailsFields value={pay} onChange={setPay} /></div>
               <div className="space-y-1.5"><Label>{t("recurring.form.frequency")}</Label>
                 <select value={frequency} onChange={e => setFrequency(e.target.value as RecurrenceFrequency)}
                   className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">

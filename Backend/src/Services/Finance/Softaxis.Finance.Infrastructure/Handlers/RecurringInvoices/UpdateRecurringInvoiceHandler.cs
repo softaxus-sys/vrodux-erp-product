@@ -19,6 +19,7 @@ internal sealed class UpdateRecurringInvoiceHandler(FinanceDbContext db) : IComm
             RecurringInvoiceMappings.ParseNullableDate(cmd.EndDate), cmd.DueDays, cmd.TaxRate, cmd.Notes,
             cmd.CcEmails, cmd.AutoSend);
         r.SetCustomerTaxDetails(cmd.CustomerAddress, cmd.CustomerTrn);
+        r.SetPaymentDetails(cmd.PaymentMethod, cmd.PaymentLink, cmd.PaymentInstructions);
 
         db.RecurringInvoiceLines.RemoveRange(r.Lines);
         r.Lines.Clear();

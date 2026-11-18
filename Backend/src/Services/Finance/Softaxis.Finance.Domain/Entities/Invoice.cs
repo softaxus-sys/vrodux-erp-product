@@ -37,6 +37,10 @@ public sealed class Invoice
     public string?   CustomerAddress { get; private set; }
     /// <summary>Buyer's tax registration number (TRN#) — required on a UAE tax invoice when the buyer is VAT-registered.</summary>
     public string?   CustomerTrn   { get; private set; }
+    /// <summary>bank | stripe | other. Null = use the company bank details.</summary>
+    public string?   PaymentMethod  { get; private set; }
+    public string?   PaymentLink    { get; private set; }
+    public string?   PaymentInstructions { get; private set; }
     public string    InvoiceDate   { get; private set; } = string.Empty;
     public string    DueDate       { get; private set; } = string.Empty;
     public decimal   TaxRate       { get; private set; }
@@ -231,6 +235,16 @@ public sealed class Invoice
     public void SetCurrencyCode(string currencyCode) { CurrencyCode = currencyCode.Trim().ToUpperInvariant(); UpdatedAt = DateTime.UtcNow; }
 
     public void SetCustomerId(Guid? customerId) { CustomerId = customerId; UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>How this document is paid. null = the company bank details from settings; "bank" = same, explicitly; "stripe" / "other" = show the link and instructions instead of the bank.</summary>
+    public void SetPaymentDetails(string? method, string? link, string? instructions)
+    {
+        var m = string.IsNullOrWhiteSpace(method) ? null : method.Trim().ToLowerInvariant();
+        PaymentMethod       = m is "bank" or "stripe" or "other" ? m : null;
+        PaymentLink         = string.IsNullOrWhiteSpace(link) ? null : link.Trim();
+        PaymentInstructions = string.IsNullOrWhiteSpace(instructions) ? null : instructions.Trim();
+        UpdatedAt = DateTime.UtcNow;
+    }
 
     public void SetCustomerTaxDetails(string? address, string? trn)
     {

@@ -149,6 +149,7 @@ export function printInvoice(inv: InvoiceDetailDto, branding?: Partial<CompanyBr
       <div class="row"><span>Tax (${inv.taxRate}%)</span><span>${esc(formatCurrency(inv.taxAmount, CUR))}</span></div>
       <div class="row grand"><span>Total</span><span>${esc(formatCurrency(inv.total, CUR))}</span></div>
     </div>
+    ${inv.paymentMethod && (inv.paymentInstructions?.trim() || inv.paymentLink?.trim()) ? `<div class="notes"><strong>Payment details:</strong>${inv.paymentInstructions?.trim() ? `<div style="white-space:pre-line">${esc(inv.paymentInstructions.trim())}</div>` : ""}${inv.paymentLink?.trim() ? `<div>Pay online: ${esc(inv.paymentLink.trim())}</div>` : ""}</div>` : ""}
     ${inv.notes ? `<div class="notes"><strong>Notes:</strong> ${esc(inv.notes)}</div>` : ""}
     ${signOff}
   </body></html>`);

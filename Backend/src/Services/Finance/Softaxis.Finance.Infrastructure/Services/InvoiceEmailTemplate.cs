@@ -86,7 +86,17 @@ internal static class InvoiceEmailTemplate
             BankRow("SWIFT / BIC",    brand.BankSwift),
             BankRow("Branch",         brand.BankBranch));
 
-        var bankBlock = !brand.HasBankDetails ? string.Empty : $@"
+        var customBlock = !InvoicePdfBuilder.HasCustomPayment(invoice) ? string.Empty : $@"
+      <div style=""margin-top:22px;background:#f9fafb;border:1px solid #f1f5f9;border-radius:8px;padding:14px"">
+        <p style=""margin:0 0 8px;font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:.06em"">PAYMENT DETAILS</p>
+        {(string.IsNullOrWhiteSpace(invoice.PaymentInstructions) ? string.Empty : $@"<p style=""margin:0 0 8px;font-size:13px;color:#111827;font-weight:600;white-space:pre-line"">{E(invoice.PaymentInstructions!)}</p>")}
+        {(string.IsNullOrWhiteSpace(invoice.PaymentLink) ? string.Empty : $@"<p style=""margin:0 0 8px;font-size:13px""><a href=""{E(invoice.PaymentLink!)}"" style=""color:#2563eb;font-weight:600"">Pay online</a></p>")}
+        <p style=""margin:10px 0 0;font-size:11px;color:#6b7280;font-style:italic"">
+          Please quote invoice {E(invoice.InvoiceNumber)} as the payment reference.
+        </p>
+      </div>";
+
+        var bankBlock = InvoicePdfBuilder.HasCustomPayment(invoice) ? customBlock : !brand.HasBankDetails ? string.Empty : $@"
       <div style=""margin-top:22px;background:#f9fafb;border:1px solid #f1f5f9;border-radius:8px;padding:14px"">
         <p style=""margin:0 0 8px;font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:.06em"">PAYMENT DETAILS</p>
         <table style=""width:100%;border-collapse:collapse;font-size:13px"">{bankRows}</table>

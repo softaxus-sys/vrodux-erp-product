@@ -1,3 +1,4 @@
+import { PaymentDetailsFields, EMPTY_PAYMENT } from "@/modules/finance/invoicing/components/payment-details-fields";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
@@ -96,6 +97,7 @@ function EditInvoice({
   const [customerEmail, setCustomerEmail] = React.useState(invoice.customerEmail ?? "");
   const [customerAddress, setCustomerAddress] = React.useState("");
   const [customerTrn, setCustomerTrn] = React.useState("");
+  const [pay, setPay] = React.useState(EMPTY_PAYMENT);
   const customers = useCustomerAutofill();
   const [ccEmails, setCcEmails] = React.useState(invoice.ccEmails ?? "");
   const [scheduledSendDate, setScheduledSendDate] = React.useState(invoice.scheduledSendDate ?? "");
@@ -114,6 +116,7 @@ function EditInvoice({
     setNotes(detail.notes ?? "");
     setCustomerAddress(detail.customerAddress ?? "");
     setCustomerTrn(detail.customerTrn ?? "");
+    setPay({ method: detail.paymentMethod ?? "", link: detail.paymentLink ?? "", instructions: detail.paymentInstructions ?? "" });
     setItems(
       detail.items.length > 0
         ? detail.items.map(i => ({
@@ -150,6 +153,7 @@ function EditInvoice({
           ccEmails:      ccEmails.trim() || undefined,
           customerAddress: customerAddress.trim() || null,
           customerTrn:     customerTrn.trim() || null,
+          paymentMethod: pay.method || null, paymentLink: pay.method ? (pay.link.trim() || null) : null, paymentInstructions: pay.method ? (pay.instructions.trim() || null) : null,
           scheduledSendDate: scheduledSendDate || null,
           remindBeforeDue,
           invoiceDate,
@@ -232,6 +236,7 @@ function EditInvoice({
             <Label>{t("invoicing.drawer.form.customerTrn", { defaultValue: "Customer TRN#" })}</Label>
             <Input value={customerTrn} onChange={e => setCustomerTrn(e.target.value)} placeholder="e.g. 100123456700003" />
           </div>
+          <PaymentDetailsFields value={pay} onChange={setPay} />
           <div className="col-span-2 space-y-1.5">
             <Label>{t("invoicing.drawer.form.ccEmails")}</Label>
             <Input value={ccEmails} onChange={e => setCcEmails(e.target.value)}
@@ -666,6 +671,7 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
   const [customerEmail, setCustomerEmail] = React.useState("");
   const [customerAddress, setCustomerAddress] = React.useState("");
   const [customerTrn, setCustomerTrn] = React.useState("");
+  const [pay, setPay] = React.useState(EMPTY_PAYMENT);
   const customers = useCustomerAutofill();
   const [ccEmails, setCcEmails] = React.useState("");
   const [scheduledSendDate, setScheduledSendDate] = React.useState("");
@@ -699,6 +705,7 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
         ccEmails:      ccEmails.trim() || undefined,
         customerAddress: customerAddress.trim() || null,
         customerTrn:     customerTrn.trim() || null,
+          paymentMethod: pay.method || null, paymentLink: pay.method ? (pay.link.trim() || null) : null, paymentInstructions: pay.method ? (pay.instructions.trim() || null) : null,
         scheduledSendDate: scheduledSendDate || null,
         remindBeforeDue,
         invoiceDate,
@@ -764,6 +771,7 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
             <Label>{t("invoicing.drawer.form.customerTrn", { defaultValue: "Customer TRN#" })}</Label>
             <Input value={customerTrn} onChange={e => setCustomerTrn(e.target.value)} placeholder="e.g. 100123456700003" />
           </div>
+          <PaymentDetailsFields value={pay} onChange={setPay} />
           <div className="col-span-2 space-y-1.5">
             <Label>{t("invoicing.drawer.form.ccEmails")}</Label>
             <Input value={ccEmails} onChange={e => setCcEmails(e.target.value)}
