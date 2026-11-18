@@ -1,4 +1,5 @@
-import { PaymentDetailsFields, EMPTY_PAYMENT } from "@/modules/finance/invoicing/components/payment-details-fields";
+import { useAccounts } from "@/hooks/finance/use-finance";
+import { PaymentDetailsFields, EMPTY_PAYMENT, paymentPayload } from "@/modules/finance/invoicing/components/payment-details-fields";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
@@ -222,6 +223,7 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
   const [customerAddress, setCustomerAddress] = React.useState("");
   const [customerTrn, setCustomerTrn] = React.useState("");
   const [pay, setPay] = React.useState(EMPTY_PAYMENT);
+  const { data: payAccounts } = useAccounts({ isActive: true });
   const [frequency, setFrequency] = React.useState<RecurrenceFrequency>("monthly");
   const [startDate, setStartDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [endDate, setEndDate] = React.useState("");
@@ -241,7 +243,7 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
       setDueDays(editing.dueDays); setTaxRate(editing.taxRate); setNotes(editing.notes ?? "");
       setCcEmails(editing.ccEmails ?? ""); setAutoSend(editing.autoSend ?? true);
       setCustomerAddress(editing.customerAddress ?? ""); setCustomerTrn(editing.customerTrn ?? "");
-      setPay({ method: editing.paymentMethod ?? "", link: editing.paymentLink ?? "", instructions: editing.paymentInstructions ?? "" });
+      setPay({ account: editing.paymentAccountNumber ?? "", link: editing.paymentLink ?? "", instructions: editing.paymentInstructions ?? "" });
       setLines(editing.lines.length ? editing.lines.map(l => ({ id: l.id, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice }))
                                     : [{ id: "1", description: "", quantity: 1, unitPrice: 0 }]);
     } else {
@@ -268,7 +270,7 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
       autoSend,
       customerAddress: customerAddress.trim() || null,
       customerTrn: customerTrn.trim() || null,
-      paymentMethod: pay.method || null, paymentLink: pay.method ? (pay.link.trim() || null) : null, paymentInstructions: pay.method ? (pay.instructions.trim() || null) : null,
+      ...paymentPayload(pay, payAccounts),
     };
     if (isEdit && editing) update.mutate({ id: editing.id, data: payload }, { onSuccess: onClose });
     else create.mutate(payload, { onSuccess: onClose });

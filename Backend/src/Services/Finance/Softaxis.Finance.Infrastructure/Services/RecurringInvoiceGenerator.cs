@@ -85,7 +85,7 @@ public static class RecurringInvoiceGenerator
 
         var invoice = new Invoice(template.CustomerName, template.CustomerEmail, invoiceDate, dueDate, template.TaxRate, note);
         invoice.SetCustomerTaxDetails(template.CustomerAddress, template.CustomerTrn);
-        invoice.SetPaymentDetails(template.PaymentMethod, template.PaymentLink, template.PaymentInstructions);
+        invoice.SetPaymentDetails(template.PaymentMethod, template.PaymentLink, template.PaymentInstructions, template.PaymentAccountNumber);
         foreach (var l in template.Lines)
             invoice.Items.Add(new InvoiceItem(invoice.Id, l.Description, l.Quantity, l.UnitPrice));
 

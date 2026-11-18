@@ -16,7 +16,7 @@ public sealed record CreateInvoiceCommand(
     /// <summary>Buyer billing address (multi-line) and TRN#, printed under "Bill To".</summary>
     string? CustomerAddress = null,
     string? CustomerTrn = null,
-    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null) : ICommand<InvoiceDto>;
+    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null) : ICommand<InvoiceDto>;
 
 public sealed class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
 {
@@ -49,7 +49,7 @@ public sealed record UpdateInvoiceCommand(
     bool RemindBeforeDue = true,
     string? CustomerAddress = null,
     string? CustomerTrn = null,
-    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null) : ICommand;
+    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null) : ICommand;
 
 public sealed class UpdateInvoiceValidator : AbstractValidator<UpdateInvoiceCommand>
 {

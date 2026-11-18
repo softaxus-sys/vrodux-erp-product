@@ -40,6 +40,7 @@ public sealed class Invoice
     /// <summary>bank | stripe | other. Null = use the company bank details.</summary>
     public string?   PaymentMethod  { get; private set; }
     public string?   PaymentLink    { get; private set; }
+    public string?   PaymentAccountNumber { get; private set; }
     public string?   PaymentInstructions { get; private set; }
     public string    InvoiceDate   { get; private set; } = string.Empty;
     public string    DueDate       { get; private set; } = string.Empty;
@@ -237,12 +238,13 @@ public sealed class Invoice
     public void SetCustomerId(Guid? customerId) { CustomerId = customerId; UpdatedAt = DateTime.UtcNow; }
 
     /// <summary>How this document is paid. null = the company bank details from settings; "bank" = same, explicitly; "stripe" / "other" = show the link and instructions instead of the bank.</summary>
-    public void SetPaymentDetails(string? method, string? link, string? instructions)
+    public void SetPaymentDetails(string? method, string? link, string? instructions, string? accountNumber = null)
     {
         var m = string.IsNullOrWhiteSpace(method) ? null : method.Trim().ToLowerInvariant();
-        PaymentMethod       = m is "bank" or "stripe" or "other" ? m : null;
+        PaymentMethod       = m is "bank" or "stripe" or "paypal" or "payoneer" or "other" ? m : null;
         PaymentLink         = string.IsNullOrWhiteSpace(link) ? null : link.Trim();
         PaymentInstructions = string.IsNullOrWhiteSpace(instructions) ? null : instructions.Trim();
+        PaymentAccountNumber = string.IsNullOrWhiteSpace(accountNumber) ? null : accountNumber.Trim();
         UpdatedAt = DateTime.UtcNow;
     }
 

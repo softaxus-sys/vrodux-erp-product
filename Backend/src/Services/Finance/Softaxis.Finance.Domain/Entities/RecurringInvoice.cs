@@ -41,6 +41,7 @@ public sealed class RecurringInvoice
     public string?   CustomerTrn        { get; private set; }
     public string?   PaymentMethod  { get; private set; }
     public string?   PaymentLink    { get; private set; }
+    public string?   PaymentAccountNumber { get; private set; }
     public string?   PaymentInstructions { get; private set; }
     public string    Frequency          { get; private set; } = "monthly";
     public DateTime  StartDate          { get; private set; }
@@ -121,12 +122,13 @@ public sealed class RecurringInvoice
                 .Distinct(StringComparer.OrdinalIgnoreCase));
 
     /// <summary>How this document is paid. null = the company bank details from settings; "bank" = same, explicitly; "stripe" / "other" = show the link and instructions instead of the bank.</summary>
-    public void SetPaymentDetails(string? method, string? link, string? instructions)
+    public void SetPaymentDetails(string? method, string? link, string? instructions, string? accountNumber = null)
     {
         var m = string.IsNullOrWhiteSpace(method) ? null : method.Trim().ToLowerInvariant();
-        PaymentMethod       = m is "bank" or "stripe" or "other" ? m : null;
+        PaymentMethod       = m is "bank" or "stripe" or "paypal" or "payoneer" or "other" ? m : null;
         PaymentLink         = string.IsNullOrWhiteSpace(link) ? null : link.Trim();
         PaymentInstructions = string.IsNullOrWhiteSpace(instructions) ? null : instructions.Trim();
+        PaymentAccountNumber = string.IsNullOrWhiteSpace(accountNumber) ? null : accountNumber.Trim();
         UpdatedAt = DateTime.UtcNow;
     }
 

@@ -1,4 +1,5 @@
-import { PaymentDetailsFields, EMPTY_PAYMENT } from "@/modules/finance/invoicing/components/payment-details-fields";
+import { useAccounts } from "@/hooks/finance/use-finance";
+import { PaymentDetailsFields, EMPTY_PAYMENT, paymentPayload } from "@/modules/finance/invoicing/components/payment-details-fields";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
@@ -98,6 +99,7 @@ function EditInvoice({
   const [customerAddress, setCustomerAddress] = React.useState("");
   const [customerTrn, setCustomerTrn] = React.useState("");
   const [pay, setPay] = React.useState(EMPTY_PAYMENT);
+  const { data: payAccounts } = useAccounts({ isActive: true });
   const customers = useCustomerAutofill();
   const [ccEmails, setCcEmails] = React.useState(invoice.ccEmails ?? "");
   const [scheduledSendDate, setScheduledSendDate] = React.useState(invoice.scheduledSendDate ?? "");
@@ -116,7 +118,7 @@ function EditInvoice({
     setNotes(detail.notes ?? "");
     setCustomerAddress(detail.customerAddress ?? "");
     setCustomerTrn(detail.customerTrn ?? "");
-    setPay({ method: detail.paymentMethod ?? "", link: detail.paymentLink ?? "", instructions: detail.paymentInstructions ?? "" });
+    setPay({ account: detail.paymentAccountNumber ?? "", link: detail.paymentLink ?? "", instructions: detail.paymentInstructions ?? "" });
     setItems(
       detail.items.length > 0
         ? detail.items.map(i => ({
@@ -153,7 +155,7 @@ function EditInvoice({
           ccEmails:      ccEmails.trim() || undefined,
           customerAddress: customerAddress.trim() || null,
           customerTrn:     customerTrn.trim() || null,
-          paymentMethod: pay.method || null, paymentLink: pay.method ? (pay.link.trim() || null) : null, paymentInstructions: pay.method ? (pay.instructions.trim() || null) : null,
+          ...paymentPayload(pay, payAccounts),
           scheduledSendDate: scheduledSendDate || null,
           remindBeforeDue,
           invoiceDate,
@@ -672,6 +674,7 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
   const [customerAddress, setCustomerAddress] = React.useState("");
   const [customerTrn, setCustomerTrn] = React.useState("");
   const [pay, setPay] = React.useState(EMPTY_PAYMENT);
+  const { data: payAccounts } = useAccounts({ isActive: true });
   const customers = useCustomerAutofill();
   const [ccEmails, setCcEmails] = React.useState("");
   const [scheduledSendDate, setScheduledSendDate] = React.useState("");
@@ -705,7 +708,7 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
         ccEmails:      ccEmails.trim() || undefined,
         customerAddress: customerAddress.trim() || null,
         customerTrn:     customerTrn.trim() || null,
-          paymentMethod: pay.method || null, paymentLink: pay.method ? (pay.link.trim() || null) : null, paymentInstructions: pay.method ? (pay.instructions.trim() || null) : null,
+          ...paymentPayload(pay, payAccounts),
         scheduledSendDate: scheduledSendDate || null,
         remindBeforeDue,
         invoiceDate,

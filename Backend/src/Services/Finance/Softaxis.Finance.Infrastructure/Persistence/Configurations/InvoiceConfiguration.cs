@@ -21,6 +21,7 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(x => x.PaymentMethod).HasMaxLength(20);
         builder.Property(x => x.PaymentLink).HasMaxLength(1000);
         builder.Property(x => x.PaymentInstructions).HasMaxLength(2000);
+        builder.Property(x => x.PaymentAccountNumber).HasMaxLength(30);
         builder.Property(x => x.InvoiceDate).IsRequired().HasMaxLength(20);
         builder.Property(x => x.DueDate).IsRequired().HasMaxLength(20);
         builder.Property(x => x.TaxRate).HasPrecision(5, 2);

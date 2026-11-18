@@ -20,6 +20,7 @@ internal sealed class RecurringInvoiceConfiguration : IEntityTypeConfiguration<R
         b.Property(x => x.PaymentMethod).HasMaxLength(20);
         b.Property(x => x.PaymentLink).HasMaxLength(1000);
         b.Property(x => x.PaymentInstructions).HasMaxLength(2000);
+        b.Property(x => x.PaymentAccountNumber).HasMaxLength(30);
         b.Property(x => x.Frequency).IsRequired().HasMaxLength(20);
         b.Property(x => x.TaxRate).HasPrecision(9, 4);
         b.Property(x => x.Notes).HasMaxLength(1000);

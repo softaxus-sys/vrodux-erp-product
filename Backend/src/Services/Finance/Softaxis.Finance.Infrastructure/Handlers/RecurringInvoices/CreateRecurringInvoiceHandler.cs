@@ -15,7 +15,7 @@ internal sealed class CreateRecurringInvoiceHandler(FinanceDbContext db) : IComm
             cmd.Frequency, RecurringInvoiceMappings.ParseDate(cmd.StartDate), RecurringInvoiceMappings.ParseNullableDate(cmd.EndDate),
             cmd.DueDays, cmd.TaxRate, cmd.Notes, cmd.CcEmails, cmd.AutoSend);
         r.SetCustomerTaxDetails(cmd.CustomerAddress, cmd.CustomerTrn);
-        r.SetPaymentDetails(cmd.PaymentMethod, cmd.PaymentLink, cmd.PaymentInstructions);
+        r.SetPaymentDetails(cmd.PaymentMethod, cmd.PaymentLink, cmd.PaymentInstructions, cmd.PaymentAccountNumber);
 
         foreach (var l in cmd.Lines)
             r.Lines.Add(new RecurringInvoiceLine(r.Id, l.Description, l.Quantity, l.UnitPrice));

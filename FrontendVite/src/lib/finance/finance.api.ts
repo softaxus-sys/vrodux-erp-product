@@ -104,6 +104,7 @@ export interface InvoiceDetailDto {
   /** Buyer billing address (multi-line) and TRN#, printed under "Bill To". */
   customerAddress?: string | null;
   customerTrn?: string | null;
+  paymentAccountNumber?: string | null;
   paymentMethod?: string | null;
   paymentLink?: string | null;
   paymentInstructions?: string | null;
@@ -730,6 +731,7 @@ export interface CreateInvoiceRequest {
   remindBeforeDue?: boolean;
   customerAddress?: string | null;
   customerTrn?: string | null;
+  paymentAccountNumber?: string | null;
   paymentMethod?: string | null;
   paymentLink?: string | null;
   paymentInstructions?: string | null;
@@ -748,6 +750,7 @@ export interface UpdateInvoiceRequest {
   remindBeforeDue?: boolean;
   customerAddress?: string | null;
   customerTrn?: string | null;
+  paymentAccountNumber?: string | null;
   paymentMethod?: string | null;
   paymentLink?: string | null;
   paymentInstructions?: string | null;
@@ -765,6 +768,7 @@ export interface CreateExpenseRequest {
   amount: number;
   expenseDate: string;
   paidBy?: string | null;
+  paymentAccountNumber?: string | null;
   paymentMethod?: string | null;
   reference?: string | null;
   notes?: string | null;
@@ -872,6 +876,7 @@ export interface RecurringInvoiceDto {
   autoSend: boolean;
   customerAddress?: string | null;
   customerTrn?: string | null;
+  paymentAccountNumber?: string | null;
   paymentMethod?: string | null;
   paymentLink?: string | null;
   paymentInstructions?: string | null;
@@ -902,6 +907,7 @@ export interface UpsertRecurringRequest {
   autoSend?: boolean;
   customerAddress?: string | null;
   customerTrn?: string | null;
+  paymentAccountNumber?: string | null;
   paymentMethod?: string | null;
   paymentLink?: string | null;
   paymentInstructions?: string | null;

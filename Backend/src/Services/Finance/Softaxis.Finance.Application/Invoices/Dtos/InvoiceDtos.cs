@@ -73,7 +73,7 @@ public sealed record InvoiceDto(
     DateTime? UpdatedAt,
     string?   CustomerAddress = null,
     string?   CustomerTrn = null,
-    string?   PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null);
+    string?   PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null);
 
 public sealed record InvoicesSummaryDto(
     int     TotalInvoices,

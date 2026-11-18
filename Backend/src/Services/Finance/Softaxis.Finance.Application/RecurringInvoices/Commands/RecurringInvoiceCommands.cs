@@ -12,7 +12,7 @@ public sealed record CreateRecurringInvoiceCommand(
     // a draft for someone to review and send by hand.
     string? CcEmails = null, bool AutoSend = true,
     string? CustomerAddress = null, string? CustomerTrn = null,
-    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null) : ICommand<RecurringDto>;
+    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null) : ICommand<RecurringDto>;
 
 public sealed class CreateRecurringInvoiceValidator : AbstractValidator<CreateRecurringInvoiceCommand>
 {
@@ -32,7 +32,7 @@ public sealed record UpdateRecurringInvoiceCommand(
     IReadOnlyList<LineRequest> Lines,
     string? CcEmails = null, bool AutoSend = true,
     string? CustomerAddress = null, string? CustomerTrn = null,
-    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null) : ICommand;
+    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null) : ICommand;
 
 public sealed class UpdateRecurringInvoiceValidator : AbstractValidator<UpdateRecurringInvoiceCommand>
 {

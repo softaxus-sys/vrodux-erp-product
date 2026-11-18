@@ -59,7 +59,20 @@ internal sealed class MarkInvoicePaidHandler(
 
         // No payment method is captured on this command, so settle to the bank account —
         // ResolveCashAccount(null) returns Bank. A receipt voucher is the route for cash-in-hand.
+        // An invoice collected through an online processor lands in that processor's balance account
+        // (not the bank) until it is paid out, so the bank reconciliation still matches. Falls back to
+        // Bank if the workspace has not created the account.
         var cashAccount = GlPoster.ResolveCashAccount(null);
+        var processorAccount = invoice.PaymentAccountNumber ?? invoice.PaymentMethod switch
+        {
+            "stripe"   => "1020",
+            "paypal"   => "1021",
+            "payoneer" => "1022",
+            _          => null,
+        };
+        if (processorAccount is not null &&
+            await db.Accounts.AsNoTracking().AnyAsync(a => a.AccountNumber == processorAccount && !a.IsDeleted, ct))
+            cashAccount = processorAccount;
 
         // AR was raised at the invoice-date rate, so relieve it at that same rate; the cash leg is
         // valued at today's rate. Any difference is a realised FX gain/loss, mirroring

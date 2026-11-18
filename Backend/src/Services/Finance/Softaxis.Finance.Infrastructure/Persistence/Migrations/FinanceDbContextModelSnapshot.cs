@@ -1208,6 +1208,10 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("PaidAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("PaymentAccountNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<string>("PaymentInstructions")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -2082,6 +2086,10 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("PaymentAccountNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("PaymentInstructions")
                         .HasMaxLength(2000)

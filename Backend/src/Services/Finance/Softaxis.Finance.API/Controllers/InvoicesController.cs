@@ -77,7 +77,7 @@ public sealed class InvoicesController(ISender sender) : FinanceControllerBase
         bool RemindBeforeDue = true,
         string? CustomerAddress = null,
         string? CustomerTrn = null,
-        string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null);
+        string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null);
 
     [HttpPut("{id:guid}")]
     [RequirePermission("finance.invoicing.edit")]
@@ -85,7 +85,7 @@ public sealed class InvoicesController(ISender sender) : FinanceControllerBase
     {
         var result = await sender.Send(new UpdateInvoiceCommand(id, req.CustomerName, req.CustomerEmail,
             req.InvoiceDate, req.DueDate, req.TaxRate, req.Notes, req.Status, req.Items, req.CcEmails,
-            req.ScheduledSendDate, req.RemindBeforeDue, req.CustomerAddress, req.CustomerTrn, req.PaymentMethod, req.PaymentLink, req.PaymentInstructions), ct);
+            req.ScheduledSendDate, req.RemindBeforeDue, req.CustomerAddress, req.CustomerTrn, req.PaymentMethod, req.PaymentLink, req.PaymentInstructions, req.PaymentAccountNumber), ct);
         return NoContentOrError(result);
     }
 
