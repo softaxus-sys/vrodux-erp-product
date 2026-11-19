@@ -53,6 +53,7 @@ public static class ModuleRoleCatalogue
             ["library"]            = "Library",
             ["fitness"]            = "Fitness & Gym",
             ["farming"]            = "Farm",
+            ["workflow"]           = "Approvals",
             ["trade"]              = "Trade",
             ["ecommerce"]          = "E-commerce",
             ["leadgen"]            = "Lead Generation",
@@ -236,6 +237,45 @@ public static class ModuleRoleCatalogue
                 new("Employee (Self-Service)",
                     "See your own employee record, apply for leave, mark attendance and download your payslips.",
                     (m, _) => string.Equals(m, "hr.self", StringComparison.OrdinalIgnoreCase)),
+            ];
+
+        // ── Approvals & Workflows: one role per part in an approval chain ───
+        // Whoever approves a request needs to raise their own too, but must not be able to rewire the
+        // approval chains — so administration is its own role and the Approver role holds none of it.
+        if (string.Equals(module, "workflow", StringComparison.OrdinalIgnoreCase))
+            return
+            [
+                new($"{label} Administrator",
+                    "Sets up locations, units, forms, approval chains, positions and the employee directory, and reads the audit log.",
+                    (m, _) => InModule(m, "workflow")),
+
+                new($"{label} Approver",
+                    "Raises requests, approves or rejects what is waiting for them, and files reconciliation documents.",
+                    (m, a) => m switch
+                    {
+                        "workflow.requests"   => a is "view" or "create",
+                        "workflow.approvals"  => a is "view" or "approve",
+                        "workflow.repository" => a is "view" or "create",
+                        _                     => false,
+                    }),
+
+                new($"{label} Requester",
+                    "Raises requests and follows their status. Cannot approve.",
+                    (m, a) => m switch
+                    {
+                        "workflow.requests"   => a is "view" or "create",
+                        "workflow.repository" => a == "view",
+                        _                     => false,
+                    }),
+
+                new($"{label} Auditor",
+                    "Read-only: every request, the audit log and the document repository.",
+                    (m, a) => m switch
+                    {
+                        "workflow.requests" or "workflow.approvals" or "workflow.repository" => a == "view",
+                        "workflow.audit"                                                      => true,
+                        _                                                                     => false,
+                    }),
             ];
 
         // ── Everything else: manager + day-to-day staff ─────────────────────

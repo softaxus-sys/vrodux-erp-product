@@ -32,6 +32,8 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     public DbSet<BillingWebhookEvent> BillingWebhookEvents => Set<BillingWebhookEvent>();
     /// <summary>Single-row platform billing config (no secrets — those stay in env).</summary>
     public DbSet<BillingSettings>     BillingSettings      => Set<BillingSettings>();
+    /// <summary>Each workspace's own Microsoft Entra ID app for staff sign-in (secret encrypted).</summary>
+    public DbSet<TenantSsoSettings>   TenantSsoSettings    => Set<TenantSsoSettings>();
     /// <summary>Single-row credit price list and purchase rules (what a credit costs, tiers, min/max order).</summary>
     public DbSet<CreditPricingSettings> CreditPricing      => Set<CreditPricingSettings>();
     /// <summary>Every purchase of module credits, written before the customer is sent to pay.</summary>

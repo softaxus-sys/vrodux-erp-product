@@ -50,6 +50,9 @@ public static class ModuleCodes
     // ── Farming (dairy, poultry, fish, goat/sheep, cattle, crops, beekeeping) ─
     public const string Farming = "farming";
 
+    // ── Approvals & Workflows (request forms, approval chains, decision PDFs, audit log) ─
+    public const string Workflow = "workflow";
+
     // ── Import / Export (trade) ──────────────────────────────────────────────
     public const string Trade = "trade";
 

@@ -68,6 +68,13 @@ public static class InfrastructureExtensions
         // untouched and still come only from env. Consumers MUST use IOptionsSnapshot, not
         // IOptions, or they would freeze the config at first resolution.
         services.AddScoped<IBillingSettingsStore, BillingSettingsStore>();
+
+        // Microsoft 365 sign-in. The pending-state store must be a singleton: it holds the PKCE verifier
+        // between the redirect out and the redirect back.
+        services.AddSingleton<Softaxis.Identity.Infrastructure.Sso.SsoPendingStore>();
+        services.AddSingleton<Softaxis.Identity.Infrastructure.Sso.SsoSecretProtector>();
+        services.AddSingleton<Softaxis.Identity.Infrastructure.Sso.MicrosoftOidcClient>();
+        services.AddHttpClient("microsoft-sso");
         services.AddSingleton<IPostConfigureOptions<BillingOptions>, BillingOptionsDbOverlay>();
 
         services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();

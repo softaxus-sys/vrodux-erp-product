@@ -34,6 +34,7 @@ const MODULES: Record<string, ModuleMeta> = {
   visa:                 { label: "Visa",      icon: Stamp,            tone: "text-rose-600 bg-rose-500/10 dark:text-rose-300",        accent: "bg-rose-500" },
   manufacturing:                 { label: "Manufacturing",      icon: Factory,            tone: "text-zinc-600 bg-zinc-500/10 dark:text-zinc-300",        accent: "bg-zinc-500" },
   trade:                { label: "Import / Export", icon: Ship,         tone: "text-sky-600 bg-sky-500/10 dark:text-sky-300",           accent: "bg-sky-500" },
+  workflow:             { label: "Approvals", icon: Stamp,            tone: "text-purple-600 bg-purple-500/10 dark:text-purple-300",  accent: "bg-purple-500" },
   restaurant:           { label: "Restaurant",icon: UtensilsCrossed,  tone: "text-red-600 bg-red-500/10 dark:text-red-300",           accent: "bg-red-500" },
   pos:                  { label: "POS",       icon: ShoppingCart,     tone: "text-cyan-600 bg-cyan-500/10 dark:text-cyan-300",        accent: "bg-cyan-500" },
   support:              { label: "Support",   icon: Info,             tone: "text-slate-600 bg-slate-500/10 dark:text-slate-300",     accent: "bg-slate-500" },

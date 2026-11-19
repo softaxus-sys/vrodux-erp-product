@@ -37,6 +37,7 @@ public static class NotificationModuleAccess
             [NotificationModules.Manufacturing]     = ModuleCodes.Manufacturing,
             [NotificationModules.Trade]             = ModuleCodes.Trade,
             [NotificationModules.Fitness]           = ModuleCodes.Fitness,
+            [NotificationModules.Workflow]          = ModuleCodes.Workflow,
             [NotificationModules.LeadGen]           = ModuleCodes.LeadGen,
             [NotificationModules.Pos]               = ModuleCodes.Pos,
             [NotificationModules.Restaurant]        = ModuleCodes.Pos,

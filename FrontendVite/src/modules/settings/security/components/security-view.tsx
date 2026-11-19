@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { TwoFactorCard } from "./two-factor-card";
 import { LicenceCard } from "./licence-card";
+import { MicrosoftSignInCard } from "./microsoft-signin-card";
 
 export function SecurityView() {
   const { t } = useTranslation("settings");
@@ -15,6 +16,7 @@ export function SecurityView() {
       <div className="max-w-2xl space-y-6">
         <LicenceCard />
         <TwoFactorCard />
+        <MicrosoftSignInCard />
       </div>
     </div>
   );

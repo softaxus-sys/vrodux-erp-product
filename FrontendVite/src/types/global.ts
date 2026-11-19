@@ -153,6 +153,7 @@ export type ModuleKey =
   | "library"
   | "fitness"
   | "farming"
+  | "workflow"
   | "trade"
   | "leadgen"
   | "support"

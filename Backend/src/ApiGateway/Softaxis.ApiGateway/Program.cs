@@ -33,6 +33,7 @@ using Softaxis.Manufacturing.Infrastructure.Extensions;
 using Softaxis.Library.Infrastructure.Extensions;
 using Softaxis.Fitness.Infrastructure.Extensions;
 using Softaxis.Farming.Infrastructure.Extensions;
+using Softaxis.Workflow.Infrastructure.Extensions;
 using Softaxis.Fitness.Infrastructure.Extensions;
 using Softaxis.Trade.Infrastructure.Extensions;
 using Softaxis.Ecommerce.Infrastructure.Extensions;
@@ -170,6 +171,10 @@ try
     builder.Services.AddFitnessInfrastructure(builder.Configuration);
     // Farming: dairy, poultry, fish, goat/sheep, cattle, crops, beekeeping. Stands alone.
     builder.Services.AddFarmingInfrastructure(builder.Configuration);
+
+    // Approvals & Workflows: configurable request forms, approval chains per location, decision PDFs,
+    // audit log and a reconciliation document repository. Stands alone.
+    builder.Services.AddWorkflowInfrastructure(builder.Configuration);
     // Trade: import / export shipments, trade documents, landed cost. Stands alone.
     builder.Services.AddTradeInfrastructure(builder.Configuration);
     // E-commerce: connected online stores (Shopify), publishing Inventory listings, stock + order sync. Builds on Inventory.
@@ -253,6 +258,9 @@ try
     builder.Services.AddScoped<
         Softaxis.Farming.Application.ICurrentUser,
         Softaxis.Farming.API.Middleware.CurrentUserService>();
+    builder.Services.AddScoped<
+        Softaxis.Workflow.Application.ICurrentUser,
+        Softaxis.Workflow.API.Middleware.CurrentUserService>();
 
     // Trade.Application.Abstractions.ICurrentUser  →  Trade CurrentUserService (cost / payment visibility)
     builder.Services.AddScoped<
@@ -348,6 +356,7 @@ try
         .AddApplicationPart(typeof(Softaxis.Library.API.Controllers.CatalogueController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Fitness.API.Controllers.SetupController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Farming.API.Controllers.FarmSetupController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.Workflow.API.Controllers.WorkflowSetupController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Trade.API.Controllers.ShipmentsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Ecommerce.API.Controllers.ChannelsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Support.API.Controllers.SupportTicketsController).Assembly)
@@ -523,6 +532,7 @@ try
         await ForModule("library",            app.Services.MigrateAndSeedLibraryAsync);
         await ForModule("fitness",            app.Services.MigrateAndSeedFitnessAsync);
         await ForModule("farming",            app.Services.MigrateAndSeedFarmingAsync);
+        await ForModule("workflow",           app.Services.MigrateAndSeedWorkflowAsync);
         await ForModule("trade",              app.Services.MigrateAndSeedTradeAsync);
         await ForModule("ecommerce",          app.Services.MigrateAndSeedEcommerceAsync);
 
@@ -609,7 +619,7 @@ try
         Status  = "Healthy",
         Service = "Softaxis.ERP.Gateway",
         Time    = DateTime.UtcNow,
-        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Fitness", "Farming", "Trade", "Support", "Seo", "Calendar", "LeadGen" }
+        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Fitness", "Farming", "Workflow", "Trade", "Support", "Seo", "Calendar", "LeadGen" }
     })).AllowAnonymous();
 
     Log.Information("Vrodux ERP Gateway started on {Env}", app.Environment.EnvironmentName);

@@ -13,7 +13,7 @@ export type ModuleId =
   | "pos" | "inventory" | "sales" | "purchase"
   | "finance" | "hr" | "crm"
   | "restaurant" | "hospitality" | "real-estate" | "construction"
-  | "healthcare" | "education" | "visa" | "manufacturing" | "library" | "fitness" | "farming" | "trade"
+  | "healthcare" | "education" | "visa" | "manufacturing" | "library" | "fitness" | "farming" | "workflow" | "trade"
   | "ecommerce" | "project-management" | "insurance" | "b2b";
 
 export interface ModuleDef {
@@ -246,6 +246,19 @@ export const MODULES: ModuleDef[] = [
     // Stands alone: it keeps its own catalogue, members and branches.
     requires: [],
     recommends: ["finance"],
+    triggersBusinessType: false,
+    category: "industry",
+  },
+  {
+    id: "workflow",
+    label: "Approvals & Workflows",
+    description: "Request forms, approval chains by location, signed decision PDFs, audit log",
+    icon: Stamp,
+    color: "bg-violet-500/10",
+    iconColor: "text-violet-600",
+    // Stands alone: it keeps its own forms, approval chains, audit log and document repository.
+    requires: [],
+    recommends: ["hr", "finance"],
     triggersBusinessType: false,
     category: "industry",
   },

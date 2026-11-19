@@ -46,6 +46,17 @@ export const authApi = {
   refresh: (token: string): Promise<AuthTokenDto> =>
     post("/refresh", { token }),
 
+  /**
+   * Microsoft 365 sign-in, step 1. Asks whether this person's workspace uses it and, if so, where to
+   * send them. `enabled: false` is an ordinary answer, not an error.
+   */
+  microsoftStart: (email: string): Promise<{ enabled: boolean; url?: string | null }> =>
+    post("/microsoft/start", { email }),
+
+  /** Step 2: swaps the one-time code from the redirect for Vrodux tokens. */
+  microsoftExchange: (code: string): Promise<AuthTokenDto> =>
+    post("/microsoft/exchange", { code }),
+
   register: (
     firstName: string,
     lastName: string,

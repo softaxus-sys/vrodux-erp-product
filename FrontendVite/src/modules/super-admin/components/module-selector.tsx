@@ -41,6 +41,7 @@ export const ALL_MODULES: ModuleInfo[] = [
   { code: "manufacturing",       label: "Manufacturing",        desc: "Bills of materials, production orders (adds Inventory)" },
   { code: "ecommerce",           label: "E-commerce",            desc: "Sell Inventory products on Shopify and other stores (adds Inventory)" },
   { code: "library",             label: "Library",               desc: "Catalogue, members, lending and fines across branches"  },
+  { code: "workflow",            label: "Approvals & Workflows", desc: "Request forms, approval chains by location, decision PDFs, audit log" },
   { code: "farming",             label: "Farming",               desc: "Dairy, poultry, fish, goat/sheep, cattle, crops and beekeeping" },
   { code: "fitness",             label: "Fitness & Gym",         desc: "Members, memberships, check-in, classes and personal training" },
   { code: "trade",               label: "Import / Export",       desc: "Shipments, trade documents, landed cost, LC and payments" },
@@ -107,7 +108,7 @@ function ALL_MODULES_CODES(): string[] {
   return [
     "pos", "restaurant", "recipe", "inventory", "purchase", "sales", "crm", "finance", "hr",
     "reports", "project-management", "real-estate", "construction", "hospitality", "healthcare",
-    "education", "insurance", "b2b", "visa", "manufacturing", "ecommerce", "library", "fitness", "farming", "trade", "settings", "users",
+    "education", "insurance", "b2b", "visa", "manufacturing", "ecommerce", "library", "fitness", "farming", "workflow", "trade", "settings", "users",
   ];
 }
 
@@ -142,6 +143,7 @@ const CHIP_STYLE: Record<string, string> = {
   "manufacturing":      "bg-zinc-100    border-zinc-400    text-zinc-800    dark:bg-zinc-900/40    dark:border-zinc-500    dark:text-zinc-300",
   "ecommerce":          "bg-emerald-100 border-emerald-400 text-emerald-800 dark:bg-emerald-900/40 dark:border-emerald-600 dark:text-emerald-300",
   "library":            "bg-indigo-100  border-indigo-400  text-indigo-800  dark:bg-indigo-900/40  dark:border-indigo-600  dark:text-indigo-300",
+  "workflow":           "bg-violet-100  border-violet-400  text-violet-800  dark:bg-violet-900/40  dark:border-violet-600  dark:text-violet-300",
   "farming":            "bg-lime-100    border-lime-400    text-lime-800    dark:bg-lime-900/40    dark:border-lime-600    dark:text-lime-300",
   "fitness":            "bg-orange-100  border-orange-400  text-orange-800  dark:bg-orange-900/40  dark:border-orange-600  dark:text-orange-300",
   "trade":              "bg-sky-100     border-sky-400     text-sky-800     dark:bg-sky-900/40     dark:border-sky-600     dark:text-sky-300",

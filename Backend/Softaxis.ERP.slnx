@@ -123,6 +123,12 @@
     <Project Path="src/Services/Farming/Softaxis.Farming.Domain/Softaxis.Farming.Domain.csproj" />
     <Project Path="src/Services/Farming/Softaxis.Farming.Infrastructure/Softaxis.Farming.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/Workflow/">
+    <Project Path="src/Services/Workflow/Softaxis.Workflow.API/Softaxis.Workflow.API.csproj" />
+    <Project Path="src/Services/Workflow/Softaxis.Workflow.Application/Softaxis.Workflow.Application.csproj" />
+    <Project Path="src/Services/Workflow/Softaxis.Workflow.Domain/Softaxis.Workflow.Domain.csproj" />
+    <Project Path="src/Services/Workflow/Softaxis.Workflow.Infrastructure/Softaxis.Workflow.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/Library/">
     <Project Path="src/Services/Library/Softaxis.Library.API/Softaxis.Library.API.csproj" />
     <Project Path="src/Services/Library/Softaxis.Library.Application/Softaxis.Library.Application.csproj" />

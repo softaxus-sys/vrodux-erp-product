@@ -18,7 +18,7 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("identity")
-                .HasAnnotation("ProductVersion", "9.0.21")
+                .HasAnnotation("ProductVersion", "9.0.23")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -3353,6 +3353,104 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("71f9875c-f970-56f1-255c-4f9a58636f1e"),
+                            Action = "view",
+                            Description = "View workflow requests",
+                            ModuleId = "workflow.requests"
+                        },
+                        new
+                        {
+                            Id = new Guid("74c2041a-8b89-872e-1cce-5595db5c6b0e"),
+                            Action = "create",
+                            Description = "Create workflow requests",
+                            ModuleId = "workflow.requests"
+                        },
+                        new
+                        {
+                            Id = new Guid("6e80fecf-4827-ff00-9308-1083b0ee4a93"),
+                            Action = "edit",
+                            Description = "Edit workflow requests",
+                            ModuleId = "workflow.requests"
+                        },
+                        new
+                        {
+                            Id = new Guid("146902a2-82cb-890d-78a7-4f31a84a986c"),
+                            Action = "delete",
+                            Description = "Delete workflow requests",
+                            ModuleId = "workflow.requests"
+                        },
+                        new
+                        {
+                            Id = new Guid("311b0585-ddcc-721d-09a0-d2688dd2b05e"),
+                            Action = "view",
+                            Description = "View workflow approvals",
+                            ModuleId = "workflow.approvals"
+                        },
+                        new
+                        {
+                            Id = new Guid("1d031752-38fb-4ae7-8b4a-7d66c33a6457"),
+                            Action = "approve",
+                            Description = "Approve workflow approvals",
+                            ModuleId = "workflow.approvals"
+                        },
+                        new
+                        {
+                            Id = new Guid("eac2ed93-540d-c2dc-4c79-bbe44422c6bb"),
+                            Action = "edit",
+                            Description = "Edit workflow approvals",
+                            ModuleId = "workflow.approvals"
+                        },
+                        new
+                        {
+                            Id = new Guid("8aa48fa4-95c8-de4a-b256-995beafb6237"),
+                            Action = "view",
+                            Description = "View workflow repository",
+                            ModuleId = "workflow.repository"
+                        },
+                        new
+                        {
+                            Id = new Guid("2a650ef8-1c9d-f4e5-77b1-b8ead461c3ba"),
+                            Action = "create",
+                            Description = "Create workflow repository",
+                            ModuleId = "workflow.repository"
+                        },
+                        new
+                        {
+                            Id = new Guid("22c1c36c-47de-3bcd-e361-ee899d908fe0"),
+                            Action = "delete",
+                            Description = "Delete workflow repository",
+                            ModuleId = "workflow.repository"
+                        },
+                        new
+                        {
+                            Id = new Guid("f3319666-31a1-465b-a387-2bced8da00d4"),
+                            Action = "view",
+                            Description = "View workflow admin",
+                            ModuleId = "workflow.admin"
+                        },
+                        new
+                        {
+                            Id = new Guid("e25ba1cd-4793-4bf1-6222-a319d30deb86"),
+                            Action = "edit",
+                            Description = "Edit workflow admin",
+                            ModuleId = "workflow.admin"
+                        },
+                        new
+                        {
+                            Id = new Guid("263b9707-ff5a-88b1-7068-1088c82e0cdf"),
+                            Action = "view",
+                            Description = "View workflow audit",
+                            ModuleId = "workflow.audit"
+                        },
+                        new
+                        {
+                            Id = new Guid("7ad6937d-c729-99ff-0717-27843cd03746"),
+                            Action = "export",
+                            Description = "Export workflow audit",
+                            ModuleId = "workflow.audit"
+                        },
+                        new
+                        {
                             Id = new Guid("22db9567-d7df-dacf-e95a-5d231bb67bdc"),
                             Action = "view",
                             Description = "View trade shipments",
@@ -4839,6 +4937,44 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("tenants", "identity");
+                });
+
+            modelBuilder.Entity("Softaxis.Identity.Domain.Entities.TenantSsoSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ClientId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ClientSecretCipher")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("DirectoryId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique();
+
+                    b.ToTable("tenant_sso_settings", "identity");
                 });
 
             modelBuilder.Entity("Softaxis.Identity.Domain.Entities.TenantSyncSettings", b =>

@@ -13,6 +13,7 @@ const LoginPage          = lazyWithRetry(() => import("@/pages/auth/login"));
 const ForgotPasswordPage = lazyWithRetry(() => import("@/pages/auth/forgot-password"));
 const ResetPasswordPage  = lazyWithRetry(() => import("@/pages/auth/reset-password"));
 const VerifyEmailPage    = lazyWithRetry(() => import("@/pages/auth/verify-email"));
+const SsoCompletePage   = lazyWithRetry(() => import("@/pages/auth/sso-complete"));
 const PublicQuotationPage = lazyWithRetry(() => import("@/pages/public/quotation"));
 const LibraryPortalPage   = lazyWithRetry(() => import("@/pages/public/library-portal"));
 const GymPortalPage       = lazyWithRetry(() => import("@/pages/public/gym-portal"));
@@ -174,6 +175,14 @@ const FarmProductionPage = lazyWithRetry(() => import("@/pages/farming/productio
 const FarmHealthPage = lazyWithRetry(() => import("@/pages/farming/health"));
 const FarmSalesPage = lazyWithRetry(() => import("@/pages/farming/sales"));
 const FarmSetupPage = lazyWithRetry(() => import("@/pages/farming/setup"));
+const WfHomePage = lazyWithRetry(() => import("@/pages/workflow/home"));
+const WfRequestsPage = lazyWithRetry(() => import("@/pages/workflow/requests"));
+const WfRequestDetailPage = lazyWithRetry(() => import("@/pages/workflow/request-detail"));
+const WfRequestEditorPage = lazyWithRetry(() => import("@/pages/workflow/request-editor"));
+const WfRepositoryPage = lazyWithRetry(() => import("@/pages/workflow/repository"));
+const WfDirectoryPage = lazyWithRetry(() => import("@/pages/workflow/directory"));
+const WfAuditPage = lazyWithRetry(() => import("@/pages/workflow/audit"));
+const WfSetupPage = lazyWithRetry(() => import("@/pages/workflow/setup"));
 const LibraryDashboardPage   = lazyWithRetry(() => import("@/pages/library/dashboard"));
 const LibraryCirculationPage = lazyWithRetry(() => import("@/pages/library/circulation"));
 const LibraryCataloguePage   = lazyWithRetry(() => import("@/pages/library/catalogue"));
@@ -388,6 +397,7 @@ export function App() {
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/auth/reset-password"  element={<ResetPasswordPage />} />
         <Route path="/auth/verify-email"    element={<VerifyEmailPage />} />
+        <Route path="/auth/sso"             element={<SsoCompletePage />} />
         <Route path="/trial"                element={<OnboardingPage />} />
 
         {/* Subscription expired — shown when enforcement middleware blocks requests */}
@@ -649,6 +659,17 @@ export function App() {
           </Route>
 
           {/* ── Farming ──────────────────────────────────────────────────── */}
+          <Route element={<ModuleGuard module="workflow" />}>
+            <Route path="/workflow" element={<WfHomePage />} />
+            <Route path="/workflow/requests" element={<WfRequestsPage />} />
+            <Route path="/workflow/requests/:id" element={<WfRequestDetailPage />} />
+            <Route path="/workflow/requests/:id/edit" element={<WfRequestEditorPage />} />
+            <Route path="/workflow/new" element={<WfRequestEditorPage />} />
+            <Route path="/workflow/repository" element={<WfRepositoryPage />} />
+            <Route path="/workflow/directory" element={<WfDirectoryPage />} />
+            <Route path="/workflow/audit" element={<WfAuditPage />} />
+            <Route path="/workflow/setup" element={<WfSetupPage />} />
+          </Route>
           <Route element={<ModuleGuard module="farming" />}>
             <Route path="/farming/dashboard" element={<FarmDashboardPage />} />
             <Route path="/farming/livestock" element={<FarmLivestockPage />} />

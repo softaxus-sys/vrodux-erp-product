@@ -19,6 +19,7 @@ import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { isDesktop } from "@/lib/desktop";
+import { MicrosoftSignInButton } from "@/components/auth/microsoft-sign-in";
 
 // ─── Palettes (dark + light) ──────────────────────────────────────────────────
 
@@ -720,6 +721,18 @@ export default function LoginPage() {
                 )}
               </motion.button>
             </form>
+
+            {/* Microsoft 365 — only does anything for workspaces that switched it on; otherwise it says so. */}
+            {!isDesktop && (
+              <div className="mt-4">
+                <div className="flex items-center gap-3 my-3">
+                  <span className="h-px flex-1" style={{ background: D.border }} />
+                  <span className="text-[11px] uppercase tracking-wider" style={{ color: D.muted }}>or</span>
+                  <span className="h-px flex-1" style={{ background: D.border }} />
+                </div>
+                <MicrosoftSignInButton email={watch("email") ?? ""} colors={D} />
+              </div>
+            )}
 
             {/* Security note */}
             <p

@@ -64,6 +64,8 @@
     <ProjectReference Include="..\..\Services\Fitness\Softaxis.Fitness.Infrastructure\Softaxis.Fitness.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\Farming\Softaxis.Farming.API\Softaxis.Farming.API.csproj" />
     <ProjectReference Include="..\..\Services\Farming\Softaxis.Farming.Infrastructure\Softaxis.Farming.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Workflow\Softaxis.Workflow.API\Softaxis.Workflow.API.csproj" />
+    <ProjectReference Include="..\..\Services\Workflow\Softaxis.Workflow.Infrastructure\Softaxis.Workflow.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\Trade\Softaxis.Trade.API\Softaxis.Trade.API.csproj" />
     <ProjectReference Include="..\..\Services\Trade\Softaxis.Trade.Infrastructure\Softaxis.Trade.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\Ecommerce\Softaxis.Ecommerce.API\Softaxis.Ecommerce.API.csproj" />

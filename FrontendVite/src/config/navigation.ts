@@ -513,6 +513,21 @@ export const navigationConfig: NavGroup[] = [
         ],
       },
       {
+        id: "workflow",
+        label: "Approvals & Workflows",
+        labelAr: "الموافقات وسير العمل",
+        icon: "Stamp",
+        module: "workflow",
+        children: [
+          { id: "workflow-home",       label: "My work",        labelAr: "عملي",          href: "/workflow",              icon: "LayoutDashboard", requiresPermission: "workflow.requests.view" },
+          { id: "workflow-requests",   label: "Requests",       labelAr: "الطلبات",       href: "/workflow/requests",     icon: "FileCheck2",      requiresPermission: "workflow.requests.view" },
+          { id: "workflow-repository", label: "Document repository", labelAr: "مستودع المستندات", href: "/workflow/repository", icon: "FolderTree", requiresPermission: "workflow.repository.view" },
+          { id: "workflow-directory",  label: "Employee directory", labelAr: "دليل الموظفين", href: "/workflow/directory", icon: "Contact",         requiresPermission: "workflow.requests.view" },
+          { id: "workflow-audit",      label: "Audit log",      labelAr: "سجل التدقيق",   href: "/workflow/audit",        icon: "ScrollText",      requiresPermission: "workflow.audit.view" },
+          { id: "workflow-setup",      label: "Setup",          labelAr: "الإعداد",       href: "/workflow/setup",        icon: "Settings2",       requiresPermission: "workflow.admin.view" },
+        ],
+      },
+      {
         id: "farming",
         label: "Farming",
         labelAr: "المزرعة",

@@ -24,6 +24,7 @@ public static class NotificationModules
     public const string Trade             = "trade";
     public const string LeadGen           = "leadgen";
     public const string Fitness           = "fitness";
+    public const string Workflow          = "workflow";
     /// <summary>Account-level alerts (billing, security) — never module-gated, everyone sees their own.</summary>
     public const string System            = "system";
 }

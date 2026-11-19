@@ -21,8 +21,10 @@ import {
 
 function getBreadcrumbs(pathname: string) {
   const segments = pathname.split("/").filter(Boolean);
+  // A record id in the address (a GUID) reads as noise in a breadcrumb; call it "Details".
+  const isId = (seg: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(seg);
   return segments.map((seg, i) => ({
-    label:  seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, " "),
+    label:  isId(seg) ? "Details" : seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, " "),
     href:   "/" + segments.slice(0, i + 1).join("/"),
     isLast: i === segments.length - 1,
   }));

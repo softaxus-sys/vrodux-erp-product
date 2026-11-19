@@ -32,6 +32,9 @@ public static class AuthRateLimitPolicies
     /// necessity — a lapsed box has nobody who can sign in — so it needs a ceiling.</summary>
     public const string LicenseActivation = "license_activation";
 
+    /// <summary>Microsoft 365 sign-in: starting, returning from Microsoft, and swapping the one-time code.</summary>
+    public const string SsoSignIn = "sso_signin";
+
     public static IServiceCollection AddAuthRateLimiting(this IServiceCollection services) =>
         services.AddRateLimiter(rl =>
         {
@@ -55,6 +58,9 @@ public static class AuthRateLimitPolicies
             // wrapped in an email. Locking them out of the fix would be worse than the abuse it
             // prevents — and the key is RSA-signed, so the limit is not what stops forgery.
             Add(rl, LicenseActivation, permitLimit: 15, seconds: 300, segments: 5);
+
+            // Per IP, and an office shares one, so it has to carry a whole team signing in at 9am.
+            Add(rl, SsoSignIn, permitLimit: 60, seconds: 60, segments: 6);
         });
 
     private static void Add(RateLimiterOptions rl, string name, int permitLimit, int seconds, int segments) =>

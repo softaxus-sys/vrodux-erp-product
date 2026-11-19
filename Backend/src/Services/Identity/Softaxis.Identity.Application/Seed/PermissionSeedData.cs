@@ -210,6 +210,15 @@ public static class PermissionSeedData
         ["farming.sales"]      = ["view","create","edit","delete"],
         ["farming.reports"]    = ["view"],
 
+        // Approvals & Workflows — requests (raise and follow your own), approvals (act on what is waiting for
+        // you; edit = reassign someone else's approval), repository (daily / monthly reconciliation files),
+        // admin (locations, units, positions, forms, the approval matrix, the employee directory), audit.
+        ["workflow.requests"]   = ["view","create","edit","delete"],
+        ["workflow.approvals"]  = ["view","approve","edit"],
+        ["workflow.repository"] = ["view","create","delete"],
+        ["workflow.admin"]      = ["view","edit"],
+        ["workflow.audit"]      = ["view","export"],
+
         // Trade (import / export) — shipments (edit also moves the status), the parties they involve,
         // the paper that travels with them, landed costs and the money for the goods. Costs and payments
         // are separate keys: seeing where the cargo is does not mean seeing what it cost.

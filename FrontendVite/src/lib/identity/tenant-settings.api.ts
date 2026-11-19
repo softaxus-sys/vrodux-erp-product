@@ -27,4 +27,18 @@ export const tenantSettingsApi = {
 
   getStorageUsage: (): Promise<TenantStorageStatusDto> =>
     apiClient.get(`${BASE}/storage`),
+
+  getMicrosoftSignIn: (): Promise<MicrosoftSignInDto> => apiClient.get(`${BASE}/microsoft-signin`),
+  saveMicrosoftSignIn: (b: { enabled: boolean; directoryId: string; clientId: string; clientSecret?: string | null }): Promise<MicrosoftSignInDto> =>
+    apiClient.put(`${BASE}/microsoft-signin`, b),
 };
+
+/** A workspace's own Microsoft Entra ID app. The secret is write-only: only whether one is stored comes back. */
+export interface MicrosoftSignInDto {
+  enabled: boolean;
+  directoryId: string | null;
+  clientId: string | null;
+  hasSecret: boolean;
+  /** The address to register in Entra as the app's redirect URI. */
+  redirectUri: string;
+}
