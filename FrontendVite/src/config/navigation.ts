@@ -347,6 +347,7 @@ export const navigationConfig: NavGroup[] = [
             labelAr: "إعلاناتي",
             href: "/crm/listings",
             icon: "Home",
+            propertyOnly: true,
           },
           {
             id: "pipeline",

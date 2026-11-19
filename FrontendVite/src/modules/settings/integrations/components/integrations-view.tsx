@@ -98,7 +98,17 @@ export function IntegrationsView() {
   const wanted = searchParams.get("tab");
   const tab = tabs.find(x => x.id === wanted)?.id ?? tabs[0]?.id;
 
-  const { data: catalog = [], isLoading } = useProviderCatalog(canSeeLeadSources);
+  const { data: rawCatalog = [], isLoading } = useProviderCatalog(canSeeLeadSources);
+  // Property portals (Property Finder, Bayut, Dubizzle) confuse other industries — show them only to
+  // property workspaces, or to anyone who already connected one.
+  const tenant = useAuthStore((s) => s.tenant);
+  const isPropertyWorkspace =
+    tenant?.vertical === "real_estate" || Boolean(tenant?.enabledModules?.includes("real-estate" as never));
+  const catalog = React.useMemo(
+    () => rawCatalog.filter((c) =>
+      isPropertyWorkspace || c.connected || !["property-finder", "bayut", "dubizzle"].includes(c.key)),
+    [rawCatalog, isPropertyWorkspace],
+  );
   const createIntegration = useCreateIntegration();
   const startOAuth = useStartMetaOAuth();
 

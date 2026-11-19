@@ -42,6 +42,11 @@ export function useVisibleNavigation(): NavGroup[] {
       mod === "ai-assistant" || mod === "support" ||
       Boolean(tenant?.enabledModules?.includes(mod as ModuleKey));
 
+    // Property-portal features (My Listings) mean nothing to other industries and confuse them.
+    const isPropertyWorkspace =
+      tenant?.vertical === "real_estate" ||
+      Boolean(tenant?.enabledModules?.includes("real-estate" as ModuleKey));
+
     const itemVisible = (mod?: string, permission?: string) => {
       if (superAdminMode) return mod === "super-admin";
       if (mod && !hasModuleAccess(mod as ModuleKey)) return false;
@@ -66,6 +71,7 @@ export function useVisibleNavigation(): NavGroup[] {
             children: pruneHeadings(item.children?.filter((child) =>
               (!child.onPremOnly || isOnPrem)
               && (!child.branchServersOnly || !!tenant?.branchServers)
+              && (!child.propertyOnly || isPropertyWorkspace)
               && (!child.countries || child.countries.includes(countryCodeOf(tenant?.country)))
               && itemVisible(child.module, child.requiresPermission))),
           }))

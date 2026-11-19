@@ -204,6 +204,8 @@ export interface NavItem {
   branchServersOnly?: boolean;
   /** ISO country codes the item is for; hidden for any other workspace country. */
   countries?: string[];
+  /** Shown only to workspaces whose industry (JWT `industry` claim) is listed, or that own the Real Estate module. */
+  propertyOnly?: boolean;
 }
 
 export interface NavGroup {
