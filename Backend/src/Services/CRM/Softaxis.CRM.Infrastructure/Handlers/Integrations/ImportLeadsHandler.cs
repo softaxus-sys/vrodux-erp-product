@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.CRM.Application.LeadIntake;
 using Softaxis.CRM.Application.LeadIntake.Abstractions;
 using Softaxis.CRM.Application.LeadIntake.Commands;
 using Softaxis.CRM.Application.LeadIntake.Dtos;
@@ -41,7 +42,17 @@ internal sealed class ImportLeadsHandler(ILeadIntakeService intake, ILogger<Impo
                 UtmSource = string.IsNullOrWhiteSpace(input.Source) ? "import" : input.Source,
             };
             if (input.Fields is not null)
-                foreach (var (k, v) in input.Fields) lead.RawFields[k] = v;
+            {
+                foreach (var (k, v) in input.Fields)
+                {
+                    lead.RawFields[k] = v;
+                    // Columns the user left unmapped still carry scoring signals (budget, "when are you
+                    // planning to buy", interest…). Classify them by name exactly as the Meta / webhook /
+                    // portal paths do, so an imported lead is judged like one that arrived live. Mapped
+                    // columns were already assigned above, and first writer wins (??=).
+                    LeadFieldClassifier.Apply(lead, k, v);
+                }
+            }
 
             try
             {
