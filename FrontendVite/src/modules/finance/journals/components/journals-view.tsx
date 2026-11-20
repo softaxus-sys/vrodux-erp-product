@@ -11,6 +11,11 @@ import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { JournalEntryDto as JournalEntry, JournalStatus } from "@/lib/finance/finance.api";
 import { useJournals, useJournalsSummary, usePostJournal, useVoidJournal } from "@/hooks/finance/use-finance";
+import { financeApi } from "@/lib/finance/finance.api";
+import { toCsv, downloadFile } from "@/lib/csv";
+import { exportPdf } from "@/lib/pdf";
+import { ExportMenu } from "@/components/ui/export-menu";
+import { toast } from "sonner";
 import { AddJournalForm } from "./add-journal-form";
 import { Can } from "@/components/auth/can";
 
@@ -167,6 +172,54 @@ export function JournalsView() {
   const totalPages = paged?.totalPages ?? 1;
   const periods    = React.useMemo(buildPeriods, []);
 
+  // Exports every entry matching the current filters (not just the page on screen), one row per journal line.
+  const [exporting, setExporting] = React.useState(false);
+  const loadAllForExport = async (): Promise<JournalEntry[]> => {
+    const all: JournalEntry[] = [];
+    for (let p = 1; ; p++) {
+      const res = await financeApi.getJournals({
+        search: debouncedSearch || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        period: period || undefined,
+        page: p, pageSize: 200,
+      });
+      all.push(...res.items);
+      if (p >= res.totalPages || res.items.length === 0) break;
+    }
+    return all;
+  };
+  const exportRows = (entries: JournalEntry[]) => entries.flatMap(e =>
+    (e.lines.length ? e.lines : [null]).map(l => ({
+      "Journal #": e.journalNumber, "Date": e.date, "Reference": e.reference, "Description": e.description,
+      "Status": e.status, "Account Code": l?.accountCode ?? "", "Account": l?.accountName ?? "",
+      "Line Description": l?.description ?? "", "Debit": l?.debit ?? 0, "Credit": l?.credit ?? 0,
+      "Created By": e.createdBy, "Posted By": e.postedBy ?? "",
+    })));
+  const EXPORT_COLS = ["Journal #","Date","Reference","Description","Status","Account Code","Account","Line Description","Debit","Credit","Created By","Posted By"] as const;
+  const runExport = async (kind: "csv" | "pdf") => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const entries = await loadAllForExport();
+      if (entries.length === 0) { toast.info("No journal entries to export."); return; }
+      const rows = exportRows(entries);
+      if (kind === "csv") {
+        downloadFile(`journal_entries_${new Date().toISOString().split("T")[0]}.csv`,
+          toCsv(rows, [...EXPORT_COLS]));
+      } else {
+        exportPdf({
+          title: "Journal Entries",
+          subtitle: `${entries.length} entries${period ? ` · ${period}` : ""}${statusFilter !== "all" ? ` · ${statusFilter}` : ""}`,
+          columns: [...EXPORT_COLS],
+          rows: rows.map(r => EXPORT_COLS.map(c => r[c])),
+          landscape: true,
+        });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed.");
+    } finally { setExporting(false); }
+  };
+
   // Counts come from the summary endpoint — a single page could never total the ledger.
   const STATS = [
     { label: t("journals.stat.totalJournals"), value: journalsSummary?.total ?? 0, icon: BookOpen, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
@@ -179,7 +232,10 @@ export function JournalsView() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">{t("journals.title")}</h1><p className="text-sm text-muted-foreground mt-0.5">{t("journals.subtitle")}</p></div>
-        <Can permission="finance.journals.create"><Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />{t("journals.newJournal")}</Button></Can>
+        <div className="flex items-center gap-2">
+          <ExportMenu onCsv={() => runExport("csv")} onPdf={() => runExport("pdf")} className="gap-2 h-9" disabled={exporting || totalCount === 0} />
+          <Can permission="finance.journals.create"><Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />{t("journals.newJournal")}</Button></Can>
+        </div>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {STATS.map((s, i) => {
