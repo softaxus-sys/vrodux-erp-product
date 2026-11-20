@@ -29,9 +29,12 @@ public sealed class JournalsController(ISender sender) : FinanceControllerBase
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search = null,
         [FromQuery] string? status = null,
+        [FromQuery] string? period = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
         CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetJournalsQuery(search, status), ct);
+        var result = await sender.Send(new GetJournalsQuery(search, status, period, page, pageSize), ct);
         return OkOrError(result);
     }
 
