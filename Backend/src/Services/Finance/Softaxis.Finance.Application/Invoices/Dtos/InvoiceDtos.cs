@@ -1,4 +1,22 @@
+using FluentValidation;
+
 namespace Softaxis.Finance.Application.Invoices.Dtos;
+
+/// <summary>One share of an invoice's income to put aside. Kind is "percent" (of the amount before
+/// VAT) or "fixed".</summary>
+public sealed record SetAsideDto(string Name, string Kind, decimal Value);
+
+public sealed class SetAsideDtoValidator : FluentValidation.AbstractValidator<SetAsideDto>
+{
+    public SetAsideDtoValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.Kind).Must(k => k is "percent" or "fixed").WithMessage("Kind must be 'percent' or 'fixed'.");
+        RuleFor(x => x.Value).GreaterThan(0);
+        RuleFor(x => x.Value).LessThanOrEqualTo(100).When(x => x.Kind == "percent")
+            .WithMessage("A percentage cannot be more than 100.");
+    }
+}
 
 public sealed record InvoiceItemDto(
     Guid    Id,
@@ -73,7 +91,8 @@ public sealed record InvoiceDto(
     DateTime? UpdatedAt,
     string?   CustomerAddress = null,
     string?   CustomerTrn = null,
-    string?   PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null);
+    string?   PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null,
+    IReadOnlyList<SetAsideDto>? SetAsides = null);
 
 public sealed record InvoicesSummaryDto(
     int     TotalInvoices,

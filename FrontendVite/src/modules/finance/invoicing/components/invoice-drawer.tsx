@@ -1,5 +1,8 @@
 import { useAccounts } from "@/hooks/finance/use-finance";
 import { PaymentDetailsFields, EMPTY_PAYMENT, paymentPayload } from "@/modules/finance/invoicing/components/payment-details-fields";
+import { SetAsideFields } from "@/modules/finance/invoicing/components/set-aside-fields";
+import { useSetAsideForm } from "@/hooks/finance/use-set-asides";
+import { useCan } from "@/components/auth/can";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
@@ -93,6 +96,7 @@ function EditInvoice({
   const currency = invoice.currencyCode?.trim() || tenantCurrency;
   const { data: detail, isLoading } = useInvoiceById(invoice.id);
   const updateInvoice = useUpdateInvoice();
+  const setAside = useSetAsideForm(detail?.setAsides);
 
   const [customerName,  setCustomerName]  = React.useState(invoice.customerName);
   const [customerEmail, setCustomerEmail] = React.useState(invoice.customerEmail ?? "");
@@ -163,6 +167,7 @@ function EditInvoice({
           taxRate,
           notes:   notes.trim() || undefined,
           status,
+          setAsides: setAside.payload,
           items: activeItems.map(i => ({
             description: i.description.trim(),
             quantity:    i.quantity,
@@ -239,6 +244,7 @@ function EditInvoice({
             <Input value={customerTrn} onChange={e => setCustomerTrn(e.target.value)} placeholder="e.g. 100123456700003" />
           </div>
           <PaymentDetailsFields value={pay} onChange={setPay} />
+          <SetAsideFields rows={setAside.rows} onChange={setAside.setRows} subTotal={subtotal} currency={currency} />
           <div className="col-span-2 space-y-1.5">
             <Label>{t("invoicing.drawer.form.ccEmails")}</Label>
             <Input value={ccEmails} onChange={e => setCcEmails(e.target.value)}
@@ -409,6 +415,7 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
   const cancelInvoice = useCancelInvoice();
   const resetInvoice  = useResetInvoiceStatus();
   const { data: detail } = useInvoiceById(invoice.id);
+  const isOwnerView = useCan("finance.accounting.view"); // set-asides are for the owners only
 
   // Letterhead from Settings → General: name, address, TRN, logo, signature and stamp.
   const branding = useCompanyBranding();
@@ -434,7 +441,7 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
 
   const isDraft  = invoice.status === "draft";
   const isOverdue = invoice.status === "overdue";
-  const canPay  = ["sent", "partial", "overdue"].includes(invoice.status);
+  const canPay  = ["draft", "sent", "partial", "overdue"].includes(invoice.status);
   const canEdit = !["paid", "cancelled"].includes(invoice.status);
 
   const handleSend = async () => {
@@ -506,7 +513,7 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
               className="gap-2 text-success border-success/30 hover:bg-success/5"
               onClick={handlePay} disabled={isPending}>
               <CheckCircle2 className="h-3.5 w-3.5" />
-              {markPaid.isPending ? t("invoicing.drawer.view.recording") : t("invoicing.drawer.view.recordPayment")}
+              {markPaid.isPending ? t("invoicing.drawer.view.recording") : isDraft ? t("invoicing.drawer.view.markPaidNoSend", { defaultValue: "Mark as paid (don't send)" }) : t("invoicing.drawer.view.recordPayment")}
             </Button>
           )}
           {canEdit && (
@@ -599,6 +606,20 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
           </div>
         </div>
 
+        {/* What is put aside from this invoice's income (e.g. charity). Nothing for invoices without any. */}
+        {isOwnerView && (detail?.setAsides?.length ?? 0) > 0 && (
+          <div className="rounded-lg border border-border p-3 text-sm space-y-1">
+            <p className="font-semibold">Set aside from this income</p>
+            {detail!.setAsides!.map((s, i) => (
+              <div key={i} className="flex justify-between text-muted-foreground">
+                <span>{s.name} {s.kind === "percent" ? `(${s.value}% before VAT)` : "(fixed)"}</span>
+                <span className="tabular-nums">{formatCurrency(s.kind === "percent" ? invoice.subTotal * s.value / 100 : s.value, currency)}</span>
+              </div>
+            ))}
+            <p className="text-xs text-muted-foreground pt-1">Recorded as owed when the invoice is paid — see Finance → Set-asides.</p>
+          </div>
+        )}
+
         {/* Quotations this invoice was raised from. Renders nothing for tenants without Sales. */}
         <InvoiceQuotationsPanel invoiceId={invoice.id} invoiceNumber={invoice.invoiceNumber} />
 
@@ -668,6 +689,7 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation("finance");
   const currency = useCurrency();
   const createInvoice = useCreateInvoice();
+  const setAside = useSetAsideForm(undefined);
 
   const [customerName,  setCustomerName]  = React.useState("");
   const [customerEmail, setCustomerEmail] = React.useState("");
@@ -715,6 +737,7 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
         dueDate,
         taxRate,
         notes: notes.trim() || undefined,
+        setAsides: setAside.payload,
         items: activeItems.map(i => ({
           description: i.description.trim(),
           quantity:    i.quantity,
@@ -775,6 +798,7 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
             <Input value={customerTrn} onChange={e => setCustomerTrn(e.target.value)} placeholder="e.g. 100123456700003" />
           </div>
           <PaymentDetailsFields value={pay} onChange={setPay} />
+          <SetAsideFields rows={setAside.rows} onChange={setAside.setRows} subTotal={subtotal} currency={currency} />
           <div className="col-span-2 space-y-1.5">
             <Label>{t("invoicing.drawer.form.ccEmails")}</Label>
             <Input value={ccEmails} onChange={e => setCcEmails(e.target.value)}

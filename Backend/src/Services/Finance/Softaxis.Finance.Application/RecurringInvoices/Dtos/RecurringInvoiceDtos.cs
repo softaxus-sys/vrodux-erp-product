@@ -12,7 +12,8 @@ public sealed record RecurringDto(
     decimal SubTotal, decimal Total, IReadOnlyList<LineDto> Lines,
     string? CcEmails = null, bool AutoSend = true,
     string? CustomerAddress = null, string?   CustomerTrn = null,
-    string?   PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null);
+    string?   PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null,
+    IReadOnlyList<Softaxis.Finance.Application.Invoices.Dtos.SetAsideDto>? SetAsides = null);
 
 public sealed record RecurringInvoicesSummaryDto(
     int     Total,

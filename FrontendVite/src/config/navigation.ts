@@ -172,6 +172,14 @@ export const navigationConfig: NavGroup[] = [
             icon: "Repeat",
           },
           {
+            id: "set-asides",
+            label: "Set-asides (Charity)",
+            labelAr: "المخصصات والتبرعات",
+            href: "/finance/set-asides",
+            icon: "HandHeart",
+            requiresPermission: "finance.accounting.view",
+          },
+          {
             id: "expenses",
             label: "Expenses",
             labelAr: "المصروفات",

@@ -19,6 +19,12 @@ internal sealed class CreateInvoiceHandler(FinanceDbContext db) : ICommandHandle
         invoice.SetScheduledSend(cmd.ScheduledSendDate);
         invoice.SetRemindBeforeDue(cmd.RemindBeforeDue);
 
+        // Null = the workspace's default rules (none if it has not set any up); a list, even an
+        // empty one, is the caller's explicit choice for this invoice.
+        invoice.SetSetAsides(cmd.SetAsides is null
+            ? await Softaxis.Finance.Infrastructure.Services.SetAsideService.DefaultsAsync(db, ct)
+            : cmd.SetAsides.Select(s => new SetAsideDef(s.Name, s.Kind, s.Value)));
+
         foreach (var item in cmd.Items)
             invoice.Items.Add(new InvoiceItem(invoice.Id, item.Description, item.Quantity, item.UnitPrice, item.TaxCategory, item.UnitCode, item.ExemptionReason));
 

@@ -44,6 +44,10 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
     public DbSet<CreditNoteItem>       CreditNoteItems       => Set<CreditNoteItem>();
     public DbSet<EInvoiceSettings>     EInvoiceSettings      => Set<EInvoiceSettings>();
     public DbSet<EInvoiceSubmission>   EInvoiceSubmissions   => Set<EInvoiceSubmission>();
+    public DbSet<SetAsideRule>         SetAsideRules         => Set<SetAsideRule>();
+    public DbSet<SetAsideEntry>        SetAsideEntries       => Set<SetAsideEntry>();
+    public DbSet<SetAsidePayout>       SetAsidePayouts       => Set<SetAsidePayout>();
+    public DbSet<SetAsideState>        SetAsideStates        => Set<SetAsideState>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

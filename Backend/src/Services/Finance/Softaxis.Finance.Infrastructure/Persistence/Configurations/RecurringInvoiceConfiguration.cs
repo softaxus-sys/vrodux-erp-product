@@ -25,6 +25,7 @@ internal sealed class RecurringInvoiceConfiguration : IEntityTypeConfiguration<R
         b.Property(x => x.TaxRate).HasPrecision(9, 4);
         b.Property(x => x.Notes).HasMaxLength(1000);
         b.Property(x => x.CcEmails).HasMaxLength(2000);
+        b.Property(x => x.SetAsidesJson).HasMaxLength(2000);
         b.Property(x => x.AutoSend).HasDefaultValue(true);
         b.Ignore(x => x.CcList);
 

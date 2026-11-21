@@ -80,6 +80,8 @@ internal sealed class UpdateInvoiceHandler(FinanceDbContext db) : ICommandHandle
         invoice.SetPaymentDetails(cmd.PaymentMethod, cmd.PaymentLink, cmd.PaymentInstructions, cmd.PaymentAccountNumber);
         invoice.SetScheduledSend(cmd.ScheduledSendDate);
         invoice.SetRemindBeforeDue(cmd.RemindBeforeDue);
+        if (cmd.SetAsides is not null)
+            invoice.SetSetAsides(cmd.SetAsides.Select(s => new SetAsideDef(s.Name, s.Kind, s.Value)));
 
         db.InvoiceItems.RemoveRange(invoice.Items);
         invoice.Items.Clear();

@@ -14,6 +14,10 @@ namespace Softaxis.Finance.API.Controllers;
 [Authorize]
 public sealed class RecurringInvoicesController(ISender sender) : FinanceControllerBase
 {
+    /// <summary>Set-asides (e.g. charity) are for the workspace owners only: users who can see accounting.</summary>
+    private bool CanSeeSetAsides =>
+        User.FindFirst("is_super_admin")?.Value == "true" || User.HasClaim("permission", "finance.accounting.view");
+
     [HttpGet]
     [RequirePermission("finance.invoicing.view")]
     public async Task<IActionResult> GetAll(
@@ -24,6 +28,11 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
         CancellationToken ct = default)
     {
         var result = await sender.Send(new GetRecurringInvoicesQuery(search, isActive, page, pageSize), ct);
+        if (!CanSeeSetAsides && result.IsSuccess)
+            result = Softaxis.BuildingBlocks.Domain.Results.Result.Success(
+                Softaxis.BuildingBlocks.Domain.Pagination.PagedResult<RecurringDto>.Create(
+                    result.Value.Items.Select(i => i with { SetAsides = null }).ToList(),
+                    result.Value.TotalCount, result.Value.Page, result.Value.PageSize));
         return OkOrError(result);
     }
 
@@ -40,6 +49,8 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetRecurringInvoiceByIdQuery(id), ct);
+        if (!CanSeeSetAsides && result.IsSuccess)
+            result = Softaxis.BuildingBlocks.Domain.Results.Result.Success(result.Value with { SetAsides = null });
         return OkOrError(result);
     }
 
@@ -54,7 +65,8 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
         string? CcEmails = null, bool AutoSend = true,
         // Buyer billing address (multi-line) and TRN#, copied onto every generated invoice.
         string? CustomerAddress = null, string? CustomerTrn = null,
-        string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null);
+        string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null,
+        IReadOnlyList<Softaxis.Finance.Application.Invoices.Dtos.SetAsideDto>? SetAsides = null);
 
     [HttpPost]
     [RequirePermission("finance.invoicing.create")]
@@ -64,7 +76,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
             req.TemplateName, req.CustomerName, req.CustomerEmail, req.Frequency,
             req.StartDate, req.EndDate, req.DueDays, req.TaxRate, req.Notes,
             req.Lines.Select(l => new Application.RecurringInvoices.Dtos.LineRequest(l.Description, l.Quantity, l.UnitPrice)).ToList(),
-            req.CcEmails, req.AutoSend, req.CustomerAddress, req.CustomerTrn, req.PaymentMethod, req.PaymentLink, req.PaymentInstructions, req.PaymentAccountNumber), ct);
+            req.CcEmails, req.AutoSend, req.CustomerAddress, req.CustomerTrn, req.PaymentMethod, req.PaymentLink, req.PaymentInstructions, req.PaymentAccountNumber, CanSeeSetAsides ? req.SetAsides : null), ct);
 
         return CreatedOrError(result, nameof(GetById), result.IsSuccess ? new { id = result.Value.Id } : null!);
     }
@@ -77,7 +89,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
             id, req.TemplateName, req.CustomerName, req.CustomerEmail, req.Frequency,
             req.EndDate, req.DueDays, req.TaxRate, req.Notes,
             req.Lines.Select(l => new Application.RecurringInvoices.Dtos.LineRequest(l.Description, l.Quantity, l.UnitPrice)).ToList(),
-            req.CcEmails, req.AutoSend, req.CustomerAddress, req.CustomerTrn, req.PaymentMethod, req.PaymentLink, req.PaymentInstructions, req.PaymentAccountNumber), ct);
+            req.CcEmails, req.AutoSend, req.CustomerAddress, req.CustomerTrn, req.PaymentMethod, req.PaymentLink, req.PaymentInstructions, req.PaymentAccountNumber, CanSeeSetAsides ? req.SetAsides : null), ct);
 
         return NoContentOrError(result);
     }

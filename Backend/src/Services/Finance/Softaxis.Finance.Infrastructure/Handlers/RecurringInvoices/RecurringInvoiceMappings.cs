@@ -15,7 +15,10 @@ internal static class RecurringInvoiceMappings
             r.LastGeneratedDate?.ToString("yyyy-MM-dd"), r.GeneratedCount,
             sub, Math.Round(sub + sub * r.TaxRate / 100m, 2),
             r.Lines.Select(l => new LineDto(l.Id, l.Description, l.Quantity, l.UnitPrice)).ToList(),
-            r.CcEmails, r.AutoSend, r.CustomerAddress, r.CustomerTrn, r.PaymentMethod, r.PaymentLink, r.PaymentInstructions, r.PaymentAccountNumber);
+            r.CcEmails, r.AutoSend, r.CustomerAddress, r.CustomerTrn, r.PaymentMethod, r.PaymentLink, r.PaymentInstructions, r.PaymentAccountNumber,
+            r.SetAsidesJson is null ? null
+                : SetAsideDef.Parse(r.SetAsidesJson)
+                    .Select(s => new Softaxis.Finance.Application.Invoices.Dtos.SetAsideDto(s.Name, s.Kind, s.Value)).ToList());
     }
 
     public static DateTime ParseDate(string s) =>

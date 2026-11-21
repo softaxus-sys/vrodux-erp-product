@@ -47,6 +47,7 @@ internal static class ChartOfAccountsCatalogue
         new("2200", "VAT Payable",                 "liability"),
         new("2300", "Bank Loan Payable",           "liability"),
         new("2400", "Accrued Expenses",            "liability"),
+        new("2450", "Set-Aside Payable",           "liability"),   // charity etc. owed from invoice income
         // Equity
         new("3001", "Share Capital",               "equity"),
         new("3100", "Retained Earnings",           "equity"),
@@ -66,6 +67,7 @@ internal static class ChartOfAccountsCatalogue
         new("5700", "Telecommunications",          "expense"),
         new("5800", "Insurance",                   "expense"),
         new("5900", "Miscellaneous Expenses",      "expense"),
+        new("5950", "Set-Aside Contributions",     "expense"),     // charity etc. set aside from income
     ];
 
     /// <summary>

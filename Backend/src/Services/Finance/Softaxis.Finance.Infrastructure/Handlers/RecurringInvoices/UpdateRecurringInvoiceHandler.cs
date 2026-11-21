@@ -21,6 +21,9 @@ internal sealed class UpdateRecurringInvoiceHandler(FinanceDbContext db) : IComm
         r.SetCustomerTaxDetails(cmd.CustomerAddress, cmd.CustomerTrn);
         r.SetPaymentDetails(cmd.PaymentMethod, cmd.PaymentLink, cmd.PaymentInstructions, cmd.PaymentAccountNumber);
 
+        if (cmd.SetAsides is not null)
+            r.SetSetAsides(cmd.SetAsides.Select(s => new SetAsideDef(s.Name, s.Kind, s.Value)));
+
         db.RecurringInvoiceLines.RemoveRange(r.Lines);
         r.Lines.Clear();
         foreach (var l in cmd.Lines)

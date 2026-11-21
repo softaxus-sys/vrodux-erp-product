@@ -35,7 +35,31 @@ async function fetchBlobUrl(url: string): Promise<string> {
 
 // ─── Invoicing ────────────────────────────────────────────────────────────────
 
-export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled" | "partial";
+/** A share of an invoice's income put aside (e.g. charity). "percent" is of the amount before VAT. */
+export type SetAsideKind = "percent" | "fixed";
+export interface SetAsideDef { name: string; kind: SetAsideKind; value: number }
+export interface SetAsideRuleDto { id: string; name: string; kind: SetAsideKind; value: number; autoApply: boolean; isActive: boolean }
+export interface SetAsideRuleRequest { name: string; kind: SetAsideKind; value: number; autoApply: boolean; isActive: boolean }
+export interface SetAsideRuleTotalDto { name: string; accrued: number; paid: number; owed: number }
+export interface SetAsideMonthDto { month: string; accrued: number; paid: number }
+export interface SetAsideOwedEntryDto {
+  id: string; invoiceId: string; invoiceNumber: string; name: string;
+  amount: number; ledgerAmount: number; currencyCode: string; accruedOn: string;
+}
+export interface SetAsidePayoutDto {
+  id: string; paidOn: string; total: number; fromAccountNumber: string;
+  reference?: string | null; notes?: string | null; entryCount: number;
+}
+export interface SetAsideDashboardDto {
+  hasRules: boolean; owed: number; accrued: number; paid: number; income: number; effectivePercent: number;
+  byRule: SetAsideRuleTotalDto[]; byMonth: SetAsideMonthDto[];
+  owedEntries: SetAsideOwedEntryDto[]; recentPayouts: SetAsidePayoutDto[];
+}
+export interface PaySetAsidesRequest {
+  entryIds: string[]; paidOn: string; fromAccountNumber: string; reference?: string | null; notes?: string | null;
+}
+
+export type InvoiceStatus ="draft" | "sent" | "paid" | "overdue" | "cancelled" | "partial";
 export type PaymentMethod = "bank_transfer" | "cash" | "cheque" | "card" | "online";
 
 export interface InvoiceDto {
@@ -108,6 +132,8 @@ export interface InvoiceDetailDto {
   paymentMethod?: string | null;
   paymentLink?: string | null;
   paymentInstructions?: string | null;
+  /** What is put aside from this invoice's income. */
+  setAsides?: SetAsideDef[] | null;
   ccEmails?: string | null;
   invoiceDate: string;
   dueDate: string;
@@ -740,6 +766,8 @@ export interface CreateInvoiceRequest {
   taxRate: number;
   notes?: string | null;
   items: InvoiceItemRequest[];
+  /** Undefined = the workspace's default rules apply; a list (even empty) is explicit. */
+  setAsides?: SetAsideDef[];
 }
 
 export interface UpdateInvoiceRequest {
@@ -760,6 +788,8 @@ export interface UpdateInvoiceRequest {
   notes?: string | null;
   status: string;
   items: InvoiceItemRequest[];
+  /** Undefined = leave as is; a list replaces what the invoice sets aside. */
+  setAsides?: SetAsideDef[];
 }
 
 export interface CreateExpenseRequest {
@@ -880,6 +910,8 @@ export interface RecurringInvoiceDto {
   paymentMethod?: string | null;
   paymentLink?: string | null;
   paymentInstructions?: string | null;
+  /** Null = the workspace's default rules apply to each generated invoice. */
+  setAsides?: SetAsideDef[] | null;
 }
 /** Server-side paging — one template per client contract, so this scales with the customer base. */
 export interface RecurringPageParams {
@@ -911,6 +943,8 @@ export interface UpsertRecurringRequest {
   paymentMethod?: string | null;
   paymentLink?: string | null;
   paymentInstructions?: string | null;
+  /** Undefined = workspace defaults apply to each generated invoice; a list (even empty) is explicit. */
+  setAsides?: SetAsideDef[];
 }
 
 function qsRange(from?: string, to?: string): string {
@@ -1137,6 +1171,16 @@ export const financeApi = {
     return rawApiClient.get(`${BASE}/recurring-invoices?${qs}`);
   },
   getRecurringSummary:    (): Promise<RecurringSummaryDto>   => rawApiClient.get(`${BASE}/recurring-invoices/summary`),
+  // Set-asides (optional share of income, e.g. charity)
+  getSetAsideRules:    (): Promise<SetAsideRuleDto[]> => rawApiClient.get(`${BASE}/set-asides/rules`),
+  createSetAsideRule:  (data: SetAsideRuleRequest): Promise<SetAsideRuleDto> => rawApiClient.post(`${BASE}/set-asides/rules`, data),
+  updateSetAsideRule:  (id: string, data: SetAsideRuleRequest): Promise<SetAsideRuleDto> => rawApiClient.put(`${BASE}/set-asides/rules/${id}`, data),
+  deleteSetAsideRule:  (id: string): Promise<void> => rawApiClient.delete(`${BASE}/set-asides/rules/${id}`),
+  getSetAsideDashboard:(from?: string, to?: string): Promise<SetAsideDashboardDto> =>
+    rawApiClient.get(`${BASE}/set-asides/dashboard${qsRange(from, to)}`),
+  paySetAsides:        (data: PaySetAsidesRequest): Promise<SetAsidePayoutDto> => rawApiClient.post(`${BASE}/set-asides/payouts`, data),
+  undoSetAsidePayout:  (id: string): Promise<void> => rawApiClient.delete(`${BASE}/set-asides/payouts/${id}`),
+
   createRecurringInvoice: (data: UpsertRecurringRequest): Promise<RecurringInvoiceDto> => rawApiClient.post(`${BASE}/recurring-invoices`, data),
   updateRecurringInvoice: (id: string, data: UpsertRecurringRequest): Promise<void> => rawApiClient.put(`${BASE}/recurring-invoices/${id}`, data),
   deleteRecurringInvoice: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/recurring-invoices/${id}`),

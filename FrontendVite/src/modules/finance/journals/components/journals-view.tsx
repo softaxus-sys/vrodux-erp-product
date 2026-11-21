@@ -191,11 +191,13 @@ export function JournalsView() {
   const exportRows = (entries: JournalEntry[]) => entries.flatMap(e =>
     (e.lines.length ? e.lines : [null]).map(l => ({
       "Journal #": e.journalNumber, "Date": e.date, "Reference": e.reference, "Description": e.description,
-      "Status": e.status, "Account Code": l?.accountCode ?? "", "Account": l?.accountName ?? "",
+      "Status": e.status,
+      "Debit Account":  l && l.debit  > 0 ? `${l.accountCode} - ${l.accountName}` : "",
+      "Credit Account": l && l.credit > 0 ? `${l.accountCode} - ${l.accountName}` : "",
       "Line Description": l?.description ?? "", "Debit": l?.debit ?? 0, "Credit": l?.credit ?? 0,
       "Created By": e.createdBy, "Posted By": e.postedBy ?? "",
     })));
-  const EXPORT_COLS = ["Journal #","Date","Reference","Description","Status","Account Code","Account","Line Description","Debit","Credit","Created By","Posted By"] as const;
+  const EXPORT_COLS = ["Journal #","Date","Reference","Description","Status","Debit Account","Credit Account","Line Description","Debit","Credit","Created By","Posted By"] as const;
   const runExport = async (kind: "csv" | "pdf") => {
     if (exporting) return;
     setExporting(true);
