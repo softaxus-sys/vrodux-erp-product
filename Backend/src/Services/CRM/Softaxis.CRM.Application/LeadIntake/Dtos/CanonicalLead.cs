@@ -81,7 +81,14 @@ public sealed class CanonicalLead
     /// the lead would keep its original owner for ever.
     /// </summary>
     public bool IsReassignment { get; set; }
-    public string? Platform   { get; set; }   // meta / facebook / instagram / google …
+
+    /// <summary>
+    /// True for a spreadsheet/CSV upload. Re-uploading a file is not "the buyer got in touch again",
+    /// so a row matching an existing lead only fills that lead's EMPTY fields — no timeline note,
+    /// no score bump, no owner alert (otherwise every re-import piled another note on every lead).
+    /// </summary>
+    public bool IsBulkImport { get; set; }
+    public string? Platform  { get; set; }   // meta / facebook / instagram / google …
     public string? FormName   { get; set; }
     public bool?   IsOrganic  { get; set; }
     public string? Campaign   { get; set; }

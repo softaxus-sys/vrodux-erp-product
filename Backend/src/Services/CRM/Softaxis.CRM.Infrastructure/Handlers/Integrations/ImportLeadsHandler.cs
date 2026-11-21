@@ -40,6 +40,7 @@ internal sealed class ImportLeadsHandler(ILeadIntakeService intake, ILogger<Impo
                 WhatsApp = input.WhatsApp, InterestedIn = input.InterestedIn, Budget = input.Budget,
                 Message = input.Message, FormName = input.FormName, Timeframe = input.Timeframe,
                 UtmSource = string.IsNullOrWhiteSpace(input.Source) ? "import" : input.Source,
+                IsBulkImport = true,
             };
             if (input.Fields is not null)
             {

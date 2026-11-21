@@ -92,6 +92,9 @@ public sealed class LeadIntakeService(
                 return IntakeResult.Duplicate(m.LeadId);
             }
 
+            if (lead.IsBulkImport)
+                return await FillBlanksOnlyAsync(m.LeadId, lead, tenantId, ct);
+
             return await EnrichExistingAsync(m.LeadId, lead, tenantId, integration, owner, source: null, ct);
         }
 
@@ -378,6 +381,41 @@ public sealed class LeadIntakeService(
             existing.Id, tenantId, source);
 
         return IntakeResult.Updated(existing.Id);
+    }
+
+    /// <summary>
+    /// A file upload matched an existing lead. Only EMPTY fields are filled from the file; nothing
+    /// existing is overwritten, and no activity, provenance row, score bump or notification is
+    /// created — so importing the same file again is a harmless no-op.
+    /// </summary>
+    private async Task<IntakeResult> FillBlanksOnlyAsync(
+        Guid leadId, CanonicalLead lead, Guid tenantId, CancellationToken ct)
+    {
+        var existing = await db.Leads.FirstOrDefaultAsync(
+            x => x.Id == leadId && EF.Property<Guid?>(x, TenantIsolation.Column) == tenantId, ct);
+        if (existing is null) return IntakeResult.Duplicate(leadId);
+
+        static string? Blank(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
+
+        var whatsApp = Blank(existing.WhatsApp)          ?? Clip(lead.WhatsApp, 50);
+        var interest = Blank(existing.InterestedIn)      ?? Clip(lead.InterestedIn, 500);
+        var budget   = Blank(existing.Budget)            ?? Clip(lead.Budget, 100);
+        var message  = Blank(existing.Message)           ?? Clip(lead.Message, 4000);
+        var timeframe = Blank(existing.PurchaseTimeframe) ?? Clip(lead.Timeframe, 100);
+
+        var changed = whatsApp != existing.WhatsApp || interest != existing.InterestedIn
+                   || budget != existing.Budget || message != existing.Message
+                   || timeframe != existing.PurchaseTimeframe;
+        if (!changed) return IntakeResult.Duplicate(leadId);
+
+        existing.SetRequirements(whatsApp, interest, budget, message, timeframe);
+        var activityCount = await db.Activities.CountAsync(
+            a => a.RelatedToType == "lead" && a.RelatedToId == existing.Id && !a.IsDeleted, ct);
+        existing.DeriveEstimatedValueFromBudget();
+        existing.DetectTimeframeFromText();
+        existing.RecalculateScore(activityCount);
+        await db.SaveChangesAsync(ct);
+        return IntakeResult.Updated(leadId);
     }
 
     private static string RepeatSubject(CanonicalLead lead, string source)
