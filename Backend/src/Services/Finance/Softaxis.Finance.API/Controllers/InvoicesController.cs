@@ -14,6 +14,10 @@ namespace Softaxis.Finance.API.Controllers;
 [Authorize]
 public sealed class InvoicesController(ISender sender) : FinanceControllerBase
 {
+    /// <summary>Set-asides (e.g. charity) are for the workspace owners only: users who can see accounting.</summary>
+    private bool CanSeeSetAsides =>
+        User.FindFirst("is_super_admin")?.Value == "true" || User.HasClaim("permission", "finance.accounting.view");
+
     [HttpGet("summary")]
     [RequirePermission("finance.invoicing.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
@@ -40,7 +44,8 @@ public sealed class InvoicesController(ISender sender) : FinanceControllerBase
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetInvoiceByIdQuery(id), ct);
-        return OkOrError(result);
+        // Set-asides are the owners' own business: other staff never receive them.
+        return OkOrError(CanSeeSetAsides ? result : result.IsSuccess ? Softaxis.BuildingBlocks.Domain.Results.Result.Success(result.Value with { SetAsides = null }) : result);
     }
 
     /// <summary>
@@ -64,7 +69,7 @@ public sealed class InvoicesController(ISender sender) : FinanceControllerBase
     [RequirePermission("finance.invoicing.create")]
     public async Task<IActionResult> Create([FromBody] CreateInvoiceCommand cmd, CancellationToken ct)
     {
-        var result = await sender.Send(cmd, ct);
+        var result = await sender.Send(CanSeeSetAsides ? cmd : cmd with { SetAsides = null }, ct);
         return CreatedOrError(result, nameof(GetById),
             result.IsSuccess ? new { id = result.Value.Id } : null!);
     }
@@ -86,7 +91,7 @@ public sealed class InvoicesController(ISender sender) : FinanceControllerBase
     {
         var result = await sender.Send(new UpdateInvoiceCommand(id, req.CustomerName, req.CustomerEmail,
             req.InvoiceDate, req.DueDate, req.TaxRate, req.Notes, req.Status, req.Items, req.CcEmails,
-            req.ScheduledSendDate, req.RemindBeforeDue, req.CustomerAddress, req.CustomerTrn, req.PaymentMethod, req.PaymentLink, req.PaymentInstructions, req.PaymentAccountNumber, req.SetAsides), ct);
+            req.ScheduledSendDate, req.RemindBeforeDue, req.CustomerAddress, req.CustomerTrn, req.PaymentMethod, req.PaymentLink, req.PaymentInstructions, req.PaymentAccountNumber, CanSeeSetAsides ? req.SetAsides : null), ct);
         return NoContentOrError(result);
     }
 

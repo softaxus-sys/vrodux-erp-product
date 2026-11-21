@@ -2,6 +2,7 @@ import { useAccounts } from "@/hooks/finance/use-finance";
 import { PaymentDetailsFields, EMPTY_PAYMENT, paymentPayload } from "@/modules/finance/invoicing/components/payment-details-fields";
 import { SetAsideFields } from "@/modules/finance/invoicing/components/set-aside-fields";
 import { useSetAsideForm } from "@/hooks/finance/use-set-asides";
+import { useCan } from "@/components/auth/can";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
@@ -414,6 +415,7 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
   const cancelInvoice = useCancelInvoice();
   const resetInvoice  = useResetInvoiceStatus();
   const { data: detail } = useInvoiceById(invoice.id);
+  const isOwnerView = useCan("finance.accounting.view"); // set-asides are for the owners only
 
   // Letterhead from Settings → General: name, address, TRN, logo, signature and stamp.
   const branding = useCompanyBranding();
@@ -605,7 +607,7 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
         </div>
 
         {/* What is put aside from this invoice's income (e.g. charity). Nothing for invoices without any. */}
-        {(detail?.setAsides?.length ?? 0) > 0 && (
+        {isOwnerView && (detail?.setAsides?.length ?? 0) > 0 && (
           <div className="rounded-lg border border-border p-3 text-sm space-y-1">
             <p className="font-semibold">Set aside from this income</p>
             {detail!.setAsides!.map((s, i) => (

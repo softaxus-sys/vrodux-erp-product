@@ -2,6 +2,7 @@ import { Plus, Trash2, HandHeart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/utils";
+import { useCan } from "@/components/auth/can";
 import { useSetAsideRules } from "@/hooks/finance/use-set-asides";
 import type { SetAsideDef } from "@/lib/finance/finance.api";
 
@@ -26,10 +27,14 @@ interface Props {
  */
 export function SetAsideFields({ rows, onChange, subTotal, currency }: Props) {
   const { data: rules } = useSetAsideRules();
+  // Owners only: set-asides are the business's own commitment, not something other staff see.
+  const isOwner = useCan("finance.accounting.view");
   const total = rows.reduce((s, r) => s + setAsideAmount(r, subTotal), 0);
 
   const update = (i: number, patch: Partial<SetAsideDef>) =>
     onChange(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+
+  if (!isOwner) return null;
 
   return (
     <div className="col-span-2 space-y-2 rounded-lg border border-border p-3">
