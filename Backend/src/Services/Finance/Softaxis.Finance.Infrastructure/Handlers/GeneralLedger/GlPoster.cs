@@ -21,6 +21,8 @@ internal static class GlPoster
     public const string SalesRevenue  = "4001";
     public const string Purchases     = "5400"; // Cost of Goods Sold / Purchases
     public const string FxGainLoss    = "4950"; // Foreign Exchange Gain/Loss (net account)
+    public const string SetAsidePayable       = "2450"; // owed to charity etc. from invoice income
+    public const string SetAsideContributions = "5950"; // expense recognised when that income is received
 
     /// <summary>
     /// Every account number this poster can reference. Startup asserts the chart-of-accounts
@@ -30,6 +32,7 @@ internal static class GlPoster
     public static readonly IReadOnlyList<string> RequiredAccountNumbers =
     [
         Cash, Bank, AccountsReceivable, AccountsPayable, VatPayable, SalesRevenue, Purchases, FxGainLoss,
+        SetAsidePayable, SetAsideContributions,
     ];
 
     public sealed record Line(string AccountNumber, decimal Debit, decimal Credit, string? Description = null);

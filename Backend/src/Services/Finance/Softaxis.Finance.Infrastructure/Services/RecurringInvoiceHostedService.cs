@@ -157,6 +157,20 @@ public sealed class RecurringInvoiceHostedService(
                         "Invoices: workspace {TenantId} — {Sent} scheduled sent ({SendFailed} failed), " +
                         "{Reminded} reminders sent ({RemindFailed} failed).",
                         tenantId, schedule.Sent, schedule.SendFailed, schedule.Reminded, schedule.RemindFailed);
+
+                // Monthly nudge about charity etc. still waiting to be paid out. Never allowed to
+                // affect the invoicing above, and a no-op for a workspace with nothing owed.
+                try
+                {
+                    var dispatcher = scope.ServiceProvider.GetService<Softaxis.BuildingBlocks.Application.Notifications.INotificationDispatcher>();
+                    var recipients = scope.ServiceProvider.GetService<Softaxis.BuildingBlocks.Application.Notifications.INotificationRecipients>();
+                    if (dispatcher is not null && recipients is not null)
+                        await SetAsideReminder.RunAsync(db, dispatcher, recipients, tenantId, DateTime.UtcNow, ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogWarning(ex, "SetAside: monthly reminder failed for workspace {TenantId}.", tenantId);
+                }
             }
             catch (Exception ex)
             {

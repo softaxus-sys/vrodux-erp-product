@@ -74,18 +74,23 @@ public static class RecurringInvoiceGenerator
     /// <c>TenantCurrency.Resolve()</c>, which reads the ambient tenant. The caller's job is to make
     /// sure that ambient context carries a currency — the background service does, per workspace.
     /// </summary>
-    public static Invoice GenerateInvoice(RecurringInvoice template, DateTime runDate)
+    public static Invoice GenerateInvoice(RecurringInvoice template, DateTime runDate,
+        IReadOnlyList<SetAsideDef>? workspaceDefaults = null)
     {
         var invoiceDate = runDate.ToString("yyyy-MM-dd");
         var dueDate     = runDate.AddDays(template.DueDays).ToString("yyyy-MM-dd");
 
-        var note = string.IsNullOrWhiteSpace(template.Notes)
-            ? $"Auto-generated from recurring template \"{template.TemplateName}\""
-            : template.Notes;
+        // Only the template's own notes; no auto-generated "from recurring template" text.
+        var note = string.IsNullOrWhiteSpace(template.Notes) ? null : template.Notes;
 
         var invoice = new Invoice(template.CustomerName, template.CustomerEmail, invoiceDate, dueDate, template.TaxRate, note);
         invoice.SetCustomerTaxDetails(template.CustomerAddress, template.CustomerTrn);
         invoice.SetPaymentDetails(template.PaymentMethod, template.PaymentLink, template.PaymentInstructions, template.PaymentAccountNumber);
+        // The template's own choice wins (even "none"); otherwise the workspace's default rules.
+        invoice.SetSetAsides(template.SetAsidesJson is not null
+            ? SetAsideDef.Parse(template.SetAsidesJson)
+            : workspaceDefaults);
+
         foreach (var l in template.Lines)
             invoice.Items.Add(new InvoiceItem(invoice.Id, l.Description, l.Quantity, l.UnitPrice));
 
@@ -113,6 +118,7 @@ public static class RecurringInvoiceGenerator
 
         var created = 0;
         var toEmail = new List<(Invoice Invoice, RecurringInvoice Template)>();
+        var setAsideDefaults = await SetAsideService.DefaultsAsync(db, ct);
 
         foreach (var template in due)
         {
@@ -120,7 +126,7 @@ public static class RecurringInvoiceGenerator
             var guard = 0;
             while (template.IsDue(asOf) && guard++ < 60)
             {
-                var invoice = GenerateInvoice(template, template.NextRunDate);
+                var invoice = GenerateInvoice(template, template.NextRunDate, setAsideDefaults);
                 db.Invoices.Add(invoice);
                 template.AdvanceAfterGeneration();
                 created++;

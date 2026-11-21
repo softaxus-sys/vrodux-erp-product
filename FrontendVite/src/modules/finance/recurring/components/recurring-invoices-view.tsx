@@ -1,5 +1,7 @@
 import { useAccounts } from "@/hooks/finance/use-finance";
 import { PaymentDetailsFields, EMPTY_PAYMENT, paymentPayload } from "@/modules/finance/invoicing/components/payment-details-fields";
+import { SetAsideFields } from "@/modules/finance/invoicing/components/set-aside-fields";
+import { useSetAsideForm } from "@/hooks/finance/use-set-asides";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
@@ -223,6 +225,7 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
   const [customerAddress, setCustomerAddress] = React.useState("");
   const [customerTrn, setCustomerTrn] = React.useState("");
   const [pay, setPay] = React.useState(EMPTY_PAYMENT);
+  const setAside = useSetAsideForm(editing?.setAsides);
   const { data: payAccounts } = useAccounts({ isActive: true });
   const [frequency, setFrequency] = React.useState<RecurrenceFrequency>("monthly");
   const [startDate, setStartDate] = React.useState(new Date().toISOString().slice(0, 10));
@@ -236,6 +239,7 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
 
   React.useEffect(() => {
     if (!open) return;
+    setAside.reset();
     if (editing) {
       setTemplateName(editing.templateName); setCustomerName(editing.customerName);
       setCustomerEmail(editing.customerEmail ?? ""); setFrequency(editing.frequency);
@@ -271,6 +275,7 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
       customerAddress: customerAddress.trim() || null,
       customerTrn: customerTrn.trim() || null,
       ...paymentPayload(pay, payAccounts),
+      setAsides: setAside.payload,
     };
     if (isEdit && editing) update.mutate({ id: editing.id, data: payload }, { onSuccess: onClose });
     else create.mutate(payload, { onSuccess: onClose });
@@ -303,6 +308,7 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
               <div className="space-y-1.5"><Label>{t("recurring.form.customerTrn", { defaultValue: "Customer TRN#" })}</Label>
                 <Input value={customerTrn} onChange={e => setCustomerTrn(e.target.value)} placeholder="e.g. 100123456700003" /></div>
               <div className="col-span-full"><PaymentDetailsFields value={pay} onChange={setPay} /></div>
+              <div className="col-span-full"><SetAsideFields rows={setAside.rows} onChange={setAside.setRows} subTotal={subtotal} currency={CUR} /></div>
               <div className="space-y-1.5"><Label>{t("recurring.form.frequency")}</Label>
                 <select value={frequency} onChange={e => setFrequency(e.target.value as RecurrenceFrequency)}
                   className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">

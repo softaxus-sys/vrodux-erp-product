@@ -33,6 +33,8 @@ internal sealed class VoidReceiptVoucherHandler(FinanceDbContext db) : ICommandH
             {
                 var invoice = invoices.FirstOrDefault(x => x.Id == allocation.InvoiceId);
                 invoice?.ReversePayment(allocation.AmountApplied);
+                if (invoice is not null)
+                    await Softaxis.Finance.Infrastructure.Services.SetAsideService.ReverseAsync(db, invoice.Id, $"rv:{voucher.Id}", ct);
             }
 
             await GlPoster.VoidAsync(db, voucher.JournalEntryId, ct);

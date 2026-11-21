@@ -34,6 +34,8 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(x => x.CcEmails).HasMaxLength(2000);
         builder.Property(x => x.ScheduledSendDate).HasMaxLength(10);
         builder.Property(x => x.RemindBeforeDue).HasDefaultValue(true);
+        builder.Property(x => x.SetAsidesJson).HasMaxLength(2000);
+        builder.Ignore(x => x.SetAsides);
 
         // The daily sweep filters on exactly this, and it runs across every workspace.
         builder.HasIndex(x => x.ScheduledSendDate);

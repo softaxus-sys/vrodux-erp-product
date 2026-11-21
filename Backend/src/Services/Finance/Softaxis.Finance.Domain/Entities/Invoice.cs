@@ -117,6 +117,17 @@ public sealed class Invoice
     public Guid?     JournalEntryId { get; private set; }
     public Guid?     PaymentJournalEntryId { get; private set; }
 
+    /// <summary>Shares of this invoice's income to put aside (e.g. charity), as JSON. Null = none.</summary>
+    public string?   SetAsidesJson  { get; private set; }
+
+    public IReadOnlyList<SetAsideDef> SetAsides => SetAsideDef.Parse(SetAsidesJson);
+
+    public void SetSetAsides(IEnumerable<SetAsideDef>? defs)
+    {
+        SetAsidesJson = SetAsideDef.Serialise(defs);
+        UpdatedAt     = DateTime.UtcNow;
+    }
+
     public ICollection<InvoiceItem> Items { get; private set; } = new List<InvoiceItem>();
 
     public decimal SubTotal  => Items.Sum(i => i.Quantity * i.UnitPrice);

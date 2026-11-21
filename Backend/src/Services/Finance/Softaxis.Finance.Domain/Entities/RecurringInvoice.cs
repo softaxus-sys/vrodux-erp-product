@@ -67,6 +67,17 @@ public sealed class RecurringInvoice
 
     public ICollection<RecurringInvoiceLine> Lines { get; private set; } = new List<RecurringInvoiceLine>();
 
+    /// <summary>Shares of each generated invoice's income to put aside, as JSON. Null = use the
+    /// workspace's default rules (if it has any).</summary>
+    public string? SetAsidesJson { get; private set; }
+
+    public void SetSetAsides(IEnumerable<SetAsideDef>? defs)
+    {
+        // "[]" (not null) records an explicit "none", so the workspace defaults are not applied.
+        SetAsidesJson = defs is null ? null : SetAsideDef.Serialise(defs) ?? "[]";
+        UpdatedAt     = DateTime.UtcNow;
+    }
+
     public bool IsDue(DateTime asOf) =>
         IsActive && !IsDeleted && NextRunDate.Date <= asOf.Date
         && (EndDate is null || NextRunDate.Date <= EndDate.Value.Date);

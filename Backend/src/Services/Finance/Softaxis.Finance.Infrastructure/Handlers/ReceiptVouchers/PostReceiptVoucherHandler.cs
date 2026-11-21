@@ -76,6 +76,11 @@ internal sealed class PostReceiptVoucherHandler(
         var journalEntryId = await GlPoster.PostAsync(db, voucher.ReceiptDate, $"Receipt Voucher {voucher.VoucherNumber}", voucher.VoucherNumber, lines, ct);
         voucher.SetJournalEntryId(journalEntryId);
 
+        // Optional: what each invoice's payment obliges the business to put aside (e.g. charity).
+        foreach (var allocation in voucher.Allocations)
+            await SetAsideService.AccrueAsync(db, invoices.First(x => x.Id == allocation.InvoiceId),
+                allocation.AmountApplied, voucher.ReceiptDate, $"rv:{voucher.Id}", ct);
+
         // Captured BEFORE the send: RecordPayment already ran above, so AmountDue is the balance
         // left AFTER this receipt — which is exactly what the customer needs to see.
         var applied = voucher.Allocations

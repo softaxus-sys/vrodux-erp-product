@@ -42,10 +42,17 @@ internal sealed class MarkInvoicePaidHandler(
         if (invoice.Status == "cancelled")
             return Result.Failure(Error.Custom("Invoice.Conflict", "A cancelled invoice cannot be marked paid."));
 
-        // A draft has never been sent, so no receivable exists to relieve — crediting AR here would
-        // post a payment against a sale the ledger has never seen. Send it first.
+        // A draft has never been issued, so no receivable exists to relieve. Issue it first (same
+        // ledger posting as Send, but no email) so an invoice that is settled without ever being
+        // emailed - cash sale, paid on the spot - still gets its sales entry before the payment.
         if (invoice.Status == "draft")
-            return Result.Failure(Error.Custom("Invoice.Conflict", "Send the invoice before marking it paid."));
+        {
+            if (await GlPoster.IsPeriodClosedAsync(db, invoice.InvoiceDate, ct))
+                return Result.Failure(Error.Custom("FiscalPeriod.Locked", $"The fiscal period for {invoice.InvoiceDate} is closed for posting."));
+            invoice.Send();
+            var salesEntryId = await GlPoster.PostInvoiceSalesAsync(db, invoice, ct);
+            invoice.SetJournalEntryId(salesEntryId);
+        }
 
         var outstanding = invoice.AmountDue;
         if (outstanding <= 0)
@@ -99,6 +106,10 @@ internal sealed class MarkInvoicePaidHandler(
             db, settlementDate, $"Payment - Invoice {invoice.InvoiceNumber}", invoice.InvoiceNumber, lines, ct);
         invoice.SetPaymentJournalEntryId(journalEntryId);
 
+        // Optional: record what this payment obliges the business to put aside (e.g. charity).
+        // Nothing happens for an invoice with no set-asides.
+        await SetAsideService.AccrueAsync(db, invoice, outstanding, settlementDate, $"inv:{invoice.Id}", ct);
+
         await db.SaveChangesAsync(ct);
 
         await SendReceiptAsync(invoice, outstanding, settlementDate, ct);
@@ -117,6 +128,8 @@ internal sealed class MarkInvoicePaidHandler(
         Invoice invoice, decimal amountReceived, string receivedOn, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(invoice.CustomerEmail)) return;
+        // Never emailed the invoice (marked paid straight from draft): do not email a receipt either.
+        if (invoice.EmailSentAt is null) return;
 
         try
         {

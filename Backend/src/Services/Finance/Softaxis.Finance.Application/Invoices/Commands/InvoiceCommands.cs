@@ -16,12 +16,16 @@ public sealed record CreateInvoiceCommand(
     /// <summary>Buyer billing address (multi-line) and TRN#, printed under "Bill To".</summary>
     string? CustomerAddress = null,
     string? CustomerTrn = null,
-    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null) : ICommand<InvoiceDto>;
+    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null,
+    /// <summary>Shares of the income to put aside (e.g. charity). Null = use the workspace's default
+    /// rules; an empty list = none for this invoice.</summary>
+    IReadOnlyList<SetAsideDto>? SetAsides = null) : ICommand<InvoiceDto>;
 
 public sealed class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
 {
     public CreateInvoiceValidator()
     {
+        RuleForEach(x => x.SetAsides).SetValidator(new SetAsideDtoValidator());
         RuleFor(x => x.CustomerName).NotEmpty();
         RuleFor(x => x.InvoiceDate).NotEmpty();
         RuleFor(x => x.DueDate).NotEmpty();
@@ -49,12 +53,15 @@ public sealed record UpdateInvoiceCommand(
     bool RemindBeforeDue = true,
     string? CustomerAddress = null,
     string? CustomerTrn = null,
-    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null) : ICommand;
+    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null,
+    /// <summary>Null = leave the invoice's set-asides as they are.</summary>
+    IReadOnlyList<SetAsideDto>? SetAsides = null) : ICommand;
 
 public sealed class UpdateInvoiceValidator : AbstractValidator<UpdateInvoiceCommand>
 {
     public UpdateInvoiceValidator()
     {
+        RuleForEach(x => x.SetAsides).SetValidator(new SetAsideDtoValidator());
         RuleFor(x => x.CustomerName).NotEmpty();
         RuleFor(x => x.InvoiceDate).NotEmpty();
         RuleFor(x => x.DueDate).NotEmpty();

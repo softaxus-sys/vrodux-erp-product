@@ -54,7 +54,8 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
         string? CcEmails = null, bool AutoSend = true,
         // Buyer billing address (multi-line) and TRN#, copied onto every generated invoice.
         string? CustomerAddress = null, string? CustomerTrn = null,
-        string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null);
+        string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null,
+        IReadOnlyList<Softaxis.Finance.Application.Invoices.Dtos.SetAsideDto>? SetAsides = null);
 
     [HttpPost]
     [RequirePermission("finance.invoicing.create")]
@@ -64,7 +65,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
             req.TemplateName, req.CustomerName, req.CustomerEmail, req.Frequency,
             req.StartDate, req.EndDate, req.DueDays, req.TaxRate, req.Notes,
             req.Lines.Select(l => new Application.RecurringInvoices.Dtos.LineRequest(l.Description, l.Quantity, l.UnitPrice)).ToList(),
-            req.CcEmails, req.AutoSend, req.CustomerAddress, req.CustomerTrn, req.PaymentMethod, req.PaymentLink, req.PaymentInstructions, req.PaymentAccountNumber), ct);
+            req.CcEmails, req.AutoSend, req.CustomerAddress, req.CustomerTrn, req.PaymentMethod, req.PaymentLink, req.PaymentInstructions, req.PaymentAccountNumber, req.SetAsides), ct);
 
         return CreatedOrError(result, nameof(GetById), result.IsSuccess ? new { id = result.Value.Id } : null!);
     }
@@ -77,7 +78,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
             id, req.TemplateName, req.CustomerName, req.CustomerEmail, req.Frequency,
             req.EndDate, req.DueDays, req.TaxRate, req.Notes,
             req.Lines.Select(l => new Application.RecurringInvoices.Dtos.LineRequest(l.Description, l.Quantity, l.UnitPrice)).ToList(),
-            req.CcEmails, req.AutoSend, req.CustomerAddress, req.CustomerTrn, req.PaymentMethod, req.PaymentLink, req.PaymentInstructions, req.PaymentAccountNumber), ct);
+            req.CcEmails, req.AutoSend, req.CustomerAddress, req.CustomerTrn, req.PaymentMethod, req.PaymentLink, req.PaymentInstructions, req.PaymentAccountNumber, req.SetAsides), ct);
 
         return NoContentOrError(result);
     }

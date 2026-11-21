@@ -1,5 +1,6 @@
 using FluentValidation;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.Finance.Application.Invoices.Dtos;
 using Softaxis.Finance.Application.RecurringInvoices.Dtos;
 
 namespace Softaxis.Finance.Application.RecurringInvoices.Commands;
@@ -12,7 +13,9 @@ public sealed record CreateRecurringInvoiceCommand(
     // a draft for someone to review and send by hand.
     string? CcEmails = null, bool AutoSend = true,
     string? CustomerAddress = null, string? CustomerTrn = null,
-    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null) : ICommand<RecurringDto>;
+    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null,
+    /// <summary>Null = use the workspace's default rules on each generated invoice; a list (even empty) is explicit.</summary>
+    IReadOnlyList<SetAsideDto>? SetAsides = null) : ICommand<RecurringDto>;
 
 public sealed class CreateRecurringInvoiceValidator : AbstractValidator<CreateRecurringInvoiceCommand>
 {
@@ -32,7 +35,8 @@ public sealed record UpdateRecurringInvoiceCommand(
     IReadOnlyList<LineRequest> Lines,
     string? CcEmails = null, bool AutoSend = true,
     string? CustomerAddress = null, string? CustomerTrn = null,
-    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null) : ICommand;
+    string? PaymentMethod = null, string? PaymentLink = null, string? PaymentInstructions = null, string? PaymentAccountNumber = null,
+    IReadOnlyList<SetAsideDto>? SetAsides = null) : ICommand;
 
 public sealed class UpdateRecurringInvoiceValidator : AbstractValidator<UpdateRecurringInvoiceCommand>
 {

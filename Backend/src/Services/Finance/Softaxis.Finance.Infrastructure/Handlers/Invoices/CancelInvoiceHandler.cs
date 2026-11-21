@@ -35,6 +35,7 @@ internal sealed class CancelInvoiceHandler(FinanceDbContext db) : ICommandHandle
         await GlPoster.VoidAsync(db, invoice.PaymentJournalEntryId, ct);
         invoice.SetJournalEntryId(null);
         invoice.SetPaymentJournalEntryId(null);
+        await Softaxis.Finance.Infrastructure.Services.SetAsideService.ReverseAsync(db, invoice.Id, null, ct);
         invoice.Cancel();
         await db.SaveChangesAsync(ct);
 

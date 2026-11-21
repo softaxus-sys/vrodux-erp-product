@@ -60,6 +60,7 @@ internal sealed class ResetInvoiceStatusHandler(FinanceDbContext db) : ICommandH
         await GlPoster.VoidAsync(db, invoice.PaymentJournalEntryId, ct);
         invoice.SetJournalEntryId(null);
         invoice.SetPaymentJournalEntryId(null);
+        await Softaxis.Finance.Infrastructure.Services.SetAsideService.ReverseAsync(db, invoice.Id, null, ct);
 
         invoice.ResetToDraft();
         await db.SaveChangesAsync(ct);

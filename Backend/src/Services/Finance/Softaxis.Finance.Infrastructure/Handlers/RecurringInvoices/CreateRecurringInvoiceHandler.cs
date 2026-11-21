@@ -17,6 +17,10 @@ internal sealed class CreateRecurringInvoiceHandler(FinanceDbContext db) : IComm
         r.SetCustomerTaxDetails(cmd.CustomerAddress, cmd.CustomerTrn);
         r.SetPaymentDetails(cmd.PaymentMethod, cmd.PaymentLink, cmd.PaymentInstructions, cmd.PaymentAccountNumber);
 
+        // Null leaves the template on the workspace defaults (applied when each invoice is generated).
+        if (cmd.SetAsides is not null)
+            r.SetSetAsides(cmd.SetAsides.Select(s => new SetAsideDef(s.Name, s.Kind, s.Value)));
+
         foreach (var l in cmd.Lines)
             r.Lines.Add(new RecurringInvoiceLine(r.Id, l.Description, l.Quantity, l.UnitPrice));
 

@@ -19,7 +19,7 @@ internal sealed class GenerateNowHandler(FinanceDbContext db, IFinanceEmailServi
         if (r is null)
             return Result.Failure<GenerateInvoiceResultDto>(Error.NotFoundById("RecurringInvoice", cmd.Id));
 
-        var invoice = RecurringInvoiceGenerator.GenerateInvoice(r, DateTime.UtcNow);
+        var invoice = RecurringInvoiceGenerator.GenerateInvoice(r, DateTime.UtcNow, await SetAsideService.DefaultsAsync(db, ct));
         db.Invoices.Add(invoice);
         r.AdvanceAfterGeneration();
 
